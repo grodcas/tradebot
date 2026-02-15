@@ -1,6 +1,8 @@
 require('dotenv').config();
 const fs = require("fs");
 const OpenAI = require("openai");
+const { computeIndicators, printIndicators } = require("./trade_indicators");
+const { callStrategyTradeDecision, validateDecision, MAX_WAIT_BARS } = require("./strategy_selector");
 
 // ----------------------------
 // CONFIG
@@ -188,102 +190,6 @@ function getRandomAnchorIndices(bars5m, count) {
 // ----------------------------
 // LLM CALLS
 // ----------------------------
-function clamp01(x) {
-  if (!Number.isFinite(x)) return 0;
-  return Math.max(0, Math.min(1, x));
-}
-
-function validateDecision(dec, fallbackEntry) {
-  if (!dec || typeof dec !== "object") throw new Error("Decision not an object.");
-  if (!["LONG", "SHORT"].includes(dec.side)) throw new Error("Invalid side.");
-
-  const entry = Number(dec.entry ?? fallbackEntry);
-  const tp = Number(dec.tp);
-  const sl = Number(dec.sl);
-  const risk = clamp01(Number(dec.risk));
-
-  if (![entry, tp, sl].every(Number.isFinite)) throw new Error("entry/tp/sl must be numbers.");
-  if (tp === sl) throw new Error("tp cannot equal sl.");
-
-  if (dec.side === "LONG") {
-    if (!(tp > entry && sl < entry)) throw new Error("LONG must have tp>entry and sl<entry.");
-  } else {
-    if (!(tp < entry && sl > entry)) throw new Error("SHORT must have tp<entry and sl>entry.");
-  }
-
-  return { side: dec.side, entry, tp, sl, risk, reasoning: dec.reasoning || "" };
-}
-
-const MAX_WAIT_BARS = 4;  // 4 x 5min = 20 minutes max wait
-
-async function callTradeDecision({ rules, context, currentBar, waitCount, mustTrade, waitHistory = [] }) {
-  const system = `
-You are an aggressive forex intraday trader who understands that opportunities are fleeting.
-You MUST output ONLY valid JSON matching the schema exactly.
-No markdown, no commentary.
-
-TRADING PHILOSOPHY:
-- Markets don't wait. Good setups disappear fast.
-- Waiting has a COST: conditions often get WORSE, not better.
-- The current bar might be the BEST entry you'll see.
-- Partial alignment is often enough - perfection doesn't exist in markets.
-- Trade with smaller risk if uncertain, but TRADE.
-`;
-
-  const waitInfo = mustTrade
-    ? `FINAL BAR - You MUST output action="TRADE" now. Use lower risk (0.2-0.5) if uncertain.`
-    : `Waits left: ${MAX_WAIT_BARS - waitCount}. WARNING: Each wait risks MISSING the move or getting WORSE conditions.`;
-
-  const waitHistorySection = waitHistory.length > 0
-    ? `\nBARS YOU ALREADY REJECTED:\n${waitHistory.map((w, i) =>
-        `  ${i + 1}. ${w.bar.time} close=${w.bar.close} - "${w.reasoning?.slice(0, 100)}..."`
-      ).join('\n')}\n\n^^^ You passed on these. The move may have already started. This bar might be WORSE than what you rejected.`
-    : '';
-
-  const user = `
-RULES (json):
-${JSON.stringify(rules)}
-
-MARKET CONTEXT (compressed features):
-${JSON.stringify(context)}
-
-CURRENT 5MIN BAR:
-${JSON.stringify(currentBar)}
-${waitHistorySection}
-
-TIMING:
-- Waits used: ${waitCount}/${MAX_WAIT_BARS}
-- ${waitInfo}
-
-
-
-OUTPUT JSON SCHEMA (strict):
-{
-  "action": "TRADE" | "WAIT",
-  "side": "LONG" | "SHORT" (required if action=TRADE),
-  "entry": number (required if action=TRADE, use current close),
-  "tp": number (required if action=TRADE),
-  "sl": number (required if action=TRADE),
-  "risk": number 0-1 (required if action=TRADE: 0.3-0.6 for uncertain, 0.7-1.0 for strong setups),
-  "reasoning": string (max 500 chars - be decisive, not wishy-washy)
-}
-`;
-
-  const resp = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.2,
-    messages: [
-      { role: "system", content: system.trim() },
-      { role: "user", content: user.trim() },
-    ],
-    response_format: { type: "json_object" },
-  });
-
-  const text = resp.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Empty LLM response.");
-  return JSON.parse(text);
-}
-
 async function callTradeSummary({ context, decision, simResult, R }) {
   const system = `
 You are a trading analyst. Analyze the trade and explain what happened.
@@ -413,11 +319,16 @@ async function main() {
 
       const context = buildLLMContext({ bars5m: win5m, bars30m, barsDaily });
 
+      // Compute and print trade indicators
+      const indicators = computeIndicators(bars5m, bars30m, idx);
+      printIndicators(indicators);
+
       // Entry timing loop - AI can wait up to 4 bars (20 min)
       let waitCount = 0;
       let entryIdx = idx;
       let decision = null;
       let waitHistory = [];
+      let selectedStrategy = null;  // Track selected strategy across waits
 
       while (waitCount <= MAX_WAIT_BARS) {
         const mustTrade = waitCount === MAX_WAIT_BARS;
@@ -429,10 +340,29 @@ async function main() {
           close: bars5m[entryIdx].close,
         };
 
-        const rawDecision = await callTradeDecision({ rules, context, currentBar, waitCount, mustTrade, waitHistory });
+        // Use strategy selector instead of direct trade decision
+        const rawDecision = await callStrategyTradeDecision({
+          rules,
+          context,
+          indicators,
+          currentBar,
+          waitCount,
+          mustTrade,
+          waitHistory,
+        });
+
+        // Capture strategy on first call
+        if (waitCount === 0 && rawDecision.selectedStrategy) {
+          selectedStrategy = rawDecision.selectedStrategy;
+        }
 
         if (rawDecision.action === "WAIT" && !mustTrade) {
-          waitHistory.push({ bar: currentBar, reasoning: rawDecision.reasoning });
+          // Store strategy in wait history so subsequent calls use same strategy
+          waitHistory.push({
+            bar: currentBar,
+            reasoning: rawDecision.reasoning,
+            strategy: selectedStrategy,
+          });
           console.log(`   WAIT ${waitCount + 1}/${MAX_WAIT_BARS}: ${rawDecision.reasoning?.slice(0, 80)}...`);
           waitCount++;
           entryIdx++;
@@ -451,6 +381,7 @@ async function main() {
             risk: 0,
             reasoning: rawDecision.reasoning || "Refused to trade - conditions not met",
             skippedByAI: true,
+            selectedStrategy: selectedStrategy,
           };
           decision.waitCount = waitCount;
           decision.waitHistory = waitHistory;
@@ -459,6 +390,10 @@ async function main() {
           decision = validateDecision(rawDecision, bars5m[entryIdx].close);
           decision.waitCount = waitCount;
           decision.waitHistory = waitHistory;
+          decision.selectedStrategy = selectedStrategy;
+          if (rawDecision.strategyReasoning) {
+            decision.strategyReasoning = rawDecision.strategyReasoning;
+          }
           break;
         }
       }
@@ -485,10 +420,11 @@ async function main() {
       const summary = await callTradeSummary({ context, decision, simResult, R: rawR });
 
       const waitInfo = decision.waitCount > 0 ? ` (waited ${decision.waitCount * 5}min)` : "";
+      const strategyInfo = decision.selectedStrategy ? ` [${decision.selectedStrategy}]` : "";
       const tpR = decision.side === "LONG"
         ? (decision.tp - decision.entry) / Math.abs(decision.entry - decision.sl)
         : (decision.entry - decision.tp) / Math.abs(decision.sl - decision.entry);
-      console.log(`   ${decision.side} | TP target: ${tpR.toFixed(2)}R | Result: ${rawR.toFixed(2)}R × ${decision.risk.toFixed(1)} = ${weightedR.toFixed(2)} | ${simResult.outcome}${waitInfo}`);
+      console.log(`   ${decision.side}${strategyInfo} | TP target: ${tpR.toFixed(2)}R | Result: ${rawR.toFixed(2)}R × ${decision.risk.toFixed(1)} = ${weightedR.toFixed(2)} | ${simResult.outcome}${waitInfo}`);
       console.log(`   Reasoning: ${decision.reasoning?.slice(0, 150)}...`);
 
       results.push({
@@ -496,6 +432,16 @@ async function main() {
         anchorTime: anchor.time,
         entryTime: bars5m[entryIdx].time,
         waitCount: decision.waitCount,
+        selectedStrategy: decision.selectedStrategy,
+        strategyReasoning: decision.strategyReasoning,
+        indicators: {
+          currentSession: indicators.currentSession,
+          previousSession: indicators.previousSession,
+          support: indicators.support,
+          resistance: indicators.resistance,
+          swingHighs: indicators.swingHighs,
+          swingLows: indicators.swingLows,
+        },
         context,
         decision,
         simResult,

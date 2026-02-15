@@ -1,0 +1,34 @@
+{
+  "strategy_selection_criteria": {
+    "STRATEGY_1": {
+      "name": "Trend Following",
+      "conditions": [
+        "Use when 5M and 30M slopes align in the same direction",
+        "Use when volatility is expanding or stable",
+        "Use when price is trending away from session support/resistance"
+      ]
+    },
+    "STRATEGY_2": {
+      "name": "Mean Reversion",
+      "conditions": [
+        "Use when price is at extreme levels relative to session range",
+        "Use when volatility is contracting after expansion",
+        "Use when price is near previous session support or resistance"
+      ]
+    },
+    "STRATEGY_3": {
+      "name": "Breakout",
+      "conditions": [
+        "Use when price breaks above resistance or below support",
+        "Use when volatility is suddenly expanding",
+        "Use when there is clear structure to trade against"
+      ]
+    }
+  },
+  "selection_rules": [
+    "Analyze the market context and indicators to determine the best strategy",
+    "Consider the current session and previous session levels",
+    "Look at swing points to understand market structure",
+    "If conditions are unclear, prefer STRATEGY_1 (Trend Following)"
+  ]
+}

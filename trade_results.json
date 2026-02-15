@@ -1,839 +1,1031 @@
 [
   {
     "tradeNum": 1,
-    "anchorTime": "20260209 12:55:00 US/Eastern",
-    "entryTime": "20260209 13:15:00 US/Eastern",
+    "anchorTime": "20251121 11:25:00 US/Eastern",
+    "entryTime": "20251121 11:35:00 US/Eastern",
     "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "LONDON",
+      "previousSession": "ASIA",
+      "support": 1.150455,
+      "resistance": 1.154985,
+      "swingHighs": [
+        {
+          "index": 28,
+          "price": 1.152285,
+          "time": "2025-11-21T06:40:00.000Z",
+          "_t": 1763707200000
+        },
+        {
+          "index": 37,
+          "price": 1.152705,
+          "time": "2025-11-21T08:55:00.000Z",
+          "_t": 1763715300000
+        },
+        {
+          "index": 42,
+          "price": 1.152345,
+          "time": "2025-11-21T10:10:00.000Z",
+          "_t": 1763719800000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 10,
+          "price": 1.15389,
+          "time": "2025-11-21T02:10:00.000Z",
+          "_t": 1763691000000
+        },
+        {
+          "index": 14,
+          "price": 1.153415,
+          "time": "2025-11-21T03:10:00.000Z",
+          "_t": 1763694600000
+        },
+        {
+          "index": 23,
+          "price": 1.15125,
+          "time": "2025-11-21T05:25:00.000Z",
+          "_t": 1763702700000
+        },
+        {
+          "index": 31,
+          "price": 1.14966,
+          "time": "2025-11-21T07:25:00.000Z",
+          "_t": 1763709900000
+        },
+        {
+          "index": 40,
+          "price": 1.150545,
+          "time": "2025-11-21T09:40:00.000Z",
+          "_t": 1763718000000
+        }
+      ]
+    },
     "context": {
       "ctx_5m": {
         "n": 15,
-        "mean": 1.1902499999999998,
-        "max": 1.19109,
-        "min": 1.189435,
-        "range_over_mean": 0.0013904641881957256,
-        "ret": 0.0009287587412588537,
-        "vol": 0.00019873967753851867,
-        "slope_over_mean": 0.00007876496534341692,
-        "last_close": 1.190865
+        "mean": 1.1498673333333331,
+        "max": 1.150685,
+        "min": 1.149295,
+        "range_over_mean": 0.0012088351061948618,
+        "ret": 0.00016086886578762854,
+        "vol": 0.00019854442689140877,
+        "slope_over_mean": -0.000007951227831084733,
+        "last_close": 1.15019
       },
       "ctx_30m": {
         "n": 15,
-        "mean": 1.1894013333333333,
-        "max": 1.19267,
-        "min": 1.18551,
-        "range_over_mean": 0.00601983518879512,
-        "ret": 0.004085091313805828,
-        "vol": 0.000620767297027313,
-        "slope_over_mean": 0.00027754058584414766,
-        "last_close": 1.190865
+        "mean": 1.1512256666666665,
+        "max": 1.152705,
+        "min": 1.149295,
+        "range_over_mean": 0.00296206043587759,
+        "ret": -0.0019740295800740387,
+        "vol": 0.000405651492647442,
+        "slope_over_mean": -0.00013454604221198825,
+        "last_close": 1.15019
       },
       "ctx_daily": {
-        "n": 15,
-        "mean": 1.1862476666666666,
-        "max": 1.20458,
-        "min": 1.172835,
-        "range_over_mean": 0.026760853481130765,
-        "ret": 0.007372160893287677,
-        "vol": 0.004404481734005783,
-        "slope_over_mean": -0.0004910441692473947,
-        "last_close": 1.190865
+        "n": 10,
+        "mean": 1.157533,
+        "max": 1.16562,
+        "min": 1.149295,
+        "range_over_mean": 0.014103269626006469,
+        "ret": -0.006538488114980527,
+        "vol": 0.002776953524187231,
+        "slope_over_mean": -0.0009381498358486413,
+        "last_close": 1.15019
       },
-      "last_close": 1.190865
+      "last_close": 1.15019
     },
     "decision": {
       "side": "LONG",
-      "entry": 1.190995,
-      "tp": 1.19267,
-      "sl": 1.19049,
+      "entry": 1.149545,
+      "tp": 1.15046,
+      "sl": 1.149295,
       "risk": 0.3,
-      "reasoning": "Current bar shows a slight upward movement with potential for continuation. Although volatility is low, the recent price action suggests a possible breakout. Entry is near the last close, with a reasonable target at the next structural liquidity level. Risk is adjusted to account for uncertainty in current conditions.",
+      "reasoning": "Current market conditions show a potential for upward movement as the price is near support and there is visible room to the next structural level. The 5M slope is aligned with the 30M trend, and the entry is near a recent micro-structure level. Volatility is stable, allowing for a continuation trade.",
       "waitCount": 4,
       "waitHistory": [
         {
           "bar": {
-            "time": "20260209 12:55:00 US/Eastern",
-            "open": 1.191,
-            "high": 1.19109,
-            "low": 1.190835,
-            "close": 1.190865
+            "time": "20251121 11:25:00 US/Eastern",
+            "open": 1.15002,
+            "high": 1.15025,
+            "low": 1.14994,
+            "close": 1.15019
           },
-          "reasoning": "Current market conditions show low 5M volatility and a lack of meaningful slope magnitude. The 5M range is below the recent baseline, indicating compression. Waiting could risk missing a potential move, but the setup does not meet the criteria for a trade."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is compressed, and there is no clear pullback or structural level to enter a trade. Waiting for a clearer trend confirmation is advisable.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20260209 13:00:00 US/Eastern",
-            "open": 1.190865,
-            "high": 1.191275,
-            "low": 1.190825,
-            "close": 1.19123
+            "time": "20251121 11:25:00 US/Eastern",
+            "open": 1.15002,
+            "high": 1.15025,
+            "low": 1.14994,
+            "close": 1.15019
           },
-          "reasoning": "Current market conditions show low 5M volatility and a lack of meaningful slope magnitude. The 5M range is tight, indicating compression. Waiting for better conditions is prudent to avoid entering a low-quality trade."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, there is no clear pullback or structural level to enter on, and the trend is not confirmed due to contracting volatility.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20260209 13:05:00 US/Eastern",
-            "open": 1.19123,
-            "high": 1.19142,
-            "low": 1.19114,
-            "close": 1.191305
+            "time": "20251121 11:30:00 US/Eastern",
+            "open": 1.15019,
+            "high": 1.150345,
+            "low": 1.149975,
+            "close": 1.150135
           },
-          "reasoning": "Current market conditions show low 5M volatility and a lack of meaningful slope magnitude. The 5M range is still below the recent baseline, indicating compression. Given the risks of missing the move or encountering worse conditions, it's prudent to wait for a clearer setup."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is not conducive for a trade, and the recent price action does not provide a clear entry point aligned with the trend-following strategy.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20260209 13:10:00 US/Eastern",
-            "open": 1.191305,
-            "high": 1.191425,
-            "low": 1.191225,
-            "close": 1.19128
+            "time": "20251121 11:30:00 US/Eastern",
+            "open": 1.15019,
+            "high": 1.150345,
+            "low": 1.149975,
+            "close": 1.150135
           },
-          "reasoning": "Current market conditions show low 5M volatility and lack of meaningful slope magnitude. The recent bars have been rejected due to these factors, and waiting for better conditions is prudent to avoid entering a low-quality trade."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is compressed, and the recent price action does not provide a clear entry point aligned with the trend-following strategy.",
+          "strategy": "STRATEGY_1"
         }
-      ]
+      ],
+      "selectedStrategy": "STRATEGY_1"
     },
     "simResult": {
       "outcome": "SL",
-      "exitPrice": 1.19049,
-      "exitIndex": 24118,
-      "barsHeld": 1
+      "exitPrice": 1.149295,
+      "exitIndex": 2677,
+      "barsHeld": 2
     },
     "rawR": -1,
     "weightedR": -0.3,
     "summary": {
-      "entry_reasoning": "The entry was based on a slight upward movement observed in the current bar, indicating potential for continuation. The decision to enter a long position was supported by the proximity to the last close price and the target being set at a structural liquidity level. However, the low volatility and lack of meaningful slope magnitude suggested that the market was in a compressed state, which could lead to a lack of momentum.",
-      "what_happened": "After entry at 1.190995, the price initially moved towards the target but quickly reversed. The price hit the stop loss at 1.19049, resulting in an exit. The market conditions remained volatile, and the compression indicated that the upward movement was not sustainable, leading to the stop loss being triggered.",
-      "why_outcome": "The outcome was primarily due to the market conditions being unfavorable for a breakout despite the initial reasoning for entry. The low volatility and compression indicated that there was not enough momentum to sustain the upward move, leading to a quick reversal and hitting the stop loss. This suggests that the strategy may not have been aligned with the prevailing market conditions.",
-      "lessons": "To improve outcomes, it may be beneficial to incorporate additional filters for volatility and slope magnitude before entering trades. Waiting for a clearer breakout signal or higher volatility could help avoid entering trades in compressed market conditions, which tend to lead to false breakouts.",
+      "entry_reasoning": "The entry was based on the observation that the price was near a support level and there was potential for upward movement. The 5-minute slope was aligned with the 30-minute trend, suggesting a possible continuation. However, the market conditions indicated low volatility and a lack of clear trend confirmation, which should have raised concerns about the reliability of the entry point.",
+      "what_happened": "After the entry at 1.149545, the price did not move in the anticipated upward direction. Instead, it declined and hit the stop loss at 1.149295. The market exhibited low volatility and a compressed range, which likely contributed to the price failing to reach the take profit target of 1.15046.",
+      "why_outcome": "The outcome was a loss due to a combination of market conditions that were not favorable for a long position. The low volatility and lack of meaningful slope alignment indicated that the market was not conducive for upward movement, leading to the stop loss being triggered. This suggests that the strategy may not have been adequately adapted to the prevailing market conditions.",
+      "lessons": "To improve outcomes, it may be beneficial to incorporate a stricter filter for market conditions, ensuring that entries are only made when volatility is above a certain threshold and when there is clear trend confirmation. Additionally, reevaluating the risk-reward ratio and adjusting stop loss levels based on market structure could help mitigate losses in similar situations.",
       "rating": "BAD"
     }
   },
   {
     "tradeNum": 2,
-    "anchorTime": "20251127 11:25:00 US/Eastern",
-    "entryTime": "20251127 11:35:00 US/Eastern",
+    "anchorTime": "20260128 09:00:00 US/Eastern",
+    "entryTime": "20260128 09:20:00 US/Eastern",
     "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "LONDON",
+      "previousSession": "ASIA",
+      "support": 1.19600475,
+      "resistance": 1.2004625,
+      "swingHighs": [
+        {
+          "index": 5,
+          "price": 1.19387,
+          "time": "2026-01-27T08:00:00.000Z",
+          "_t": 1769500800000
+        },
+        {
+          "index": 13,
+          "price": 1.19902,
+          "time": "2026-01-27T12:00:00.000Z",
+          "_t": 1769515200000
+        },
+        {
+          "index": 17,
+          "price": 1.20458,
+          "time": "2026-01-27T18:00:00.000Z",
+          "_t": 1769536800000
+        },
+        {
+          "index": 26,
+          "price": 1.200505,
+          "time": "2026-01-27T22:30:00.000Z",
+          "_t": 1769553000000
+        },
+        {
+          "index": 29,
+          "price": 1.200175,
+          "time": "2026-01-28T00:00:00.000Z",
+          "_t": 1769558400000
+        },
+        {
+          "index": 34,
+          "price": 1.20258,
+          "time": "2026-01-28T02:30:00.000Z",
+          "_t": 1769567400000
+        },
+        {
+          "index": 41,
+          "price": 1.199495,
+          "time": "2026-01-28T06:00:00.000Z",
+          "_t": 1769580000000
+        },
+        {
+          "index": 45,
+          "price": 1.19835,
+          "time": "2026-01-28T08:00:00.000Z",
+          "_t": 1769587200000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 24,
+          "price": 1.19873,
+          "time": "2026-01-27T21:30:00.000Z",
+          "_t": 1769549400000
+        },
+        {
+          "index": 29,
+          "price": 1.197465,
+          "time": "2026-01-28T00:00:00.000Z",
+          "_t": 1769558400000
+        },
+        {
+          "index": 37,
+          "price": 1.197045,
+          "time": "2026-01-28T04:00:00.000Z",
+          "_t": 1769572800000
+        },
+        {
+          "index": 43,
+          "price": 1.19619,
+          "time": "2026-01-28T07:00:00.000Z",
+          "_t": 1769583600000
+        }
+      ]
+    },
     "context": {
       "ctx_5m": {
         "n": 15,
-        "mean": 1.159656333333333,
-        "max": 1.16003,
-        "min": 1.159235,
-        "range_over_mean": 0.0006855479310104914,
-        "ret": 0.0005606614079502127,
-        "vol": 0.00006196056585167988,
-        "slope_over_mean": 0.00004347039104319307,
-        "last_close": 1.159995
+        "mean": 1.196554333333333,
+        "max": 1.19808,
+        "min": 1.195195,
+        "range_over_mean": 0.002411089843252718,
+        "ret": -0.0020995775800175505,
+        "vol": 0.00030795938705089964,
+        "slope_over_mean": -0.0001551777184336544,
+        "last_close": 1.195345
       },
       "ctx_30m": {
         "n": 15,
-        "mean": 1.1593496666666665,
-        "max": 1.16003,
-        "min": 1.158205,
-        "range_over_mean": 0.001574158385922653,
-        "ret": 0.0014417369909136557,
-        "vol": 0.00020803017761634034,
-        "slope_over_mean": 0.00007367122857014063,
-        "last_close": 1.159995
+        "mean": 1.1980456666666666,
+        "max": 1.20258,
+        "min": 1.195195,
+        "range_over_mean": 0.0061642057606596315,
+        "ret": -0.00374633284437918,
+        "vol": 0.0006694723533258569,
+        "slope_over_mean": -0.0002068994587574124,
+        "last_close": 1.195345
       },
       "ctx_daily": {
         "n": 15,
-        "mean": 1.1572869999999997,
-        "max": 1.16562,
-        "min": 1.149115,
-        "range_over_mean": 0.014261803683960846,
-        "ret": 0.0019304519071311923,
-        "vol": 0.002795877741360874,
-        "slope_over_mean": -0.00026745125206007673,
-        "last_close": 1.159995
+        "mean": 1.174009,
+        "max": 1.20458,
+        "min": 1.15788,
+        "range_over_mean": 0.03977822997949757,
+        "ret": 0.02528154940087672,
+        "vol": 0.00379449737334239,
+        "slope_over_mean": 0.002223912131118974,
+        "last_close": 1.195345
       },
-      "last_close": 1.159995
+      "last_close": 1.195345
     },
     "decision": {
       "side": "LONG",
-      "entry": 1.159835,
-      "tp": 1.16003,
-      "sl": 1.159755,
+      "entry": 1.196635,
+      "tp": 1.20046,
+      "sl": 1.196085,
       "risk": 0.3,
-      "reasoning": "Current bar shows a slight upward movement with a close near the high. Although volatility is low, the market conditions indicate a potential for a minor upward move. Entry is near recent micro-structure with visible room to the next structural level. Risk is adjusted to 0.3 due to uncertainty in slope alignment.",
+      "reasoning": "Current market conditions show a slight upward trend with the last close above the recent support level. The entry is near the recent micro-structure, and there is visible room to the next structural liquidity level at resistance. Volatility is stable, allowing for a continuation trade with a reasonable risk-to-reward ratio.",
       "waitCount": 4,
       "waitHistory": [
         {
           "bar": {
-            "time": "20251127 11:25:00 US/Eastern",
-            "open": 1.15984,
-            "high": 1.16003,
-            "low": 1.15984,
-            "close": 1.159995
+            "time": "20260128 09:00:00 US/Eastern",
+            "open": 1.195755,
+            "high": 1.196,
+            "low": 1.195255,
+            "close": 1.195345
           },
-          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Waiting may risk missing a better setup, but the current conditions do not support a high-quality trade."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. No clear pullback or structural opportunity exists for a trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251127 11:30:00 US/Eastern",
-            "open": 1.159995,
-            "high": 1.16005,
-            "low": 1.15971,
-            "close": 1.159815
+            "time": "20260128 09:05:00 US/Eastern",
+            "open": 1.195345,
+            "high": 1.195825,
+            "low": 1.19531,
+            "close": 1.195725
           },
-          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Given the risk of missing a better setup, it's prudent to wait for clearer conditions rather than forcing a trade now."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the 5M slope is very small, and the volatility is not stable or expanding, which does not meet the criteria for a trend continuation trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251127 11:30:00 US/Eastern",
-            "open": 1.159995,
-            "high": 1.16005,
-            "low": 1.15971,
-            "close": 1.159815
+            "time": "20260128 09:10:00 US/Eastern",
+            "open": 1.195725,
+            "high": 1.19639,
+            "low": 1.195675,
+            "close": 1.19639
           },
-          "reasoning": "Current market conditions show low volatility and lack of meaningful slope alignment. The 5M range is not favorable for entry, and waiting may lead to better conditions. However, caution is advised as missing the move is a risk."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the 5M slope is very small, and there is no clear structural level to target for a trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251127 11:35:00 US/Eastern",
-            "open": 1.159815,
-            "high": 1.159885,
-            "low": 1.159755,
-            "close": 1.159835
-          }
+            "time": "20260128 09:15:00 US/Eastern",
+            "open": 1.19639,
+            "high": 1.196465,
+            "low": 1.196035,
+            "close": 1.19618
+          },
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. No valid entry point is available at this time.",
+          "strategy": "STRATEGY_1"
         }
-      ]
+      ],
+      "selectedStrategy": "STRATEGY_1"
     },
     "simResult": {
       "outcome": "SL",
-      "exitPrice": 1.159755,
-      "exitIndex": 4057,
-      "barsHeld": 1
-    },
-    "rawR": -1,
-    "weightedR": -0.3,
-    "summary": {
-      "entry_reasoning": "The entry was made based on a slight upward movement in the current bar, with a close near the high. The market conditions indicated potential for a minor upward move, and the entry price was near recent micro-structure with visible room to the next structural level. However, the low volatility and lack of meaningful slope alignment suggested caution.",
-      "what_happened": "After entry at 1.159835, the price moved downwards and hit the stop loss at 1.159755. The market continued to show low volatility, which contributed to the price not reaching the take profit level of 1.16003.",
-      "why_outcome": "The outcome was a loss due to the market conditions being unfavorable for a long position. The low volatility and lack of slope alignment indicated that the upward movement was not strong enough to sustain the trade, leading to the stop loss being triggered.",
-      "lessons": "Improving the entry criteria by incorporating a stronger confirmation of upward momentum or avoiding trades in low volatility conditions could enhance outcomes. Additionally, adjusting the risk management strategy to account for market conditions could prevent premature entries.",
-      "rating": "BAD"
-    }
-  },
-  {
-    "tradeNum": 3,
-    "anchorTime": "20251223 15:20:00 US/Eastern",
-    "entryTime": "20251223 15:30:00 US/Eastern",
-    "waitCount": 4,
-    "context": {
-      "ctx_5m": {
-        "n": 15,
-        "mean": 1.1789726666666667,
-        "max": 1.179295,
-        "min": 1.178615,
-        "range_over_mean": 0.0005767733376911881,
-        "ret": 0.000381766816828145,
-        "vol": 0.00011996561894748168,
-        "slope_over_mean": 0.000024824881840217278,
-        "last_close": 1.17918
-      },
-      "ctx_30m": {
-        "n": 15,
-        "mean": 1.178065333333333,
-        "max": 1.179295,
-        "min": 1.176905,
-        "range_over_mean": 0.002028749961801688,
-        "ret": 0.0011206764810758392,
-        "vol": 0.0002536246113750778,
-        "slope_over_mean": 0.00011880859384789712,
-        "last_close": 1.17918
-      },
-      "ctx_daily": {
-        "n": 15,
-        "mean": 1.1718009999999996,
-        "max": 1.180425,
-        "min": 1.161515,
-        "range_over_mean": 0.016137552365973393,
-        "ret": 0.012158641734226584,
-        "vol": 0.002264149731252199,
-        "slope_over_mean": 0.0006917770167460188,
-        "last_close": 1.17918
-      },
-      "last_close": 1.17918
-    },
-    "decision": {
-      "side": "LONG",
-      "entry": 1.17921,
-      "tp": 1.1798,
-      "sl": 1.179,
-      "risk": 0.3,
-      "reasoning": "Current bar shows a slight upward movement with a close above the previous bar. Although volatility is low, the 5M slope is marginally positive, indicating potential for a small upward move. Entering now with lower risk due to uncertainty in market conditions, but the opportunity may not last.",
-      "waitCount": 4,
-      "waitHistory": [
-        {
-          "bar": {
-            "time": "20251223 15:20:00 US/Eastern",
-            "open": 1.179285,
-            "high": 1.179295,
-            "low": 1.179115,
-            "close": 1.17918
-          },
-          "reasoning": "Current market conditions show low 5M volatility and a small slope, indicating compression. The 5M range is below the recent baseline, and the setup lacks sufficient structural clarity. Waiting is necessary to avoid entering a low-quality trade that could lead to losses."
-        },
-        {
-          "bar": {
-            "time": "20251223 15:20:00 US/Eastern",
-            "open": 1.179285,
-            "high": 1.179295,
-            "low": 1.179115,
-            "close": 1.17918
-          },
-          "reasoning": "Current market conditions show low 5M volatility and a small slope, indicating compression. The risk of entering now is high due to potential worsening conditions. Waiting for a clearer setup is preferable to risking a low-quality trade."
-        },
-        {
-          "bar": {
-            "time": "20251223 15:25:00 US/Eastern",
-            "open": 1.17918,
-            "high": 1.179235,
-            "low": 1.17903,
-            "close": 1.17911
-          },
-          "reasoning": "Current market conditions show low 5M volatility and a small slope, indicating compression. The risk of entering now is high due to the lack of meaningful trend alignment and potential for worse conditions. It's better to wait for clearer signals."
-        },
-        {
-          "bar": {
-            "time": "20251223 15:25:00 US/Eastern",
-            "open": 1.17918,
-            "high": 1.179235,
-            "low": 1.17903,
-            "close": 1.17911
-          },
-          "reasoning": "Current market conditions show low 5M volatility and a small slope, indicating compression. The risk of entering now is high as the setup does not meet the required criteria for a strong trade. Waiting for better conditions is prudent to avoid missing a more favorable entry."
-        }
-      ]
-    },
-    "simResult": {
-      "outcome": "SL",
-      "exitPrice": 1.179,
-      "exitIndex": 11535,
+      "exitPrice": 1.196085,
+      "exitIndex": 20791,
       "barsHeld": 6
     },
     "rawR": -1,
     "weightedR": -0.3,
     "summary": {
-      "entry_reasoning": "The entry was based on a slight upward movement observed in the current bar, with a close above the previous bar. The marginally positive slope in the 5M context suggested potential for a small upward move, despite low volatility. The decision to enter was made with a lower risk approach due to uncertainty in market conditions, indicating a cautious but optimistic outlook.",
-      "what_happened": "After entry at 1.17921, the price fluctuated but ultimately hit the stop loss at 1.179, resulting in a loss. The price action did not sustain the upward momentum anticipated, leading to a quick reversal that triggered the stop loss.",
-      "why_outcome": "The outcome was primarily due to market conditions that did not support the anticipated upward movement. The low volatility and compression indicated a lack of strong buying pressure, which was not adequately accounted for in the decision-making process. This suggests that the strategy may have been too optimistic given the prevailing market conditions.",
-      "lessons": "To improve outcomes, it may be beneficial to incorporate stricter criteria for entry based on volatility and trend alignment. Additionally, waiting for clearer signals or a more robust trend confirmation before entering trades could help avoid low-quality setups that lead to losses.",
+      "entry_reasoning": "The entry was made based on the observation of a slight upward trend in the market, with the last close above recent support levels. The trader identified that the entry point was near a micro-structure and there was potential to reach the next structural liquidity level at resistance. The stable volatility indicated a reasonable environment for a continuation trade, supporting the decision to go long.",
+      "what_happened": "After entry at 1.196635, the price fluctuated but ultimately hit the stop loss at 1.196085. The market conditions remained volatile but did not provide the expected upward momentum to reach the take profit level of 1.20046. The price action showed compression and low volatility, which likely contributed to the failure to reach the target.",
+      "why_outcome": "The outcome was a loss due to the market conditions not aligning with the expectations set during the entry. The low volatility and lack of meaningful slope alignment indicated a weaker market environment, which was not conducive for a long position. This suggests that the strategy may not have adequately accounted for the prevailing market conditions.",
+      "lessons": "To improve future outcomes, it may be beneficial to incorporate a more stringent assessment of volatility and slope alignment before entering trades. Additionally, setting tighter criteria for entry based on market conditions could help avoid trades in unfavorable environments. A review of the strategy to include checks for compression and volatility expansion could also enhance decision-making.",
       "rating": "BAD"
     }
   },
   {
-    "tradeNum": 4,
-    "anchorTime": "20251224 12:55:00 US/Eastern",
-    "entryTime": "20251224 13:05:00 US/Eastern",
+    "tradeNum": 3,
+    "anchorTime": "20260120 14:15:00 US/Eastern",
+    "entryTime": "20260120 14:35:00 US/Eastern",
     "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "NY",
+      "previousSession": "LONDON",
+      "support": 1.1718365,
+      "resistance": 1.174515,
+      "swingHighs": [
+        {
+          "index": 6,
+          "price": 1.16474,
+          "time": "2026-01-19T17:45:00.000Z",
+          "_t": 1768844700000
+        },
+        {
+          "index": 19,
+          "price": 1.167255,
+          "time": "2026-01-20T00:15:00.000Z",
+          "_t": 1768868100000
+        },
+        {
+          "index": 28,
+          "price": 1.173295,
+          "time": "2026-01-20T04:45:00.000Z",
+          "_t": 1768884300000
+        },
+        {
+          "index": 36,
+          "price": 1.17691,
+          "time": "2026-01-20T08:45:00.000Z",
+          "_t": 1768898700000
+        },
+        {
+          "index": 43,
+          "price": 1.17428,
+          "time": "2026-01-20T12:15:00.000Z",
+          "_t": 1768911300000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 2,
+          "price": 1.164175,
+          "time": "2026-01-19T15:30:00.000Z",
+          "_t": 1768836600000
+        },
+        {
+          "index": 10,
+          "price": 1.163255,
+          "time": "2026-01-19T19:45:00.000Z",
+          "_t": 1768851900000
+        },
+        {
+          "index": 30,
+          "price": 1.171535,
+          "time": "2026-01-20T05:45:00.000Z",
+          "_t": 1768887900000
+        },
+        {
+          "index": 38,
+          "price": 1.17153,
+          "time": "2026-01-20T09:45:00.000Z",
+          "_t": 1768902300000
+        }
+      ]
+    },
     "context": {
       "ctx_5m": {
         "n": 15,
-        "mean": 1.178016333333333,
-        "max": 1.178265,
-        "min": 1.177275,
-        "range_over_mean": 0.0008403958179412548,
-        "ret": -0.00023345741948904678,
-        "vol": 0.00007988300865000973,
-        "slope_over_mean": -0.000025239160116743086,
-        "last_close": 1.17767
+        "mean": 1.1729169999999995,
+        "max": 1.17342,
+        "min": 1.172015,
+        "range_over_mean": 0.001197868220854399,
+        "ret": -0.0006350234617728625,
+        "vol": 0.00016128226522126848,
+        "slope_over_mean": -0.00006187260357845154,
+        "last_close": 1.17244
       },
       "ctx_30m": {
         "n": 15,
-        "mean": 1.1779396666666666,
-        "max": 1.178695,
-        "min": 1.177275,
-        "range_over_mean": 0.0012054946787031057,
-        "ret": -0.0005855595912964454,
-        "vol": 0.00018535591352064867,
-        "slope_over_mean": -0.000017797418923510223,
-        "last_close": 1.17767
+        "mean": 1.173266333333333,
+        "max": 1.17691,
+        "min": 1.17153,
+        "range_over_mean": 0.004585489114577231,
+        "ret": -0.0014691291258042752,
+        "vol": 0.0006439680637994437,
+        "slope_over_mean": -0.000029953009086192088,
+        "last_close": 1.17244
       },
       "ctx_daily": {
         "n": 15,
-        "mean": 1.1726166666666664,
-        "max": 1.180795,
-        "min": 1.161515,
-        "range_over_mean": 0.01644186079565641,
-        "ret": 0.011244445398536015,
-        "vol": 0.002286534331845244,
-        "slope_over_mean": 0.0006434023216290835,
-        "last_close": 1.17767
+        "mean": 1.1659806666666668,
+        "max": 1.17691,
+        "min": 1.15788,
+        "range_over_mean": 0.01632102533432505,
+        "ret": 0.004205459388623821,
+        "vol": 0.0026880059609302636,
+        "slope_over_mean": -0.00029426486447500474,
+        "last_close": 1.17244
       },
-      "last_close": 1.17767
+      "last_close": 1.17244
     },
     "decision": {
       "side": "LONG",
-      "entry": 1.17756,
-      "tp": 1.1787,
-      "sl": 1.17725,
+      "entry": 1.172035,
+      "tp": 1.17451,
+      "sl": 1.17184,
       "risk": 0.3,
-      "reasoning": "Despite low volatility and a negative slope, the current bar shows a potential for a reversal. Entry is near a recent micro-structure level, and there's visible room to the next structural liquidity level. Given the urgency of market conditions, a lower risk is warranted.",
+      "reasoning": "Current market conditions show a slight upward trend with potential for continuation. The entry is near the support level, and the target is set at the next resistance level. The stop loss is placed beyond the recent swing low to allow for volatility while maintaining a reasonable risk level.",
       "waitCount": 4,
       "waitHistory": [
         {
           "bar": {
-            "time": "20251224 12:55:00 US/Eastern",
-            "open": 1.177835,
-            "high": 1.17784,
-            "low": 1.177275,
-            "close": 1.17767
+            "time": "20260120 14:15:00 US/Eastern",
+            "open": 1.172185,
+            "high": 1.172465,
+            "low": 1.172045,
+            "close": 1.17244
           },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The 5M range is below the recent baseline, and the slope magnitude is not meaningful. Trading now could lead to poor quality entries. Better opportunities may arise if conditions improve."
+          "reasoning": "Current market conditions show low volatility and a lack of significant slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the 5M slope is very small, and there is no clear pullback or structural level to enter a trade. It is better to wait for clearer conditions before entering a trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251224 13:00:00 US/Eastern",
-            "open": 1.17767,
-            "high": 1.17767,
-            "low": 1.17743,
-            "close": 1.177495
+            "time": "20260120 14:20:00 US/Eastern",
+            "open": 1.17244,
+            "high": 1.17253,
+            "low": 1.172275,
+            "close": 1.172335
           },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The 5M range is below the recent baseline, and the volatility is low, which does not meet the trading criteria. Waiting for better conditions is necessary to avoid entering a low-quality trade."
+          "reasoning": "Current market conditions show low volatility and a lack of significant slope alignment. The 5M range is compressed, and there is no clear pullback or structural opportunity to enter a trade. Waiting for better conditions is preferable.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251224 13:00:00 US/Eastern",
-            "open": 1.17767,
-            "high": 1.17767,
-            "low": 1.17743,
-            "close": 1.177495
+            "time": "20260120 14:25:00 US/Eastern",
+            "open": 1.172335,
+            "high": 1.17235,
+            "low": 1.17222,
+            "close": 1.172245
           },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The risk of entering now is high due to the lack of structural clarity and potential for worse conditions. Waiting for a clearer setup is prudent."
+          "reasoning": "Current market conditions show low volatility and a lack of significant slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the last two bars have been rejected due to similar conditions, and further hesitation may lead to missing a potential trend continuation.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251224 13:05:00 US/Eastern",
-            "open": 1.177495,
-            "high": 1.177575,
-            "low": 1.177435,
-            "close": 1.17756
+            "time": "20260120 14:30:00 US/Eastern",
+            "open": 1.172245,
+            "high": 1.172295,
+            "low": 1.17203,
+            "close": 1.17214
           },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The risk of entering now is high due to potential worsening conditions. It's better to wait for a clearer setup."
+          "reasoning": "Current market conditions show low volatility and a lack of significant slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the last few bars have not provided a clear entry point aligned with the trend.",
+          "strategy": "STRATEGY_1"
         }
-      ]
-    },
-    "simResult": {
-      "outcome": "TP",
-      "exitPrice": 1.1787,
-      "exitIndex": 12140,
-      "barsHeld": 98
-    },
-    "rawR": 3.677419354838779,
-    "weightedR": 1.1032258064516336,
-    "summary": {
-      "entry_reasoning": "The entry was made at 1.17756 after waiting for several bars due to low volatility and a negative slope on the 5M chart. The decision to enter was based on the potential for a reversal near a micro-structure level, and the visible room to the next structural liquidity level provided a favorable risk-reward ratio despite the overall market conditions being less than ideal.",
-      "what_happened": "After entry, the price moved upwards towards the take profit level of 1.1787. The trade was held for 98 bars, indicating a sustained upward movement that reached the target without hitting the stop loss at 1.17725. The positive momentum aligned with the entry reasoning, leading to a successful trade.",
-      "why_outcome": "The outcome was positive due to the strategy's alignment with market conditions that eventually turned favorable. The initial concerns about low volatility and negative slope were mitigated by the price action that followed the entry. The market conditions improved, allowing the trade to reach the take profit target.",
-      "lessons": "Future trades could benefit from a more structured approach to entering during low volatility conditions. Implementing stricter criteria for entry based on volatility and slope could help avoid potential low-quality trades. Additionally, considering a more dynamic adjustment of stop loss and take profit levels based on real-time market conditions may enhance outcomes.",
-      "rating": "GOOD"
-    }
-  },
-  {
-    "tradeNum": 5,
-    "anchorTime": "20251209 07:05:00 US/Eastern",
-    "entryTime": "20251209 07:25:00 US/Eastern",
-    "waitCount": 4,
-    "context": {
-      "ctx_5m": {
-        "n": 15,
-        "mean": 1.1642023333333336,
-        "max": 1.164765,
-        "min": 1.16349,
-        "range_over_mean": 0.0010951704557656818,
-        "ret": -0.0006655445442522458,
-        "vol": 0.0002524649425241517,
-        "slope_over_mean": 0.0000027762724438900153,
-        "last_close": 1.163685
-      },
-      "ctx_30m": {
-        "n": 15,
-        "mean": 1.1643653333333335,
-        "max": 1.165725,
-        "min": 1.163365,
-        "range_over_mean": 0.002026855259632072,
-        "ret": -0.0007341954763252685,
-        "vol": 0.0003723506080837795,
-        "slope_over_mean": -0.00002424680815283322,
-        "last_close": 1.163685
-      },
-      "ctx_daily": {
-        "n": 15,
-        "mean": 1.160929,
-        "max": 1.1682,
-        "min": 1.15019,
-        "range_over_mean": 0.01551343794495603,
-        "ret": 0.010476546082909285,
-        "vol": 0.0018091937736164976,
-        "slope_over_mean": 0.0007448929754901913,
-        "last_close": 1.163685
-      },
-      "last_close": 1.163685
-    },
-    "decision": {
-      "side": "LONG",
-      "entry": 1.163575,
-      "tp": 1.164365,
-      "sl": 1.163365,
-      "risk": 0.3,
-      "reasoning": "Current market conditions show a slight upward slope on the 5M chart, and the entry is near a recent micro-structure level. Although volatility is low, the potential for a move exists, and waiting further may lead to missed opportunities. The trade is taken with lower risk due to uncertainty.",
-      "waitCount": 4,
-      "waitHistory": [
-        {
-          "bar": {
-            "time": "20251209 07:05:00 US/Eastern",
-            "open": 1.16401,
-            "high": 1.164035,
-            "low": 1.16349,
-            "close": 1.163685
-          },
-          "reasoning": "Current market conditions show low volatility and a very small slope on the 5M chart, indicating compression. The 5M range is below the recent baseline, and the slope alignment with the 30M is not strong enough to justify a trade. Waiting for clearer conditions is preferable to risking a low-quality trade."
-        },
-        {
-          "bar": {
-            "time": "20251209 07:10:00 US/Eastern",
-            "open": 1.163685,
-            "high": 1.16378,
-            "low": 1.16351,
-            "close": 1.163595
-          },
-          "reasoning": "Current market conditions show low volatility and a very small slope on the 5M chart, indicating compression. The 5M range is below the recent baseline and volatility is low, which does not meet the criteria for a trade. Waiting for better conditions is necessary to avoid entering a low-quality trade."
-        },
-        {
-          "bar": {
-            "time": "20251209 07:15:00 US/Eastern",
-            "open": 1.163595,
-            "high": 1.163675,
-            "low": 1.163445,
-            "close": 1.16362
-          },
-          "reasoning": "Current market conditions show low volatility and a very small slope on the 5M chart, indicating compression. The risk of missing a better setup is high, but the current conditions do not support a trade. Waiting for clearer signals is prudent."
-        },
-        {
-          "bar": {
-            "time": "20251209 07:20:00 US/Eastern",
-            "open": 1.16362,
-            "high": 1.16393,
-            "low": 1.163575,
-            "close": 1.163645
-          },
-          "reasoning": "Current market conditions show low volatility and a very small slope on the 5M chart, indicating compression. The previous bars were also rejected due to similar conditions. Waiting for a better setup is crucial as the current bar may not provide a favorable entry."
-        }
-      ]
+      ],
+      "selectedStrategy": "STRATEGY_1"
     },
     "simResult": {
       "outcome": "SL",
-      "exitPrice": 1.163365,
-      "exitIndex": 7080,
-      "barsHeld": 10
-    },
-    "rawR": -1,
-    "weightedR": -0.3,
-    "summary": {
-      "entry_reasoning": "The entry was made based on a slight upward slope observed in the 5-minute chart, indicating potential bullish momentum. The entry price was near a recent micro-structure level, which could provide support. Despite low volatility, the trader believed that waiting longer could result in missed opportunities, justifying the decision to enter the trade.",
-      "what_happened": "After entry at 1.163575, the price fluctuated but ultimately hit the stop loss at 1.163365 after 10 bars, indicating that the market did not move in the anticipated direction. The price action showed a lack of significant upward momentum, leading to a decline that triggered the stop loss.",
-      "why_outcome": "The outcome was a loss primarily due to unfavorable market conditions. The low volatility and small slope on the 5-minute chart suggested a lack of strong buying pressure, which was not adequately accounted for in the decision to enter the trade. This indicates that the strategy may need to incorporate stricter criteria for entry during low volatility periods.",
-      "lessons": "To improve outcomes, it may be beneficial to adjust the entry criteria to avoid trades in low volatility environments. Implementing a more robust assessment of market conditions, such as requiring a stronger slope or higher volatility before entering a position, could help filter out low-quality trades.",
-      "rating": "BAD"
-    }
-  },
-  {
-    "tradeNum": 6,
-    "anchorTime": "20251210 08:10:00 US/Eastern",
-    "entryTime": "20251210 08:20:00 US/Eastern",
-    "waitCount": 4,
-    "context": {
-      "ctx_5m": {
-        "n": 15,
-        "mean": 1.1638456666666668,
-        "max": 1.16425,
-        "min": 1.163145,
-        "range_over_mean": 0.0009494385996767998,
-        "ret": -0.0005498352642001177,
-        "vol": 0.0001387421087446669,
-        "slope_over_mean": -0.00004530853563099358,
-        "last_close": 1.163345
-      },
-      "ctx_30m": {
-        "n": 15,
-        "mean": 1.1636116666666667,
-        "max": 1.16434,
-        "min": 1.16276,
-        "range_over_mean": 0.0013578413187674996,
-        "ret": -0.0005412487381601051,
-        "vol": 0.00024542917989979723,
-        "slope_over_mean": 0.000004097464196554546,
-        "last_close": 1.163345
-      },
-      "ctx_daily": {
-        "n": 15,
-        "mean": 1.161642,
-        "max": 1.1682,
-        "min": 1.150955,
-        "range_over_mean": 0.014845365439610443,
-        "ret": 0.010023441569717085,
-        "vol": 0.0018696780577673636,
-        "slope_over_mean": 0.0005484693218736908,
-        "last_close": 1.163345
-      },
-      "last_close": 1.163345
-    },
-    "decision": {
-      "side": "LONG",
-      "entry": 1.16306,
-      "tp": 1.16434,
-      "sl": 1.162765,
-      "risk": 0.3,
-      "reasoning": "Despite recent compression, the current bar shows a potential for upward movement. The entry is near the recent micro-structure with visible room to the next structural level. The risk is adjusted to 0.3 due to uncertainty in volatility, but the opportunity to trade is prioritized as conditions may worsen.",
-      "waitCount": 4,
-      "waitHistory": [
-        {
-          "bar": {
-            "time": "20251210 08:10:00 US/Eastern",
-            "open": 1.163425,
-            "high": 1.163725,
-            "low": 1.163145,
-            "close": 1.163345
-          },
-          "reasoning": "Current conditions show low volatility and a negative slope on the 5M chart, indicating compression. The 5M range over mean is below the recent baseline, and the volatility is low, which suggests that waiting may lead to better conditions. Trading now could result in a low-quality trade."
-        },
-        {
-          "bar": {
-            "time": "20251210 08:15:00 US/Eastern",
-            "open": 1.163345,
-            "high": 1.163425,
-            "low": 1.162865,
-            "close": 1.162885
-          },
-          "reasoning": "Current conditions show low volatility and a negative slope on the 5M chart, indicating compression. The 5M range is below the recent baseline, and the volatility is low, which does not meet the trading criteria. Waiting for better conditions is necessary to avoid entering a low-quality trade."
-        },
-        {
-          "bar": {
-            "time": "20251210 08:15:00 US/Eastern",
-            "open": 1.163345,
-            "high": 1.163425,
-            "low": 1.162865,
-            "close": 1.162885
-          },
-          "reasoning": "Current conditions show low volatility and a negative slope on the 5M chart, indicating compression. The market is not conducive for a trade, and waiting may lead to better conditions. However, caution is advised as opportunities can disappear quickly."
-        },
-        {
-          "bar": {
-            "time": "20251210 08:20:00 US/Eastern",
-            "open": 1.162885,
-            "high": 1.16311,
-            "low": 1.162765,
-            "close": 1.16306
-          },
-          "reasoning": "Current conditions show low volatility and a negative slope on the 5M chart, indicating compression. The last bar may not provide a better setup than previously rejected bars. Waiting further risks missing the move or encountering worse conditions."
-        }
-      ]
-    },
-    "simResult": {
-      "outcome": "TP",
-      "exitPrice": 1.16434,
-      "exitIndex": 7567,
-      "barsHeld": 19
-    },
-    "rawR": 4.338983050848249,
-    "weightedR": 1.3016949152544746,
-    "summary": {
-      "entry_reasoning": "The entry at 1.16306 was justified due to the potential for upward movement despite recent compression in the market. The decision to enter was based on the proximity to a recent micro-structure and the visible room to the next structural level at 1.16434. The adjusted risk of 0.3 was a cautious approach considering the low volatility and negative slope observed in the 5-minute chart.",
-      "what_happened": "After entering the trade, the price moved favorably towards the take profit level of 1.16434. The trade was held for 19 bars, indicating that the price action was consistent with the expected upward movement. The take profit was hit, resulting in a successful exit.",
-      "why_outcome": "The outcome was positive primarily due to the strategy's alignment with the market conditions at the time of entry. The initial compression indicated a potential breakout, and the price movement confirmed this. The decision to wait for a better setup before entering was validated as the trade ultimately reached the take profit.",
-      "lessons": "Future trades could benefit from a more defined entry trigger based on volatility indicators. Additionally, implementing a stricter criterion for entry during low volatility periods could help in filtering out lower-quality trades. Understanding the timing of market conditions is crucial to avoid missing opportunities.",
-      "rating": "GOOD"
-    }
-  },
-  {
-    "tradeNum": 7,
-    "anchorTime": "20251204 16:50:00 US/Eastern",
-    "entryTime": "20251204 17:25:00 US/Eastern",
-    "waitCount": 4,
-    "context": {
-      "ctx_5m": {
-        "n": 15,
-        "mean": 1.1643646666666665,
-        "max": 1.164605,
-        "min": 1.164105,
-        "range_over_mean": 0.0004294187330772762,
-        "ret": 0.00006870137230978991,
-        "vol": 0.00010856283285956728,
-        "slope_over_mean": 0.000008557701894891495,
-        "last_close": 1.16454
-      },
-      "ctx_30m": {
-        "n": 15,
-        "mean": 1.165287,
-        "max": 1.166445,
-        "min": 1.164105,
-        "range_over_mean": 0.002008088994385082,
-        "ret": -0.0011107918358944844,
-        "vol": 0.0002597798578277427,
-        "slope_over_mean": -0.00009344724273321234,
-        "last_close": 1.16454
-      },
-      "ctx_daily": {
-        "n": 15,
-        "mean": 1.1580523333333335,
-        "max": 1.1682,
-        "min": 1.149115,
-        "range_over_mean": 0.01648025693715033,
-        "ret": 0.005317771370362008,
-        "vol": 0.002596720558599207,
-        "slope_over_mean": 0.0007939901474145854,
-        "last_close": 1.16454
-      },
-      "last_close": 1.16454
-    },
-    "decision": {
-      "side": "LONG",
-      "entry": 1.164445,
-      "tp": 1.165287,
-      "sl": 1.164415,
-      "risk": 0.3,
-      "reasoning": "Despite recent compression, the current bar shows a slight upward movement with a close near the recent micro-structure. The 5M slope is minimal but aligns with the 30M trend. Entering now allows for a potential pullback to the prior break level, with a reasonable target at the next structural liquidity level.",
-      "waitCount": 4,
-      "waitHistory": [
-        {
-          "bar": {
-            "time": "20251204 16:50:00 US/Eastern",
-            "open": 1.16454,
-            "high": 1.164555,
-            "low": 1.16448,
-            "close": 1.16454
-          },
-          "reasoning": "Current market conditions show low 5M range over mean and low volatility, indicating compression. The slope magnitude is also very small, suggesting noise rather than a valid trend. Waiting for clearer conditions is essential to avoid low-quality trades."
-        },
-        {
-          "bar": {
-            "time": "20251204 16:55:00 US/Eastern",
-            "open": 1.16454,
-            "high": 1.164545,
-            "low": 1.16436,
-            "close": 1.16445
-          },
-          "reasoning": "Current market conditions show low 5M range over mean and low volatility, indicating compression. The 5M slope is also very small, and there is no clear structural setup. Waiting for better conditions is preferable to risking a low-quality trade."
-        },
-        {
-          "bar": {
-            "time": "20251204 17:15:00 US/Eastern",
-            "open": 1.16447,
-            "high": 1.164475,
-            "low": 1.164415,
-            "close": 1.164425
-          },
-          "reasoning": "Current market conditions show low 5M range over mean and low volatility, indicating compression. The setup lacks sufficient volatility and slope alignment, which could lead to missed opportunities or worse conditions if I wait further."
-        },
-        {
-          "bar": {
-            "time": "20251204 17:20:00 US/Eastern",
-            "open": 1.164425,
-            "high": 1.16443,
-            "low": 1.16442,
-            "close": 1.164425
-          },
-          "reasoning": "Current market conditions show low 5M range over mean and low volatility, indicating compression. The last bar does not provide a strong setup, and waiting for clearer conditions is prudent to avoid missing a better opportunity."
-        }
-      ]
-    },
-    "simResult": {
-      "outcome": "SL",
-      "exitPrice": 1.164415,
-      "exitIndex": 6333,
+      "exitPrice": 1.17184,
+      "exitIndex": 18659,
       "barsHeld": 1
     },
     "rawR": -1,
     "weightedR": -0.3,
     "summary": {
-      "entry_reasoning": "The entry was based on a slight upward movement in the market context, with the 5-minute slope aligning with the 30-minute trend. The trader believed that a pullback to the prior break level was possible, and the target was set at a structural liquidity level. However, the overall market conditions indicated low volatility and compression, which could have signaled caution.",
-      "what_happened": "After entry at 1.164445, the price moved downward and hit the stop loss at 1.164415. The market conditions remained compressed with low volatility, which likely contributed to the price not reaching the target and instead moving against the position.",
-      "why_outcome": "The outcome was a loss due to the stop loss being triggered. The root cause appears to be the market conditions, which were characterized by low volatility and a lack of clear trends. The strategy's reliance on slight upward movements in a compressed market may have been flawed.",
-      "lessons": "To improve outcomes, it may be beneficial to implement stricter criteria for entering trades during low volatility periods. Additionally, considering a wider range of indicators or waiting for stronger signals before entering could help avoid low-quality trades.",
+      "entry_reasoning": "The entry was made based on the observation of a slight upward trend in the market conditions, with the entry price being near a support level. The target was set at a resistance level, and the stop loss was strategically placed beyond a recent swing low to accommodate potential volatility. However, the market conditions indicated low volatility and a lack of significant slope alignment, which could have been a warning sign.",
+      "what_happened": "After the entry at 1.172035, the price moved downward, hitting the stop loss at 1.17184. The market showed low volatility and a compressed range, which likely contributed to the inability to reach the target price of 1.17451. The price action did not provide a clear trend continuation as anticipated.",
+      "why_outcome": "The outcome was a loss due to the market conditions being unfavorable for a long position. The low volatility and lack of clear trend alignment suggested that the market was not conducive to upward movement, indicating that the strategy may not have been suitable for the current market environment.",
+      "lessons": "To improve outcomes, it may be beneficial to incorporate additional filters for market conditions, such as avoiding trades in low volatility environments or requiring a stronger trend confirmation before entering a position. Additionally, refining the criteria for selecting entry points could help in avoiding premature entries.",
       "rating": "BAD"
     }
   },
   {
-    "tradeNum": 8,
-    "anchorTime": "20251128 13:10:00 US/Eastern",
-    "entryTime": "20251128 13:25:00 US/Eastern",
+    "tradeNum": 4,
+    "anchorTime": "20260209 10:00:00 US/Eastern",
+    "error": "LONG must have tp>entry and sl<entry."
+  },
+  {
+    "tradeNum": 5,
+    "anchorTime": "20251119 15:50:00 US/Eastern",
+    "entryTime": "20251119 16:10:00 US/Eastern",
     "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "NY",
+      "previousSession": "LONDON",
+      "support": 1.152255,
+      "resistance": 1.15884,
+      "swingHighs": [
+        {
+          "index": 6,
+          "price": 1.15805,
+          "time": "2025-11-19T04:15:00.000Z",
+          "_t": 1763525700000
+        },
+        {
+          "index": 18,
+          "price": 1.15893,
+          "time": "2025-11-19T07:15:00.000Z",
+          "_t": 1763536500000
+        },
+        {
+          "index": 23,
+          "price": 1.159105,
+          "time": "2025-11-19T08:30:00.000Z",
+          "_t": 1763541000000
+        },
+        {
+          "index": 37,
+          "price": 1.15425,
+          "time": "2025-11-19T12:00:00.000Z",
+          "_t": 1763553600000
+        },
+        {
+          "index": 43,
+          "price": 1.15374,
+          "time": "2025-11-19T13:50:00.000Z",
+          "_t": 1763560200000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 5,
+          "price": 1.157045,
+          "time": "2025-11-19T04:00:00.000Z",
+          "_t": 1763524800000
+        },
+        {
+          "index": 8,
+          "price": 1.15656,
+          "time": "2025-11-19T04:45:00.000Z",
+          "_t": 1763527500000
+        },
+        {
+          "index": 21,
+          "price": 1.15759,
+          "time": "2025-11-19T08:00:00.000Z",
+          "_t": 1763539200000
+        },
+        {
+          "index": 35,
+          "price": 1.15349,
+          "time": "2025-11-19T11:30:00.000Z",
+          "_t": 1763551800000
+        },
+        {
+          "index": 40,
+          "price": 1.152605,
+          "time": "2025-11-19T12:45:00.000Z",
+          "_t": 1763556300000
+        },
+        {
+          "index": 44,
+          "price": 1.151775,
+          "time": "2025-11-19T14:20:00.000Z",
+          "_t": 1763562000000
+        }
+      ]
+    },
     "context": {
       "ctx_5m": {
         "n": 15,
-        "mean": 1.1599863333333331,
-        "max": 1.160445,
-        "min": 1.15959,
-        "range_over_mean": 0.0007370776494780975,
-        "ret": 0.00009483862346053593,
-        "vol": 0.0001297587299900583,
-        "slope_over_mean": -0.000002971094117574693,
-        "last_close": 1.159975
+        "mean": 1.1525263333333333,
+        "max": 1.15287,
+        "min": 1.15183,
+        "range_over_mean": 0.0009023654990964648,
+        "ret": 0.0003341114804176652,
+        "vol": 0.00011342299352682591,
+        "slope_over_mean": 0.00004127578450537623,
+        "last_close": 1.152695
       },
       "ctx_30m": {
         "n": 15,
-        "mean": 1.1594246666666665,
-        "max": 1.16076,
-        "min": 1.157125,
-        "range_over_mean": 0.003135175664711913,
-        "ret": 0.002125242437462933,
-        "vol": 0.0005469333579413284,
-        "slope_over_mean": 0.00012590912290734603,
-        "last_close": 1.159975
+        "mean": 1.1532596666666668,
+        "max": 1.154805,
+        "min": 1.151775,
+        "range_over_mean": 0.002627335445414364,
+        "ret": -0.0015288533167021954,
+        "vol": 0.0004217724583499253,
+        "slope_over_mean": -0.00011554206207968829,
+        "last_close": 1.152695
       },
       "ctx_daily": {
-        "n": 15,
-        "mean": 1.1573506666666666,
+        "n": 8,
+        "mean": 1.159096875,
         "max": 1.16562,
-        "min": 1.149115,
-        "range_over_mean": 0.01426101913220193,
-        "ret": 0.000836924775993128,
-        "vol": 0.002818948678552083,
-        "slope_over_mean": -0.0002210251212498273,
-        "last_close": 1.159975
+        "min": 1.151775,
+        "range_over_mean": 0.011944644402565669,
+        "ret": -0.004374827252625653,
+        "vol": 0.002580926529320436,
+        "slope_over_mean": -0.000559292172644162,
+        "last_close": 1.152695
       },
-      "last_close": 1.159975
+      "last_close": 1.152695
     },
     "decision": {
       "side": "LONG",
-      "entry": 1.160235,
-      "tp": 1.16076,
-      "sl": 1.160165,
+      "entry": 1.15246,
+      "tp": 1.15884,
+      "sl": 1.151775,
       "risk": 0.3,
-      "reasoning": "Current bar shows a slight upward movement with a close above the previous bar. Although 5M slope is small, 30M slope is positive and volatility is acceptable. Entry is near recent structure with visible room to next liquidity level. Risk is adjusted due to uncertainty in conditions.",
+      "reasoning": "Current market conditions show a potential for upward momentum as the price is near a structural level with visible room to the next resistance. The 5M slope is aligned, and while volatility is low, the entry is justified by the proximity to support and the potential for a pullback continuation. A wider stop is set beyond the last swing low to accommodate market noise.",
       "waitCount": 4,
       "waitHistory": [
         {
           "bar": {
-            "time": "20251128 13:10:00 US/Eastern",
-            "open": 1.159695,
-            "high": 1.159995,
-            "low": 1.159595,
-            "close": 1.159975
+            "time": "20251119 15:50:00 US/Eastern",
+            "open": 1.152635,
+            "high": 1.152755,
+            "low": 1.152555,
+            "close": 1.152695
           },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The 5M range over mean is below the recent baseline, suggesting a lack of momentum. Waiting for clearer conditions is prudent to avoid entering a low-quality trade."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is compressed, and the 5M volatility is below session average, indicating a lack of momentum for a trend continuation trade. It is advisable to wait for clearer signals before entering a trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251128 13:10:00 US/Eastern",
-            "open": 1.159695,
-            "high": 1.159715,
-            "low": 1.159685,
-            "close": 1.159685
+            "time": "20251119 15:55:00 US/Eastern",
+            "open": 1.152695,
+            "high": 1.152845,
+            "low": 1.152605,
+            "close": 1.15263
           },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The recent 5M range is below the baseline, and the slope magnitude is insufficient for a strong trend. Waiting may risk missing the move, but conditions are not favorable for a trade."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. No valid entry point is available as the trend is not confirmed.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251128 13:15:00 US/Eastern",
-            "open": 1.159975,
-            "high": 1.160065,
-            "low": 1.159905,
-            "close": 1.160055
+            "time": "20251119 16:00:00 US/Eastern",
+            "open": 1.15263,
+            "high": 1.152635,
+            "low": 1.15249,
+            "close": 1.152545
           },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The 5M range is below the recent baseline, and the slope magnitude is not meaningful. Waiting for better conditions is prudent to avoid entering a low-quality trade."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is compressed, and there is no clear structural pullback or expansion to justify a trade. It is better to wait for clearer conditions.",
+          "strategy": "STRATEGY_1"
         },
+        {
+          "bar": {
+            "time": "20251119 16:05:00 US/Eastern",
+            "open": 1.152545,
+            "high": 1.15267,
+            "low": 1.152505,
+            "close": 1.152595
+          },
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is compressed, and previous bars have been rejected due to similar conditions. It is better to wait for clearer trend signals and volatility expansion before entering a trade.",
+          "strategy": "STRATEGY_1"
+        }
+      ],
+      "selectedStrategy": "STRATEGY_1"
+    },
+    "simResult": {
+      "outcome": "SL",
+      "exitPrice": 1.151775,
+      "exitIndex": 1996,
+      "barsHeld": 56
+    },
+    "rawR": -1,
+    "weightedR": -0.3,
+    "summary": {
+      "entry_reasoning": "The entry was justified based on the proximity to a structural support level and the potential for upward momentum. The 5-minute slope was aligned, indicating a possible continuation of the trend despite low volatility. However, the overall market conditions were characterized by low volatility and a lack of strong trend signals, which may have been overlooked.",
+      "what_happened": "After entry at 1.15246, the price did not move favorably and eventually hit the stop loss at 1.151775. The price action showed a lack of momentum, and the market remained compressed, leading to a decline instead of the anticipated upward movement.",
+      "why_outcome": "The outcome was primarily due to unfavorable market conditions characterized by low volatility and a lack of strong trend signals. The strategy employed did not account for the compressed range and the absence of clear bullish momentum, leading to the stop loss being triggered.",
+      "lessons": "Future trades should consider a more stringent assessment of market conditions, particularly volatility and trend strength, before entering a position. Implementing a filter to avoid trades in low-volatility environments could improve outcomes.",
+      "rating": "BAD"
+    }
+  },
+  {
+    "tradeNum": 6,
+    "anchorTime": "20260127 11:35:00 US/Eastern",
+    "entryTime": "20260127 11:35:00 US/Eastern",
+    "waitCount": 0,
+    "selectedStrategy": "STRATEGY_1",
+    "strategyReasoning": "5M and 30M slopes align upwards, volatility is stable, and price is above session support, indicating a trend-following opportunity.",
+    "indicators": {
+      "currentSession": "LONDON",
+      "previousSession": "ASIA",
+      "support": 1.18543925,
+      "resistance": 1.19328075,
+      "swingHighs": [
+        {
+          "index": 9,
+          "price": 1.18864,
+          "time": "2026-01-26T16:20:00.000Z",
+          "_t": 1769444400000
+        },
+        {
+          "index": 12,
+          "price": 1.188235,
+          "time": "2026-01-26T18:05:00.000Z",
+          "_t": 1769450700000
+        },
+        {
+          "index": 15,
+          "price": 1.188275,
+          "time": "2026-01-26T19:35:00.000Z",
+          "_t": 1769456100000
+        },
+        {
+          "index": 20,
+          "price": 1.189945,
+          "time": "2026-01-26T22:05:00.000Z",
+          "_t": 1769465100000
+        },
+        {
+          "index": 28,
+          "price": 1.188145,
+          "time": "2026-01-27T02:05:00.000Z",
+          "_t": 1769479500000
+        },
+        {
+          "index": 40,
+          "price": 1.19387,
+          "time": "2026-01-27T08:05:00.000Z",
+          "_t": 1769501100000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 2,
+          "price": 1.18748,
+          "time": "2026-01-26T12:50:00.000Z",
+          "_t": 1769431800000
+        },
+        {
+          "index": 6,
+          "price": 1.187075,
+          "time": "2026-01-26T14:50:00.000Z",
+          "_t": 1769439000000
+        },
+        {
+          "index": 10,
+          "price": 1.1874,
+          "time": "2026-01-26T16:50:00.000Z",
+          "_t": 1769446200000
+        },
+        {
+          "index": 14,
+          "price": 1.187155,
+          "time": "2026-01-26T19:05:00.000Z",
+          "_t": 1769454300000
+        },
+        {
+          "index": 24,
+          "price": 1.187015,
+          "time": "2026-01-27T00:05:00.000Z",
+          "_t": 1769472300000
+        },
+        {
+          "index": 32,
+          "price": 1.185035,
+          "time": "2026-01-27T04:05:00.000Z",
+          "_t": 1769486700000
+        }
+      ]
+    },
+    "context": {
+      "ctx_5m": {
+        "n": 15,
+        "mean": 1.1963313333333332,
+        "max": 1.198605,
+        "min": 1.19474,
+        "range_over_mean": 0.003230710332756205,
+        "ret": 0.0016423037384349175,
+        "vol": 0.0004237835009614231,
+        "slope_over_mean": 0.00015996822507923164,
+        "last_close": 1.198455
+      },
+      "ctx_30m": {
+        "n": 15,
+        "mean": 1.1921126666666666,
+        "max": 1.198605,
+        "min": 1.186365,
+        "range_over_mean": 0.01026748590317808,
+        "ret": 0.009552570728194092,
+        "vol": 0.0006571572484050852,
+        "slope_over_mean": 0.000664022208511295,
+        "last_close": 1.198455
+      },
+      "ctx_daily": {
+        "n": 15,
+        "mean": 1.1719386666666667,
+        "max": 1.198605,
+        "min": 1.15788,
+        "range_over_mean": 0.03475011206502266,
+        "ret": 0.02824895112094935,
+        "vol": 0.0033607548708601423,
+        "slope_over_mean": 0.0018621007388977611,
+        "last_close": 1.198455
+      },
+      "last_close": 1.198455
+    },
+    "decision": {
+      "side": "LONG",
+      "entry": 1.198455,
+      "tp": 1.1995,
+      "sl": 1.197,
+      "risk": 0.5,
+      "reasoning": "The 5M slope is aligned with the 30M slope, indicating a strong upward trend. Current volatility is stable, and the entry is near a recent structural level with visible room to the next resistance. The stop loss is placed beyond the last higher low, ensuring it is beyond structural invalidation.",
+      "waitCount": 0,
+      "waitHistory": [],
+      "selectedStrategy": "STRATEGY_1",
+      "strategyReasoning": "5M and 30M slopes align upwards, volatility is stable, and price is above session support, indicating a trend-following opportunity."
+    },
+    "simResult": {
+      "outcome": "SL",
+      "exitPrice": 1.197,
+      "exitIndex": 20579,
+      "barsHeld": 7
+    },
+    "rawR": -1,
+    "weightedR": -0.5,
+    "summary": {
+      "entry_reasoning": "The entry was based on a strong upward trend indicated by the alignment of the 5-minute and 30-minute slopes, suggesting bullish momentum. The volatility was stable, and the entry price was near a recent structural level, which provided a favorable risk-reward setup with a clear stop loss beyond the last higher low.",
+      "what_happened": "After entry at 1.198455, the price initially fluctuated but ultimately declined to the exit price of 1.197, triggering the stop loss. The price movement did not reach the take profit target of 1.1995, indicating a failure to maintain the upward trend.",
+      "why_outcome": "The loss was primarily due to market conditions that shifted against the trade after entry. Despite the initial analysis suggesting a strong upward trend, the market may have experienced unforeseen volatility or selling pressure that led to the price decline. This outcome could be attributed to a combination of market conditions rather than a flaw in the strategy itself.",
+      "lessons": "To improve outcomes, consider implementing tighter risk management strategies, such as adjusting stop loss placements based on real-time market behavior or incorporating additional indicators to confirm trend strength before entry. Additionally, monitoring broader market news or events that could impact volatility may help avoid similar losses.",
+      "rating": "NEUTRAL"
+    }
+  },
+  {
+    "tradeNum": 7,
+    "anchorTime": "20251128 13:20:00 US/Eastern",
+    "entryTime": "20251128 13:40:00 US/Eastern",
+    "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "NY",
+      "previousSession": "LONDON",
+      "support": 1.156405,
+      "resistance": 1.1604225000000001,
+      "swingHighs": [
+        {
+          "index": 3,
+          "price": 1.15904,
+          "time": "2025-11-28T02:15:00.000Z",
+          "_t": 1764296100000
+        },
+        {
+          "index": 11,
+          "price": 1.15799,
+          "time": "2025-11-28T04:15:00.000Z",
+          "_t": 1764303300000
+        },
+        {
+          "index": 24,
+          "price": 1.15728,
+          "time": "2025-11-28T07:30:00.000Z",
+          "_t": 1764315000000
+        },
+        {
+          "index": 31,
+          "price": 1.158195,
+          "time": "2025-11-28T09:15:00.000Z",
+          "_t": 1764321300000
+        },
+        {
+          "index": 38,
+          "price": 1.16076,
+          "time": "2025-11-28T11:00:00.000Z",
+          "_t": 1764327600000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 2,
+          "price": 1.158145,
+          "time": "2025-11-28T02:00:00.000Z",
+          "_t": 1764295200000
+        },
+        {
+          "index": 10,
+          "price": 1.156655,
+          "time": "2025-11-28T04:00:00.000Z",
+          "_t": 1764302400000
+        },
+        {
+          "index": 18,
+          "price": 1.155565,
+          "time": "2025-11-28T06:00:00.000Z",
+          "_t": 1764309600000
+        },
+        {
+          "index": 27,
+          "price": 1.156255,
+          "time": "2025-11-28T08:15:00.000Z",
+          "_t": 1764317700000
+        },
+        {
+          "index": 32,
+          "price": 1.157125,
+          "time": "2025-11-28T09:30:00.000Z",
+          "_t": 1764322200000
+        },
+        {
+          "index": 40,
+          "price": 1.159275,
+          "time": "2025-11-28T11:30:00.000Z",
+          "_t": 1764329400000
+        },
+        {
+          "index": 43,
+          "price": 1.159345,
+          "time": "2025-11-28T12:15:00.000Z",
+          "_t": 1764332100000
+        }
+      ]
+    },
+    "context": {
+      "ctx_5m": {
+        "n": 15,
+        "mean": 1.1600023333333331,
+        "max": 1.160445,
+        "min": 1.159595,
+        "range_over_mean": 0.0007327571467528809,
+        "ret": 0.00019827757135833278,
+        "vol": 0.0001703916169533938,
+        "slope_over_mean": -0.000008312791160644941,
+        "last_close": 1.16022
+      },
+      "ctx_30m": {
+        "n": 15,
+        "mean": 1.1594146666666667,
+        "max": 1.16076,
+        "min": 1.15732,
+        "range_over_mean": 0.002967014390019886,
+        "ret": 0.002289278402170099,
+        "vol": 0.0003922417311815165,
+        "slope_over_mean": 0.00013093121537353472,
+        "last_close": 1.16022
+      },
+      "ctx_daily": {
+        "n": 15,
+        "mean": 1.157367,
+        "max": 1.16562,
+        "min": 1.149115,
+        "range_over_mean": 0.014260817873673599,
+        "ret": 0.0010483129926100111,
+        "vol": 0.002824860284422885,
+        "slope_over_mean": -0.00021572981727366268,
+        "last_close": 1.16022
+      },
+      "last_close": 1.16022
+    },
+    "decision": {
+      "side": "LONG",
+      "entry": 1.159875,
+      "tp": 1.16042,
+      "sl": 1.159275,
+      "risk": 0.3,
+      "reasoning": "The current market context shows a slight upward slope on the 30M chart, indicating potential trend continuation. The entry is near the recent swing low, providing structural support. The stop loss is placed below the last swing low, allowing for a wider stop to accommodate volatility. The target is set at the nearest resistance level, aligning with the trend-following strategy.",
+      "waitCount": 4,
+      "waitHistory": [
         {
           "bar": {
             "time": "20251128 13:20:00 US/Eastern",
@@ -841,777 +1033,1277 @@
             "high": 1.160235,
             "low": 1.15999,
             "close": 1.16022
-          }
+          },
+          "reasoning": "The current market context shows low volatility and a very small slope on the 5M chart, indicating compression. The 5M range over mean is below the recent baseline, and the slope magnitude is not meaningful enough to classify as a trend. Therefore, it is better to wait for clearer conditions before entering a trade.",
+          "strategy": "STRATEGY_1"
+        },
+        {
+          "bar": {
+            "time": "20251128 13:25:00 US/Eastern",
+            "open": 1.16022,
+            "high": 1.160285,
+            "low": 1.160165,
+            "close": 1.160235
+          },
+          "reasoning": "The current market context shows low volatility and a very small slope on the 5M chart, indicating compression. Additionally, the last close is near resistance, and there is no clear pullback or structural level to enter. It is better to wait for a clearer trend signal.",
+          "strategy": "STRATEGY_1"
+        },
+        {
+          "bar": {
+            "time": "20251128 13:30:00 US/Eastern",
+            "open": 1.160235,
+            "high": 1.160435,
+            "low": 1.160215,
+            "close": 1.16033
+          },
+          "reasoning": "The current market context shows low volatility and a very small slope on the 5M chart, indicating compression. Additionally, the 5M range over mean is below the recent baseline, which does not meet the criteria for a valid trend continuation trade.",
+          "strategy": "STRATEGY_1"
+        },
+        {
+          "bar": {
+            "time": "20251128 13:35:00 US/Eastern",
+            "open": 1.16033,
+            "high": 1.16046,
+            "low": 1.160125,
+            "close": 1.16016
+          },
+          "reasoning": "The current market context shows low volatility and a very small slope on the 5M chart, indicating compression. Additionally, the recent price action is near the resistance level, and there is no clear pullback or structural edge to enter a trade.",
+          "strategy": "STRATEGY_1"
+        }
+      ],
+      "selectedStrategy": "STRATEGY_1"
+    },
+    "simResult": {
+      "outcome": "TP",
+      "exitPrice": 1.16042,
+      "exitIndex": 4689,
+      "barsHeld": 19
+    },
+    "rawR": 0.9083333333334629,
+    "weightedR": 0.2725000000000389,
+    "summary": {
+      "entry_reasoning": "The entry was made at 1.159875, which was close to a recent swing low, indicating a potential support level. The market context showed a slight upward slope on the 30M chart, suggesting a possible trend continuation. The decision to go long was supported by the structural analysis and the placement of the stop loss below the last swing low, allowing for some volatility.",
+      "what_happened": "After the entry, the price moved upwards towards the target price of 1.16042, eventually hitting it. This indicates that the market conditions were favorable for the trade, as the price action aligned with the anticipated upward movement.",
+      "why_outcome": "The outcome was a win, attributed to the strategy being well-aligned with the market conditions at the time of entry. The slight upward slope and the structural support provided a conducive environment for the trade to succeed.",
+      "lessons": "To improve outcomes, consider refining entry criteria to include more definitive signals of trend strength, such as higher volatility or clearer pullbacks. Additionally, monitoring for potential resistance levels more closely could enhance decision-making.",
+      "rating": "GOOD"
+    }
+  },
+  {
+    "tradeNum": 8,
+    "anchorTime": "20260109 09:15:00 US/Eastern",
+    "entryTime": "20260109 09:25:00 US/Eastern",
+    "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "LONDON",
+      "previousSession": "ASIA",
+      "support": 1.163995,
+      "resistance": 1.16557,
+      "swingHighs": [
+        {
+          "index": 11,
+          "price": 1.16563,
+          "time": "2026-01-09T00:15:00.000Z",
+          "_t": 1767917700000
+        },
+        {
+          "index": 38,
+          "price": 1.164665,
+          "time": "2026-01-09T07:00:00.000Z",
+          "_t": 1767942000000
+        },
+        {
+          "index": 45,
+          "price": 1.166075,
+          "time": "2026-01-09T08:45:00.000Z",
+          "_t": 1767948300000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 21,
+          "price": 1.164005,
+          "time": "2026-01-09T02:45:00.000Z",
+          "_t": 1767926700000
+        },
+        {
+          "index": 25,
+          "price": 1.164125,
+          "time": "2026-01-09T03:45:00.000Z",
+          "_t": 1767930300000
+        },
+        {
+          "index": 32,
+          "price": 1.16369,
+          "time": "2026-01-09T05:30:00.000Z",
+          "_t": 1767936600000
         }
       ]
     },
+    "context": {
+      "ctx_5m": {
+        "n": 15,
+        "mean": 1.1647159999999996,
+        "max": 1.165925,
+        "min": 1.16401,
+        "range_over_mean": 0.0016441776364367895,
+        "ret": -0.0010723354608468648,
+        "vol": 0.00021414059802782876,
+        "slope_over_mean": -0.00006839496863245149,
+        "last_close": 1.16443
+      },
+      "ctx_30m": {
+        "n": 15,
+        "mean": 1.1644919999999999,
+        "max": 1.166075,
+        "min": 1.162575,
+        "range_over_mean": 0.0030056024429537163,
+        "ret": 0.00005582441931866874,
+        "vol": 0.00023654728149200888,
+        "slope_over_mean": 0.000020701853561157834,
+        "last_close": 1.16443
+      },
+      "ctx_daily": {
+        "n": 15,
+        "mean": 1.1729446666666665,
+        "max": 1.180405,
+        "min": 1.162575,
+        "range_over_mean": 0.015201058077760999,
+        "ret": -0.0116831254588587,
+        "vol": 0.0022941604329546994,
+        "slope_over_mean": -0.0008409390724313818,
+        "last_close": 1.16443
+      },
+      "last_close": 1.16443
+    },
+    "decision": {
+      "side": "LONG",
+      "entry": 1.16381,
+      "tp": 1.16557,
+      "sl": 1.16369,
+      "risk": 0.3,
+      "reasoning": "The current market context shows a slight pullback within a dominant trend. The entry is near recent support and there is visible room to the next structural level at resistance. The volatility is stable, allowing for a continuation trade with a reasonable risk-to-reward ratio.",
+      "waitCount": 4,
+      "waitHistory": [
+        {
+          "bar": {
+            "time": "20260109 09:15:00 US/Eastern",
+            "open": 1.164275,
+            "high": 1.16466,
+            "low": 1.16411,
+            "close": 1.16443
+          },
+          "reasoning": "The current market context shows low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the 5M slope is very small, and there is no clear pullback or structural edge for entry. It is better to wait for clearer trend confirmation before entering a trade.",
+          "strategy": "STRATEGY_1"
+        },
+        {
+          "bar": {
+            "time": "20260109 09:15:00 US/Eastern",
+            "open": 1.164275,
+            "high": 1.16466,
+            "low": 1.16411,
+            "close": 1.16443
+          },
+          "reasoning": "The current market context shows low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the 5M slope is not significant enough to warrant a trade, and the volatility is below session average. It is better to wait for a clearer trend signal.",
+          "strategy": "STRATEGY_1"
+        },
+        {
+          "bar": {
+            "time": "20260109 09:20:00 US/Eastern",
+            "open": 1.16443,
+            "high": 1.16467,
+            "low": 1.16397,
+            "close": 1.1644
+          },
+          "reasoning": "The current market context shows low volatility and a lack of meaningful slope alignment. The 5M range is compressed, and the 5M volatility is below session average, indicating that it is not an ideal time to enter a trade.",
+          "strategy": "STRATEGY_1"
+        },
+        {
+          "bar": {
+            "time": "20260109 09:20:00 US/Eastern",
+            "open": 1.16443,
+            "high": 1.16467,
+            "low": 1.16397,
+            "close": 1.1644
+          },
+          "reasoning": "The current market context shows low volatility and a lack of meaningful slope alignment. The 5M range is compressed, and the conditions do not support a high-quality trade setup at this moment.",
+          "strategy": "STRATEGY_1"
+        }
+      ],
+      "selectedStrategy": "STRATEGY_1"
+    },
     "simResult": {
       "outcome": "SL",
-      "exitPrice": 1.160165,
-      "exitIndex": 4669,
-      "barsHeld": 2
+      "exitPrice": 1.16369,
+      "exitIndex": 16076,
+      "barsHeld": 1
     },
     "rawR": -1,
     "weightedR": -0.3,
     "summary": {
-      "entry_reasoning": "The entry was based on a slight upward movement in the current bar, with a close above the previous bar. The positive slope on the 30M chart and acceptable volatility suggested potential for upward movement. The entry was near recent structure, indicating a possible liquidity level, which justified the long position despite the small slope on the 5M chart.",
-      "what_happened": "After entry at 1.160235, the price initially moved slightly higher but quickly retraced, hitting the stop loss at 1.160165. The market conditions remained volatile, and the price did not reach the take profit level of 1.16076, leading to an exit at the stop loss.",
-      "why_outcome": "The outcome was a loss due to the market conditions at the time of entry. The 5M chart showed low volatility and a negative slope, indicating a lack of momentum. This suggests that the strategy may have been too optimistic given the prevailing market conditions, leading to the stop loss being triggered.",
-      "lessons": "To improve outcomes, it may be beneficial to incorporate stricter criteria for entry, particularly regarding the slope and volatility on shorter time frames. Additionally, waiting for clearer bullish signals or a stronger upward momentum before entering could reduce the likelihood of hitting stop losses.",
+      "entry_reasoning": "The entry was made based on a slight pullback within a dominant trend, with the entry point near recent support. The trader identified potential for price movement towards resistance, and the stable volatility suggested a continuation trade could be viable. However, the market context indicated low volatility and a lack of meaningful slope alignment, which may have been overlooked.",
+      "what_happened": "After entry at 1.16381, the price moved downwards, hitting the stop loss at 1.16369. The price action indicated that the anticipated upward movement did not materialize, leading to an immediate exit after only one bar held.",
+      "why_outcome": "The outcome was a loss due to the market conditions not supporting the expected price movement. The low volatility and compressed 5M range suggested that the market was not conducive to a long position at that time. The strategy may have been sound, but the execution did not align with the prevailing market conditions.",
+      "lessons": "To improve outcomes, it may be beneficial to incorporate stricter criteria for entry based on volatility and slope alignment. Additionally, waiting for clearer trend confirmations before entering a trade could help avoid premature entries in low-volatility environments.",
       "rating": "BAD"
     }
   },
   {
     "tradeNum": 9,
-    "anchorTime": "20251205 07:45:00 US/Eastern",
-    "entryTime": "20251205 08:05:00 US/Eastern",
+    "anchorTime": "20260129 16:25:00 US/Eastern",
+    "entryTime": "20260129 16:35:00 US/Eastern",
     "waitCount": 4,
+    "selectedStrategy": "STRATEGY_3",
+    "indicators": {
+      "currentSession": "NY",
+      "previousSession": "LONDON",
+      "support": 1.191645,
+      "resistance": 1.19692,
+      "swingHighs": [
+        {
+          "index": 9,
+          "price": 1.19531,
+          "time": "2026-01-29T06:55:00.000Z",
+          "_t": 1769669700000
+        },
+        {
+          "index": 16,
+          "price": 1.197105,
+          "time": "2026-01-29T08:40:00.000Z",
+          "_t": 1769676000000
+        },
+        {
+          "index": 22,
+          "price": 1.19726,
+          "time": "2026-01-29T10:10:00.000Z",
+          "_t": 1769681400000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 6,
+          "price": 1.193815,
+          "time": "2026-01-29T06:10:00.000Z",
+          "_t": 1769667000000
+        },
+        {
+          "index": 10,
+          "price": 1.19421,
+          "time": "2026-01-29T07:10:00.000Z",
+          "_t": 1769670600000
+        },
+        {
+          "index": 17,
+          "price": 1.19403,
+          "time": "2026-01-29T08:55:00.000Z",
+          "_t": 1769676900000
+        },
+        {
+          "index": 42,
+          "price": 1.194585,
+          "time": "2026-01-29T15:10:00.000Z",
+          "_t": 1769699400000
+        }
+      ]
+    },
     "context": {
       "ctx_5m": {
         "n": 15,
-        "mean": 1.1647283333333334,
-        "max": 1.165335,
-        "min": 1.164165,
-        "range_over_mean": 0.0010045260912059167,
-        "ret": 0.0002833895102944791,
-        "vol": 0.00016911450814711046,
-        "slope_over_mean": 0.000007159854770962589,
-        "last_close": 1.164805
+        "mean": 1.196567666666667,
+        "max": 1.19684,
+        "min": 1.196195,
+        "range_over_mean": 0.0005390418093084635,
+        "ret": 0.00007103341077358787,
+        "vol": 0.00013088009960767844,
+        "slope_over_mean": 0.00002020660603000061,
+        "last_close": 1.196705
       },
       "ctx_30m": {
         "n": 15,
-        "mean": 1.1654303333333333,
-        "max": 1.16718,
-        "min": 1.164165,
-        "range_over_mean": 0.002587027223992693,
-        "ret": -0.0007549209263222841,
-        "vol": 0.00029293926027651647,
-        "slope_over_mean": -0.00009455428215622971,
-        "last_close": 1.164805
+        "mean": 1.1958373333333334,
+        "max": 1.19684,
+        "min": 1.194585,
+        "range_over_mean": 0.001885707978119568,
+        "ret": 0.0009325939494308059,
+        "vol": 0.00039732239545526844,
+        "slope_over_mean": 0.00006964635738002842,
+        "last_close": 1.196705
       },
       "ctx_daily": {
         "n": 15,
-        "mean": 1.1585043333333336,
-        "max": 1.1682,
-        "min": 1.149115,
-        "range_over_mean": 0.016473827029275787,
-        "ret": 0.011629169326437481,
-        "vol": 0.0018944287845768242,
-        "slope_over_mean": 0.0009540472360277656,
-        "last_close": 1.164805
+        "mean": 1.176285,
+        "max": 1.20458,
+        "min": 1.15788,
+        "range_over_mean": 0.03970126287421838,
+        "ret": 0.027479179187773536,
+        "vol": 0.003613776540297633,
+        "slope_over_mean": 0.002564490262624636,
+        "last_close": 1.196705
       },
-      "last_close": 1.164805
+      "last_close": 1.196705
     },
     "decision": {
       "side": "LONG",
-      "entry": 1.164515,
-      "tp": 1.1654303333333333,
-      "sl": 1.164165,
+      "entry": 1.196845,
+      "tp": 1.19726,
+      "sl": 1.1967,
       "risk": 0.3,
-      "reasoning": "Current bar shows a potential entry near recent micro-structure with visible room to next structural level. Although conditions are not ideal, waiting further may lead to missed opportunities. The trade is aligned with the direction of the strongest timeframe despite low volatility.",
+      "reasoning": "Current market conditions show a slight upward slope with stable volatility. The entry is just below the recent resistance level of 1.19692, allowing for a target at the next structural level of 1.19726. The stop loss is set just below the recent swing low, providing a reasonable risk-to-reward ratio.",
       "waitCount": 4,
       "waitHistory": [
         {
           "bar": {
-            "time": "20251205 07:45:00 US/Eastern",
-            "open": 1.164655,
-            "high": 1.164875,
-            "low": 1.164635,
-            "close": 1.164805
+            "time": "20260129 16:25:00 US/Eastern",
+            "open": 1.196735,
+            "high": 1.19684,
+            "low": 1.196685,
+            "close": 1.196705
           },
-          "reasoning": "Current conditions show low volatility and compression. The 5M range_over_mean is below the recent baseline, indicating a lack of momentum. Additionally, the slope magnitude is minimal, suggesting noise rather than a clear trend. Waiting for better conditions is prudent to avoid entering a low-quality trade."
+          "reasoning": "Current market conditions show low volatility and the 5M range is below the recent baseline, indicating compression. Additionally, the slope magnitude is small, which does not meet the criteria for a valid breakout trade. It is advisable to wait for clearer signals before entering a trade.",
+          "strategy": "STRATEGY_3"
         },
         {
           "bar": {
-            "time": "20251205 07:50:00 US/Eastern",
-            "open": 1.164805,
-            "high": 1.164835,
-            "low": 1.16463,
-            "close": 1.164705
-          }
+            "time": "20260129 16:25:00 US/Eastern",
+            "open": 1.196735,
+            "high": 1.19684,
+            "low": 1.196685,
+            "close": 1.196705
+          },
+          "reasoning": "Current market conditions show low volatility and the 5M range is below the recent baseline, indicating compression. Additionally, the recent price action is not conducive for a breakout trade at this moment.",
+          "strategy": "STRATEGY_3"
         },
         {
           "bar": {
-            "time": "20251205 07:55:00 US/Eastern",
-            "open": 1.164705,
-            "high": 1.165205,
-            "low": 1.164705,
-            "close": 1.165175
+            "time": "20260129 16:30:00 US/Eastern",
+            "open": 1.196705,
+            "high": 1.196975,
+            "low": 1.196675,
+            "close": 1.19688
           },
-          "reasoning": "Current conditions show low volatility and compression. The 5M range_over_mean is below the recent baseline, and the slope magnitude is not meaningful. Waiting may risk missing a better setup, but the current bar does not meet the criteria for a trade."
+          "reasoning": "Current market conditions show low volatility and the 5M range is below the recent baseline, indicating compression. Additionally, the 5M slope is very small, and there is no clear breakout confirmation. It is better to wait for a more favorable setup.",
+          "strategy": "STRATEGY_3"
         },
         {
           "bar": {
-            "time": "20251205 08:00:00 US/Eastern",
-            "open": 1.165175,
-            "high": 1.16532,
-            "low": 1.164845,
-            "close": 1.16486
+            "time": "20260129 16:30:00 US/Eastern",
+            "open": 1.196705,
+            "high": 1.196975,
+            "low": 1.196675,
+            "close": 1.19688
           },
-          "reasoning": "Current conditions show low volatility and compression. The 5M range_over_mean is below the recent baseline, and the slope magnitude is minimal. Waiting for better conditions is prudent to avoid entering a low-quality trade."
+          "reasoning": "Current market conditions show low volatility and the 5M range is below the recent baseline, indicating compression. No valid breakout opportunity at this time.",
+          "strategy": "STRATEGY_3"
         }
-      ]
-    },
-    "simResult": {
-      "outcome": "TP",
-      "exitPrice": 1.1654303333333333,
-      "exitIndex": 6519,
-      "barsHeld": 11
-    },
-    "rawR": 2.6152380952376846,
-    "weightedR": 0.7845714285713054,
-    "summary": {
-      "entry_reasoning": "The entry was made at a price of 1.164515, which was near a recent micro-structure with potential for upward movement. Despite low volatility and compression in the market, the decision to enter was based on the alignment with the direction of the strongest timeframe and the potential to miss an opportunity if waiting for ideal conditions.",
-      "what_happened": "After entry, the price moved upward and reached the take profit level of 1.1654303333333333, resulting in a successful trade. The trade was held for 11 bars, indicating that the price action was favorable during this period.",
-      "why_outcome": "The outcome was a win due to the strategy's alignment with the market conditions at the time of entry. The price movement was favorable, and the take profit was hit, demonstrating that the decision to enter was justified despite the initial concerns about volatility.",
-      "lessons": "Future trades could benefit from stricter criteria regarding volatility and momentum before entry. Implementing a rule to only enter trades when certain volatility thresholds are met could help avoid low-quality setups.",
-      "rating": "GOOD"
-    }
-  },
-  {
-    "tradeNum": 10,
-    "anchorTime": "20251212 15:55:00 US/Eastern",
-    "entryTime": "20251212 16:05:00 US/Eastern",
-    "waitCount": 4,
-    "context": {
-      "ctx_5m": {
-        "n": 15,
-        "mean": 1.1741743333333334,
-        "max": 1.17446,
-        "min": 1.173685,
-        "range_over_mean": 0.0006600382737032265,
-        "ret": -0.0003491337650668672,
-        "vol": 0.00004862713266288544,
-        "slope_over_mean": -0.000022158427760030268,
-        "last_close": 1.173925
-      },
-      "ctx_30m": {
-        "n": 15,
-        "mean": 1.1743153333333334,
-        "max": 1.174985,
-        "min": 1.17321,
-        "range_over_mean": 0.0015115190525201293,
-        "ret": -0.00031508266662123353,
-        "vol": 0.0002426829819292684,
-        "slope_over_mean": -0.00004052513355097122,
-        "last_close": 1.173925
-      },
-      "ctx_daily": {
-        "n": 15,
-        "mean": 1.1644586666666668,
-        "max": 1.176275,
-        "min": 1.154715,
-        "range_over_mean": 0.018515041037666734,
-        "ret": 0.011812414886831876,
-        "vol": 0.0018840746334487359,
-        "slope_over_mean": 0.0007816783617255694,
-        "last_close": 1.173925
-      },
-      "last_close": 1.173925
-    },
-    "decision": {
-      "side": "LONG",
-      "entry": 1.174415,
-      "tp": 1.175,
-      "sl": 1.174,
-      "risk": 0.3,
-      "reasoning": "Current bar shows a slight upward movement with a close above the previous bar. While volatility is low, the potential for a small upward move exists. Entering now with lower risk due to uncertainty, but the opportunity may not last.",
-      "waitCount": 4,
-      "waitHistory": [
-        {
-          "bar": {
-            "time": "20251212 15:55:00 US/Eastern",
-            "open": 1.17403,
-            "high": 1.17407,
-            "low": 1.17383,
-            "close": 1.173925
-          },
-          "reasoning": "Current conditions show low volatility and a negative slope on the 5M chart, indicating compression. The 5M range over mean is below the recent baseline, and the market lacks a strong trend. Waiting is necessary to avoid entering a low-quality trade that could lead to losses."
-        },
-        {
-          "bar": {
-            "time": "20251212 16:00:00 US/Eastern",
-            "open": 1.173925,
-            "high": 1.174215,
-            "low": 1.173845,
-            "close": 1.174205
-          },
-          "reasoning": "Current conditions show low volatility and a negative slope on the 5M chart, indicating compression. The risk of entering now is high due to potential worsening conditions. Waiting for a clearer setup is prudent."
-        },
-        {
-          "bar": {
-            "time": "20251212 16:00:00 US/Eastern",
-            "open": 1.173925,
-            "high": 1.174215,
-            "low": 1.173845,
-            "close": 1.174205
-          }
-        },
-        {
-          "bar": {
-            "time": "20251212 16:05:00 US/Eastern",
-            "open": 1.174205,
-            "high": 1.174515,
-            "low": 1.174205,
-            "close": 1.174415
-          },
-          "reasoning": "Current conditions show low volatility and a negative slope on the 5M chart, indicating compression. The risk of missing a better setup is high, but the current bar does not meet the criteria for a trade. Waiting for clearer conditions is prudent."
-        }
-      ]
+      ],
+      "selectedStrategy": "STRATEGY_3"
     },
     "simResult": {
       "outcome": "SL",
-      "exitPrice": 1.174,
-      "exitIndex": 8551,
-      "barsHeld": 7
+      "exitPrice": 1.1967,
+      "exitIndex": 21447,
+      "barsHeld": 10
     },
     "rawR": -1,
     "weightedR": -0.3,
     "summary": {
-      "entry_reasoning": "The entry was based on a slight upward movement in the current bar with a close above the previous bar, indicating potential bullish momentum. However, the overall market conditions showed low volatility and a negative slope on the 5M chart, suggesting a lack of strong trend and compression. This indicates that while the entry seemed logical at the moment, the underlying market conditions were not supportive of a strong upward move.",
-      "what_happened": "After entry at 1.174415, the price fluctuated but ultimately hit the stop loss at 1.174, resulting in an exit. The price did not reach the take profit level of 1.175, indicating that the anticipated upward movement did not materialize as expected. The market remained in a low volatility state, which likely contributed to the inability to reach the target.",
-      "why_outcome": "The outcome was a loss primarily due to the prevailing market conditions that indicated low volatility and a negative slope, which suggested a lack of momentum for a sustained upward move. The strategy may have been sound in a different market context, but the conditions at the time were not conducive to a successful trade.",
-      "lessons": "To improve outcomes, it may be beneficial to incorporate stricter criteria for entry based on volatility and trend strength. Additionally, implementing a more robust risk management strategy that accounts for market conditions could help avoid entering trades during periods of low volatility.",
+      "entry_reasoning": "The entry was made based on a slight upward slope in market conditions, with the entry price just below a recent resistance level. The rationale was to target the next structural level while maintaining a reasonable risk-to-reward ratio with the stop loss set below the recent swing low. However, the market conditions showed low volatility and compression, which may have indicated a lack of momentum for a breakout.",
+      "what_happened": "After the entry at 1.196845, the price initially fluctuated but ultimately hit the stop loss at 1.1967. The price action did not show the expected upward movement towards the take profit level of 1.19726, indicating that the market did not have sufficient strength to break through the resistance.",
+      "why_outcome": "The outcome was a loss due to the market conditions at the time of entry. The low volatility and compression indicated that the market was not conducive to a breakout, which the strategy relied upon. This suggests that the strategy may have been misapplied given the prevailing market conditions.",
+      "lessons": "To improve outcomes, it may be beneficial to incorporate a filter for volatility or momentum before entering trades. Additionally, waiting for clearer breakout signals or a stronger trend confirmation could help avoid entering trades in low-volatility environments.",
       "rating": "BAD"
     }
   },
   {
+    "tradeNum": 10,
+    "anchorTime": "20260121 08:50:00 US/Eastern",
+    "error": "LONG must have tp>entry and sl<entry."
+  },
+  {
     "tradeNum": 11,
-    "anchorTime": "20260108 09:10:00 US/Eastern",
-    "entryTime": "20260108 09:20:00 US/Eastern",
-    "waitCount": 4,
-    "context": {
-      "ctx_5m": {
-        "n": 15,
-        "mean": 1.1663926666666666,
-        "max": 1.16716,
-        "min": 1.16583,
-        "range_over_mean": 0.0011402678000376545,
-        "ret": -0.0007755492045264082,
-        "vol": 0.00020503411074276743,
-        "slope_over_mean": -0.000030405100038594082,
-        "last_close": 1.16601
-      },
-      "ctx_30m": {
-        "n": 15,
-        "mean": 1.1673083333333332,
-        "max": 1.16805,
-        "min": 1.16583,
-        "range_over_mean": 0.0019018111467265385,
-        "ret": -0.001588368518621536,
-        "vol": 0.00022938341170188623,
-        "slope_over_mean": -0.00009353019104798888,
-        "last_close": 1.16601
-      },
-      "ctx_daily": {
-        "n": 15,
-        "mean": 1.173926,
-        "max": 1.180795,
-        "min": 1.16583,
-        "range_over_mean": 0.012747822264776585,
-        "ret": -0.010816451185992093,
-        "vol": 0.0022839441731334863,
-        "slope_over_mean": -0.0007485413414960997,
-        "last_close": 1.16601
-      },
-      "last_close": 1.16601
-    },
-    "decision": {
-      "side": "LONG",
-      "entry": 1.166085,
-      "tp": 1.167308,
-      "sl": 1.165615,
-      "risk": 0.3,
-      "reasoning": "Current bar shows a slight upward movement with a close near the high, indicating potential for a continuation. While volatility is low, the setup aligns with a minor upward slope and proximity to structural levels. Entering now allows for capturing potential gains before conditions worsen.",
-      "waitCount": 4,
-      "waitHistory": [
+    "anchorTime": "20251203 13:15:00 US/Eastern",
+    "entryTime": "20251203 13:20:00 US/Eastern",
+    "waitCount": 2,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "NY",
+      "previousSession": "LONDON",
+      "support": 1.165575,
+      "resistance": 1.1673270000000002,
+      "swingHighs": [
         {
-          "bar": {
-            "time": "20260108 09:10:00 US/Eastern",
-            "open": 1.16635,
-            "high": 1.16641,
-            "low": 1.166,
-            "close": 1.16601
-          },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The 5M range is below the recent baseline, and there is no strong trend alignment. Waiting for better conditions is essential to avoid low-quality trades."
+          "index": 18,
+          "price": 1.166385,
+          "time": "2025-12-03T06:00:00.000Z",
+          "_t": 1764741600000
         },
         {
-          "bar": {
-            "time": "20260108 09:10:00 US/Eastern",
-            "open": 1.16635,
-            "high": 1.16641,
-            "low": 1.166,
-            "close": 1.16601
-          },
-          "reasoning": "Current conditions show low volatility and a negative slope on the 5M chart, indicating compression. The risk of missing a better setup is high, but the current market does not meet the criteria for a trade. Waiting for clearer conditions is necessary."
+          "index": 36,
+          "price": 1.166825,
+          "time": "2025-12-03T10:30:00.000Z",
+          "_t": 1764757800000
         },
         {
-          "bar": {
-            "time": "20260108 09:15:00 US/Eastern",
-            "open": 1.16601,
-            "high": 1.166065,
-            "low": 1.165655,
-            "close": 1.16569
-          },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The risk of entering now is high due to the lack of structural clarity and potential for worse conditions. Better opportunities may arise if we wait."
+          "index": 40,
+          "price": 1.166645,
+          "time": "2025-12-03T11:30:00.000Z",
+          "_t": 1764761400000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 19,
+          "price": 1.16551,
+          "time": "2025-12-03T06:15:00.000Z",
+          "_t": 1764742500000
         },
         {
-          "bar": {
-            "time": "20260108 09:15:00 US/Eastern",
-            "open": 1.16601,
-            "high": 1.166065,
-            "low": 1.165655,
-            "close": 1.16569
-          },
-          "reasoning": "Current market conditions show low volatility and a negative slope on the 5M chart, indicating compression. The risk of missing a better setup is high, but the current conditions do not support a trade. Waiting for clearer alignment is necessary."
+          "index": 43,
+          "price": 1.165765,
+          "time": "2025-12-03T12:15:00.000Z",
+          "_t": 1764764100000
         }
       ]
     },
+    "context": {
+      "ctx_5m": {
+        "n": 15,
+        "mean": 1.1670023333333333,
+        "max": 1.167345,
+        "min": 1.16654,
+        "range_over_mean": 0.0006898015342444332,
+        "ret": 0.00011571097968629144,
+        "vol": 0.0001555141602129633,
+        "slope_over_mean": 0.000030006672774021938,
+        "last_close": 1.166835
+      },
+      "ctx_30m": {
+        "n": 15,
+        "mean": 1.1663243333333333,
+        "max": 1.167345,
+        "min": 1.16544,
+        "range_over_mean": 0.0016333364104267557,
+        "ret": 0.00047587200329259115,
+        "vol": 0.00029794793790339396,
+        "slope_over_mean": 0.000054536410704354885,
+        "last_close": 1.166835
+      },
+      "ctx_daily": {
+        "n": 15,
+        "mean": 1.1577823333333335,
+        "max": 1.16757,
+        "min": 1.149115,
+        "range_over_mean": 0.015939956474259456,
+        "ret": 0.00654302350657768,
+        "vol": 0.0026398716785951937,
+        "slope_over_mean": 0.0006349885900503821,
+        "last_close": 1.166835
+      },
+      "last_close": 1.166835
+    },
+    "decision": {
+      "side": "LONG",
+      "entry": 1.16712,
+      "tp": 1.16733,
+      "sl": 1.16683,
+      "risk": 0.5,
+      "reasoning": "The 5M slope is aligned with the 30M slope, indicating a continuation of the trend. Current volatility is stable, and the entry is near the recent swing high, providing a clear target at the next resistance level. The stop loss is placed beyond the last swing low, ensuring structural invalidation is respected.",
+      "waitCount": 2,
+      "waitHistory": [
+        {
+          "bar": {
+            "time": "20251203 13:15:00 US/Eastern",
+            "open": 1.167305,
+            "high": 1.167325,
+            "low": 1.166835,
+            "close": 1.166835
+          },
+          "reasoning": "Current market conditions show low volatility and a lack of clear structural support for a trade. The 5M slope is minimal and does not indicate a strong trend. Additionally, the price is near resistance, and there is no visible room to the next structural level. It is better to wait for a clearer setup.",
+          "strategy": "STRATEGY_1"
+        },
+        {
+          "bar": {
+            "time": "20251203 13:15:00 US/Eastern",
+            "open": 1.167305,
+            "high": 1.167325,
+            "low": 1.166835,
+            "close": 1.166835
+          },
+          "reasoning": "Current market conditions show low volatility and a lack of clear structural support for a trade. The 5M range is below the recent baseline, and the slope magnitude is not meaningful enough to classify as a trend. Additionally, the last close is near resistance, which does not provide a favorable entry point.",
+          "strategy": "STRATEGY_1"
+        }
+      ],
+      "selectedStrategy": "STRATEGY_1"
+    },
     "simResult": {
       "outcome": "SL",
-      "exitPrice": 1.165615,
-      "exitIndex": 15504,
+      "exitPrice": 1.16683,
+      "exitIndex": 5718,
       "barsHeld": 1
     },
     "rawR": -1,
-    "weightedR": -0.3,
+    "weightedR": -0.5,
     "summary": {
-      "entry_reasoning": "The entry was based on a slight upward movement in the current bar, with a close near the high, suggesting potential for continuation. The trader noted low volatility but felt the setup aligned with a minor upward slope and proximity to structural levels, which justified the long position despite the wait for better conditions.",
-      "what_happened": "After entry at 1.166085, the price did not move favorably and hit the stop loss at 1.165615. The market conditions remained unfavorable with low volatility and a negative slope on the 5M chart, indicating a lack of momentum that led to the immediate loss.",
-      "why_outcome": "The root cause of the loss was primarily due to the prevailing market conditions, which showed low volatility and a negative slope, indicating compression. The strategy's reliance on upward movement was not supported by the market context, leading to a quick stop loss.",
-      "lessons": "To improve outcomes, the strategy could incorporate stricter criteria for entry, particularly focusing on stronger trend alignment and avoiding trades in low volatility environments. Additionally, waiting for a clearer breakout or confirmation of upward momentum before entering could reduce the risk of losses.",
+      "entry_reasoning": "The entry was based on the alignment of the 5-minute and 30-minute slopes, suggesting a continuation of the bullish trend. The entry price was near a recent swing high, and the stop loss was strategically placed below the last swing low to manage risk effectively. However, the decision to enter was made despite indications of low volatility and resistance levels, which could have been a warning sign.",
+      "what_happened": "After the entry at 1.16712, the price did not sustain upward momentum and quickly retraced to the stop loss level at 1.16683. The market conditions indicated low volatility and a lack of structural support, which contributed to the price's inability to reach the take profit target of 1.16733.",
+      "why_outcome": "The outcome was a loss due to unfavorable market conditions that were not conducive to a strong upward movement. The strategy was sound in theory, but the actual market environment was not supportive, leading to a quick hit on the stop loss. This indicates that the strategy may need to incorporate more stringent conditions regarding market volatility and resistance levels.",
+      "lessons": "To improve outcomes, the strategy could include a filter for market volatility and structural support before entering trades. Additionally, waiting for clearer bullish signals or confirmation of trend strength could prevent premature entries in uncertain market conditions.",
       "rating": "BAD"
     }
   },
   {
     "tradeNum": 12,
-    "anchorTime": "20251223 07:30:00 US/Eastern",
-    "entryTime": "20251223 07:40:00 US/Eastern",
+    "anchorTime": "20260105 16:05:00 US/Eastern",
+    "entryTime": "20260105 16:25:00 US/Eastern",
     "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "NY",
+      "previousSession": "LONDON",
+      "support": 1.166186,
+      "resistance": 1.17282975,
+      "swingHighs": [
+        {
+          "index": 2,
+          "price": 1.17248,
+          "time": "2026-01-04T17:35:00.000Z",
+          "_t": 1767548100000
+        },
+        {
+          "index": 22,
+          "price": 1.169505,
+          "time": "2026-01-05T03:35:00.000Z",
+          "_t": 1767584100000
+        },
+        {
+          "index": 27,
+          "price": 1.1691,
+          "time": "2026-01-05T06:05:00.000Z",
+          "_t": 1767593100000
+        },
+        {
+          "index": 44,
+          "price": 1.17289,
+          "time": "2026-01-05T14:35:00.000Z",
+          "_t": 1767623700000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 3,
+          "price": 1.17003,
+          "time": "2026-01-04T18:05:00.000Z",
+          "_t": 1767549900000
+        },
+        {
+          "index": 12,
+          "price": 1.16723,
+          "time": "2026-01-04T22:35:00.000Z",
+          "_t": 1767566100000
+        },
+        {
+          "index": 18,
+          "price": 1.16783,
+          "time": "2026-01-05T01:35:00.000Z",
+          "_t": 1767576900000
+        },
+        {
+          "index": 25,
+          "price": 1.167385,
+          "time": "2026-01-05T05:05:00.000Z",
+          "_t": 1767589500000
+        },
+        {
+          "index": 33,
+          "price": 1.16592,
+          "time": "2026-01-05T09:05:00.000Z",
+          "_t": 1767603900000
+        }
+      ]
+    },
     "context": {
       "ctx_5m": {
         "n": 15,
-        "mean": 1.1798666666666668,
-        "max": 1.180205,
-        "min": 1.179245,
-        "range_over_mean": 0.0008136512600292545,
-        "ret": 0.00039844690483050783,
-        "vol": 0.00007458066264611812,
-        "slope_over_mean": 0.000027469810955230178,
-        "last_close": 1.18005
+        "mean": 1.1726109999999998,
+        "max": 1.17288,
+        "min": 1.1723,
+        "range_over_mean": 0.000494622683907984,
+        "ret": -0.00022170585601903852,
+        "vol": 0.00007364862120563647,
+        "slope_over_mean": -0.000016187928355730183,
+        "last_close": 1.172465
       },
       "ctx_30m": {
         "n": 15,
-        "mean": 1.1794493333333333,
-        "max": 1.180205,
-        "min": 1.178,
-        "range_over_mean": 0.0018695165088340765,
-        "ret": 0.0010179412138949739,
-        "vol": 0.00026624538812650833,
-        "slope_over_mean": 0.00008355896997291846,
-        "last_close": 1.18005
+        "mean": 1.1711303333333334,
+        "max": 1.17289,
+        "min": 1.16592,
+        "range_over_mean": 0.005951515217065155,
+        "ret": 0.003758320313336144,
+        "vol": 0.0003799915089712091,
+        "slope_over_mean": 0.00029739278744015204,
+        "last_close": 1.172465
       },
       "ctx_daily": {
         "n": 15,
-        "mean": 1.171859,
-        "max": 1.180425,
-        "min": 1.161515,
-        "range_over_mean": 0.01613675365380987,
-        "ret": 0.012905413235022839,
-        "vol": 0.0022819673887015932,
-        "slope_over_mean": 0.0007103030313373921,
-        "last_close": 1.18005
+        "mean": 1.17496,
+        "max": 1.180795,
+        "min": 1.16592,
+        "range_over_mean": 0.012660005446993916,
+        "ret": 0.0012681685425884137,
+        "vol": 0.0024654428739586992,
+        "slope_over_mean": -0.00022239358908266696,
+        "last_close": 1.172465
       },
-      "last_close": 1.18005
+      "last_close": 1.172465
     },
     "decision": {
       "side": "LONG",
-      "entry": 1.179505,
-      "tp": 1.180205,
-      "sl": 1.179245,
+      "entry": 1.17228,
+      "tp": 1.17283,
+      "sl": 1.1719,
       "risk": 0.3,
-      "reasoning": "Current conditions show a slight upward slope on 5M and 30M, with the last close near a structural level. Although volatility is low, the market is not in compression anymore. Entry is near recent micro-structure, and there's visible room to the next liquidity level. This setup warrants a cautious long trade.",
+      "reasoning": "The current market conditions show a slight upward slope on the 30M timeframe, indicating potential continuation. The entry is near a recent consolidation edge, and there is visible room to the next structural resistance level. Although 5M volatility is low, the alignment with the 30M slope suggests a cautious long position with a reasonable risk management strategy.",
       "waitCount": 4,
       "waitHistory": [
         {
           "bar": {
-            "time": "20251223 07:30:00 US/Eastern",
-            "open": 1.180045,
-            "high": 1.180205,
-            "low": 1.18,
-            "close": 1.18005
+            "time": "20260105 16:05:00 US/Eastern",
+            "open": 1.17244,
+            "high": 1.172465,
+            "low": 1.1723,
+            "close": 1.172465
           },
-          "reasoning": "Current market conditions show low 5M volatility and a very small slope, indicating compression. The 5M range over mean is below the recent baseline, which suggests that waiting may lead to worse conditions. Given the risk of missing a move, it is prudent to hold off until a clearer setup emerges."
+          "reasoning": "Current market conditions indicate low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, and the 5M volatility is low, suggesting compression. Additionally, the last close is near a swing high, which does not provide a favorable entry point for a trend-following strategy.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251223 07:30:00 US/Eastern",
-            "open": 1.180045,
-            "high": 1.180205,
-            "low": 1.18,
-            "close": 1.18005
+            "time": "20260105 16:10:00 US/Eastern",
+            "open": 1.172465,
+            "high": 1.172535,
+            "low": 1.17246,
+            "close": 1.17247
           },
-          "reasoning": "Current market conditions show low 5M volatility and a very small slope, indicating compression. Waiting further may risk missing the move or encountering worse conditions. Given the already rejected bar, it's prudent to hold off for clearer signals."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. No valid entry point is available at this time.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251223 07:35:00 US/Eastern",
-            "open": 1.18005,
-            "high": 1.180175,
-            "low": 1.17973,
-            "close": 1.179835
+            "time": "20260105 16:15:00 US/Eastern",
+            "open": 1.17247,
+            "high": 1.172585,
+            "low": 1.172445,
+            "close": 1.17256
           },
-          "reasoning": "Current market conditions show low 5M volatility and a very small slope, indicating compression. The risk of missing a better entry or facing worse conditions is high. Given the recent rejections and the current setup, it's prudent to wait for clearer signals."
+          "reasoning": "Current market conditions indicate low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, and the volatility is low, suggesting compression. Additionally, the last two bars have shown low volatility and no significant trend confirmation. It is advisable to wait for clearer conditions before entering a trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251223 07:35:00 US/Eastern",
-            "open": 1.18005,
-            "high": 1.180175,
-            "low": 1.17973,
-            "close": 1.179835
-          }
+            "time": "20260105 16:20:00 US/Eastern",
+            "open": 1.17256,
+            "high": 1.172645,
+            "low": 1.17256,
+            "close": 1.172565
+          },
+          "reasoning": "Current market conditions indicate low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, and the volatility is low, suggesting compression. It is advisable to wait for clearer trend signals before entering a trade.",
+          "strategy": "STRATEGY_1"
         }
-      ]
+      ],
+      "selectedStrategy": "STRATEGY_1"
     },
     "simResult": {
       "outcome": "SL",
-      "exitPrice": 1.179245,
-      "exitIndex": 11345,
-      "barsHeld": 4
+      "exitPrice": 1.1719,
+      "exitIndex": 14601,
+      "barsHeld": 16
     },
     "rawR": -1,
     "weightedR": -0.3,
     "summary": {
-      "entry_reasoning": "The entry was based on a slight upward slope in both the 5-minute and 30-minute contexts, indicating potential bullish momentum. The last close was near a structural level, suggesting a possible breakout. The decision to enter a long position was supported by the proximity to recent micro-structure and the perceived room to the next liquidity level, despite low volatility.",
-      "what_happened": "After the entry at 1.179505, the price fluctuated but ultimately hit the stop loss at 1.179245. The market did not show the expected upward movement, and instead, it retraced, leading to the exit at the stop loss level. The price action indicated a lack of sufficient buying pressure to push through the resistance.",
-      "why_outcome": "The outcome was a loss due to the market conditions not aligning with the bullish expectations. The low volatility and small slope suggested a lack of momentum, which may have contributed to the price failing to reach the take profit target. It appears that the market was still in a state of compression, which was not conducive for a long trade.",
-      "lessons": "To improve outcomes, it may be beneficial to incorporate stricter criteria for entry, such as requiring a stronger confirmation of momentum or a higher volatility threshold. Additionally, considering a more dynamic approach to setting stop losses based on market conditions could help mitigate losses in similar situations.",
-      "rating": "BAD"
+      "entry_reasoning": "The entry at 1.17228 was justified by the slight upward slope observed in the 30M timeframe, suggesting potential continuation. The entry point was near a recent consolidation edge, providing a reasonable risk-to-reward ratio with a target at 1.17283 and a stop-loss at 1.1719. However, the low volatility in the 5M context indicated a lack of momentum, which could have been a warning sign.",
+      "what_happened": "After entry, the price initially fluctuated but failed to reach the take profit level of 1.17283. Instead, it declined and hit the stop-loss at 1.1719. The price action reflected the low volatility and lack of significant upward momentum, which contributed to the trade's failure.",
+      "why_outcome": "The outcome was a loss primarily due to the prevailing low volatility and compression in the market, which limited price movement. The strategy was sound based on the 30M slope, but the lack of momentum in the 5M timeframe led to the stop-loss being triggered. It was not necessarily bad luck, but rather a misalignment between the expected market conditions and the actual price action.",
+      "lessons": "To improve outcomes, it may be beneficial to incorporate stricter criteria for entry based on volatility indicators. Additionally, waiting for clearer signs of momentum before entering a trade could help avoid similar losses in low-volatility environments. Adjusting the strategy to account for the prevailing volatility context could enhance decision-making.",
+      "rating": "NEUTRAL"
     }
   },
   {
     "tradeNum": 13,
-    "anchorTime": "20260206 12:25:00 US/Eastern",
-    "entryTime": "20260206 12:45:00 US/Eastern",
+    "anchorTime": "20260116 09:35:00 US/Eastern",
+    "entryTime": "20260116 09:55:00 US/Eastern",
     "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "LONDON",
+      "previousSession": "ASIA",
+      "support": 1.1606070000000002,
+      "resistance": 1.162204,
+      "swingHighs": [
+        {
+          "index": 9,
+          "price": 1.161745,
+          "time": "2026-01-15T14:20:00.000Z",
+          "_t": 1768486800000
+        },
+        {
+          "index": 15,
+          "price": 1.161115,
+          "time": "2026-01-15T17:35:00.000Z",
+          "_t": 1768498500000
+        },
+        {
+          "index": 18,
+          "price": 1.16103,
+          "time": "2026-01-15T19:05:00.000Z",
+          "_t": 1768503900000
+        },
+        {
+          "index": 24,
+          "price": 1.161415,
+          "time": "2026-01-15T22:05:00.000Z",
+          "_t": 1768514700000
+        },
+        {
+          "index": 27,
+          "price": 1.16138,
+          "time": "2026-01-15T23:35:00.000Z",
+          "_t": 1768520100000
+        },
+        {
+          "index": 42,
+          "price": 1.16235,
+          "time": "2026-01-16T07:05:00.000Z",
+          "_t": 1768547100000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 2,
+          "price": 1.160365,
+          "time": "2026-01-15T12:00:00.000Z",
+          "_t": 1768478400000
+        },
+        {
+          "index": 12,
+          "price": 1.160285,
+          "time": "2026-01-15T15:50:00.000Z",
+          "_t": 1768492200000
+        },
+        {
+          "index": 20,
+          "price": 1.16024,
+          "time": "2026-01-15T20:05:00.000Z",
+          "_t": 1768507500000
+        },
+        {
+          "index": 32,
+          "price": 1.16043,
+          "time": "2026-01-16T02:05:00.000Z",
+          "_t": 1768529100000
+        },
+        {
+          "index": 36,
+          "price": 1.160815,
+          "time": "2026-01-16T04:05:00.000Z",
+          "_t": 1768536300000
+        },
+        {
+          "index": 39,
+          "price": 1.160815,
+          "time": "2026-01-16T05:35:00.000Z",
+          "_t": 1768541700000
+        },
+        {
+          "index": 45,
+          "price": 1.161165,
+          "time": "2026-01-16T08:35:00.000Z",
+          "_t": 1768552500000
+        }
+      ]
+    },
     "context": {
       "ctx_5m": {
         "n": 15,
-        "mean": 1.1814266666666664,
-        "max": 1.18192,
-        "min": 1.18101,
-        "range_over_mean": 0.0007702551717134555,
-        "ret": -0.00007618596146676894,
-        "vol": 0.00019259803103636913,
-        "slope_over_mean": -0.00001337668420263378,
-        "last_close": 1.18123
+        "mean": 1.1616376666666668,
+        "max": 1.161965,
+        "min": 1.161255,
+        "range_over_mean": 0.0006112060760196783,
+        "ret": -0.00011191411882693642,
+        "vol": 0.0001154478885015182,
+        "slope_over_mean": -0.000022582035353947897,
+        "last_close": 1.161475
       },
       "ctx_30m": {
         "n": 15,
-        "mean": 1.180407,
-        "max": 1.18262,
-        "min": 1.17858,
-        "range_over_mean": 0.0034225483244338974,
-        "ret": 0.0017512392243663809,
-        "vol": 0.0005290228754860722,
-        "slope_over_mean": 0.0001839256653485953,
-        "last_close": 1.18123
+        "mean": 1.161495,
+        "max": 1.16235,
+        "min": 1.160815,
+        "range_over_mean": 0.0013215726283798588,
+        "ret": 0.00043067249510105293,
+        "vol": 0.00026441876020644753,
+        "slope_over_mean": 0.000048121478906802136,
+        "last_close": 1.161475
       },
       "ctx_daily": {
         "n": 15,
-        "mean": 1.1842663333333334,
-        "max": 1.20458,
-        "min": 1.167,
-        "range_over_mean": 0.03173272678809013,
-        "ret": 0.010544056189339526,
-        "vol": 0.004428677698507923,
-        "slope_over_mean": 0.00006390333770239169,
-        "last_close": 1.18123
+        "mean": 1.167558,
+        "max": 1.17649,
+        "min": 1.159315,
+        "range_over_mean": 0.014710189986279001,
+        "ret": -0.010719213668807443,
+        "vol": 0.0023733044644434296,
+        "slope_over_mean": -0.0008174265065571504,
+        "last_close": 1.161475
       },
-      "last_close": 1.18123
+      "last_close": 1.161475
     },
     "decision": {
       "side": "LONG",
-      "entry": 1.181765,
-      "tp": 1.18262,
-      "sl": 1.181665,
+      "entry": 1.161825,
+      "tp": 1.1622,
+      "sl": 1.161645,
       "risk": 0.3,
-      "reasoning": "Current conditions show a slight upward slope on the 30M chart, and the price is near a structural level. Although 5M volatility is low, the potential for a breakout exists. Entering now allows for participation in a possible upward move, with a stop placed beyond the recent low for protection.",
+      "reasoning": "Current market conditions show a slight upward trend with the 5M close above the recent swing low. The entry is near the recent support level, and there is visible room to the next resistance level. Volatility is stable, allowing for a continuation trade in the direction of the trend.",
       "waitCount": 4,
       "waitHistory": [
         {
           "bar": {
-            "time": "20260206 12:25:00 US/Eastern",
-            "open": 1.18122,
-            "high": 1.18138,
-            "low": 1.181175,
-            "close": 1.18123
+            "time": "20260116 09:35:00 US/Eastern",
+            "open": 1.161615,
+            "high": 1.16173,
+            "low": 1.161385,
+            "close": 1.161475
           },
-          "reasoning": "Current market conditions show low volatility and a small slope on the 5M chart, indicating compression. The 5M range is below the recent baseline, and the slope magnitude is not meaningful. Waiting is prudent to avoid entering a low-quality trade."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. No clear trend continuation opportunity is present, and entering now could lead to a low-quality trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20260206 12:30:00 US/Eastern",
-            "open": 1.18123,
-            "high": 1.18148,
-            "low": 1.18123,
-            "close": 1.181445
+            "time": "20260116 09:40:00 US/Eastern",
+            "open": 1.161475,
+            "high": 1.16167,
+            "low": 1.1614,
+            "close": 1.161565
           },
-          "reasoning": "Current market conditions show low volatility and a small slope on the 5M chart, indicating compression. The 5M range is below the recent baseline, and the volatility is low, which does not meet the trading criteria. Waiting for a better setup is essential to avoid entering a low-quality trade."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the 5M slope is very small, and there is no clear structural entry point near recent micro-structure. It is better to wait for a clearer trend signal.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20260206 12:35:00 US/Eastern",
-            "open": 1.181445,
-            "high": 1.18173,
-            "low": 1.18126,
-            "close": 1.181655
+            "time": "20260116 09:45:00 US/Eastern",
+            "open": 1.161565,
+            "high": 1.1619,
+            "low": 1.16148,
+            "close": 1.161825
           },
-          "reasoning": "Current market conditions show low volatility and a small slope on the 5M chart, indicating compression. The 5M range is below the recent baseline, and the volatility is low. Waiting may risk missing a potential move, but entering now could lead to unfavorable conditions."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. It's better to wait for clearer trend signals before entering a trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20260206 12:40:00 US/Eastern",
-            "open": 1.181655,
-            "high": 1.181955,
-            "low": 1.181655,
-            "close": 1.18181
+            "time": "20260116 09:50:00 US/Eastern",
+            "open": 1.161825,
+            "high": 1.16208,
+            "low": 1.161825,
+            "close": 1.16199
           },
-          "reasoning": "Current market conditions show low volatility and a small slope on the 5M chart, indicating compression. The last three bars were rejected due to similar conditions. With only one wait left, it is prudent to avoid entering a trade that may lead to further losses."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is not conducive for a trade, and previous bars have been rejected due to similar conditions. Waiting for clearer signals is necessary.",
+          "strategy": "STRATEGY_1"
         }
-      ]
+      ],
+      "selectedStrategy": "STRATEGY_1"
     },
     "simResult": {
-      "outcome": "SL",
-      "exitPrice": 1.181665,
-      "exitIndex": 23827,
+      "outcome": "TP",
+      "exitPrice": 1.1622,
+      "exitIndex": 18033,
       "barsHeld": 1
     },
-    "rawR": -1,
-    "weightedR": -0.3,
+    "rawR": 2.0833333333313804,
+    "weightedR": 0.6249999999994141,
     "summary": {
-      "entry_reasoning": "The entry was based on a slight upward slope observed on the 30-minute chart, suggesting potential bullish momentum. The price was near a structural level, and while 5-minute volatility was low, the potential for a breakout was considered. This reasoning was sound, as it aligned with the overall market context indicating a possible upward move.",
-      "what_happened": "After entry at 1.181765, the price initially moved towards the target but quickly reversed. The price hit the stop loss at 1.181665, resulting in an exit. This occurred due to low volatility and a lack of strong buying pressure, which led to a quick reversal and triggered the stop loss.",
-      "why_outcome": "The loss was primarily due to market conditions rather than a flaw in the strategy. The low volatility and compression in the 5-minute chart indicated a lack of momentum, which was not adequately accounted for in the decision to enter the trade. The market failed to provide the expected breakout, leading to the stop loss being hit.",
-      "lessons": "To improve outcomes, it may be beneficial to incorporate additional filters for volatility and momentum before entering trades. Setting stricter criteria for entry based on volatility levels or waiting for a confirmed breakout could help avoid entering trades in low-quality conditions.",
-      "rating": "BAD"
+      "entry_reasoning": "The entry at 1.161825 was justified due to the slight upward trend indicated by the market context, with the 5-minute close above the recent swing low and proximity to a support level. The volatility was stable, suggesting a potential continuation of the trend, which aligned with the strategy of entering near support with a clear target and stop-loss.",
+      "what_happened": "After entry, the price moved positively, reaching the target price of 1.1622. The trade was held for 1 bar, indicating that the price action was favorable and quickly hit the take profit level, demonstrating that the market conditions supported the trade direction.",
+      "why_outcome": "The outcome was successful due to the alignment of the strategy with the prevailing market conditions. The upward trend and stable volatility allowed for a quick execution of the take profit. The strategy was effective in this scenario, and there were no adverse market movements that would have affected the trade negatively.",
+      "lessons": "Future trades could benefit from a more rigorous assessment of volatility and slope alignment before entry. Additionally, incorporating a mechanism to identify stronger trend signals could enhance decision-making, especially in low-volatility environments.",
+      "rating": "GOOD"
     }
   },
   {
     "tradeNum": 14,
-    "anchorTime": "20251128 10:30:00 US/Eastern",
-    "entryTime": "20251128 10:40:00 US/Eastern",
+    "anchorTime": "20251224 15:15:00 US/Eastern",
+    "entryTime": "20251224 15:25:00 US/Eastern",
     "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "NY",
+      "previousSession": "LONDON",
+      "support": 1.17746475,
+      "resistance": 1.1792372500000001,
+      "swingHighs": [
+        {
+          "index": 6,
+          "price": 1.18009,
+          "time": "2025-12-24T05:00:00.000Z",
+          "_t": 1766552400000
+        },
+        {
+          "index": 17,
+          "price": 1.17932,
+          "time": "2025-12-24T07:45:00.000Z",
+          "_t": 1766562300000
+        },
+        {
+          "index": 35,
+          "price": 1.178315,
+          "time": "2025-12-24T12:15:00.000Z",
+          "_t": 1766578500000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 5,
+          "price": 1.179455,
+          "time": "2025-12-24T04:45:00.000Z",
+          "_t": 1766551500000
+        },
+        {
+          "index": 32,
+          "price": 1.177305,
+          "time": "2025-12-24T11:30:00.000Z",
+          "_t": 1766575800000
+        },
+        {
+          "index": 38,
+          "price": 1.177275,
+          "time": "2025-12-24T13:00:00.000Z",
+          "_t": 1766581200000
+        }
+      ]
+    },
     "context": {
       "ctx_5m": {
         "n": 15,
-        "mean": 1.1583063333333332,
-        "max": 1.15883,
-        "min": 1.157955,
-        "range_over_mean": 0.000755413291647914,
-        "ret": -0.000017264373670025145,
-        "vol": 0.00015751074945110686,
-        "slope_over_mean": -0.0000014645767899297073,
-        "last_close": 1.158435
+        "mean": 1.1781483333333334,
+        "max": 1.17823,
+        "min": 1.178045,
+        "range_over_mean": 0.00015702606774198078,
+        "ret": 0.00010186108694278379,
+        "vol": 0.0000211252356052528,
+        "slope_over_mean": 0.00000967013814859604,
+        "last_close": 1.178195
       },
       "ctx_30m": {
         "n": 15,
-        "mean": 1.157389,
-        "max": 1.15883,
-        "min": 1.155845,
-        "range_over_mean": 0.002579081017704519,
-        "ret": 0.0016471686856372471,
-        "vol": 0.00034073681673674617,
-        "slope_over_mean": 0.00011499097167356285,
-        "last_close": 1.158435
+        "mean": 1.1779383333333333,
+        "max": 1.178315,
+        "min": 1.177275,
+        "range_over_mean": 0.0008828985105331743,
+        "ret": 0.0002971528511816686,
+        "vol": 0.00016882130718616668,
+        "slope_over_mean": 0.000014856465321477108,
+        "last_close": 1.178195
       },
       "ctx_daily": {
         "n": 15,
-        "mean": 1.157248,
-        "max": 1.16562,
-        "min": 1.149115,
-        "range_over_mean": 0.014262284315894252,
-        "ret": -0.0004918011570268976,
-        "vol": 0.0028058061991462248,
-        "slope_over_mean": -0.000254313311778085,
-        "last_close": 1.158435
+        "mean": 1.1726516666666664,
+        "max": 1.180795,
+        "min": 1.161515,
+        "range_over_mean": 0.016441370057320204,
+        "ret": 0.011695253633299863,
+        "vol": 0.002265294024400705,
+        "slope_over_mean": 0.0006545757001277388,
+        "last_close": 1.178195
       },
-      "last_close": 1.158435
+      "last_close": 1.178195
     },
     "decision": {
       "side": "LONG",
-      "entry": 1.158975,
-      "tp": 1.1595,
-      "sl": 1.1585,
+      "entry": 1.178195,
+      "tp": 1.17924,
+      "sl": 1.177275,
       "risk": 0.3,
-      "reasoning": "Current bar shows a slight upward movement with a close above the previous bar. Although volatility is low, the 30M slope is positive, indicating potential for a continuation. Entry is near recent micro-structure, and there's visible room to the next structural level. Taking a lower risk position is warranted given the current conditions.",
+      "reasoning": "Current market context shows a potential for upward momentum with the price near support and room to the next resistance level. The 5M slope is aligned with the 30M trend, and the entry is near a structural level. Volatility is stable, allowing for a continuation trade.",
       "waitCount": 4,
       "waitHistory": [
         {
           "bar": {
-            "time": "20251128 10:30:00 US/Eastern",
-            "open": 1.158515,
-            "high": 1.15883,
-            "low": 1.15818,
-            "close": 1.158435
+            "time": "20251224 15:15:00 US/Eastern",
+            "open": 1.178195,
+            "high": 1.178195,
+            "low": 1.178195,
+            "close": 1.178195
           },
-          "reasoning": "Current market conditions show low 5M range over mean and low volatility, indicating compression. The slope magnitude is also very small, suggesting noise rather than a trend. Waiting for clearer conditions is preferable to risking a low-quality trade."
+          "reasoning": "Current market context shows low volatility and a lack of meaningful slope alignment. The 5M range over mean is below the recent baseline, indicating compression. No valid entry point is present as the price is at a local high with no visible room to the next structural level.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251128 10:30:00 US/Eastern",
-            "open": 1.158515,
-            "high": 1.15883,
-            "low": 1.15818,
-            "close": 1.158435
+            "time": "20251224 15:15:00 US/Eastern",
+            "open": 1.178195,
+            "high": 1.178195,
+            "low": 1.178195,
+            "close": 1.178195
           },
-          "reasoning": "Current market conditions show low 5M range over mean and low volatility, indicating compression. The risk of entering now is high as the setup does not meet the required criteria for a strong trade. Waiting may lead to better conditions, but caution is advised as opportunities can vanish quickly."
+          "reasoning": "Current market context shows low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. No valid entry point is available at this moment.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251128 10:35:00 US/Eastern",
-            "open": 1.158435,
-            "high": 1.158855,
-            "low": 1.158435,
-            "close": 1.158855
+            "time": "20251224 15:20:00 US/Eastern",
+            "open": 1.178195,
+            "high": 1.178195,
+            "low": 1.178195,
+            "close": 1.178195
           },
-          "reasoning": "Current market conditions show low 5M range over mean and low volatility, indicating compression. The previous bars were rejected due to similar conditions. Waiting further may risk missing the move, but entering now could lead to unfavorable conditions."
+          "reasoning": "Current market context shows low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. No valid entry point is available at this time.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20251128 10:35:00 US/Eastern",
-            "open": 1.158435,
-            "high": 1.158855,
-            "low": 1.158435,
-            "close": 1.158855
+            "time": "20251224 15:20:00 US/Eastern",
+            "open": 1.178195,
+            "high": 1.178195,
+            "low": 1.178195,
+            "close": 1.178195
           },
-          "reasoning": "Current market conditions show low 5M range over mean and low volatility, indicating compression. This bar may not provide a better setup than previously rejected bars. Waiting for clearer conditions is prudent to avoid entering a low-quality trade."
+          "reasoning": "Current market context shows low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. No valid entry point is present at this time.",
+          "strategy": "STRATEGY_1"
         }
-      ]
+      ],
+      "selectedStrategy": "STRATEGY_1"
     },
     "simResult": {
       "outcome": "TP",
-      "exitPrice": 1.1595,
-      "exitIndex": 4607,
-      "barsHeld": 4
+      "exitPrice": 1.17924,
+      "exitIndex": 12166,
+      "barsHeld": 69
     },
-    "rawR": 1.1052631578944907,
-    "weightedR": 0.3315789473683472,
+    "rawR": 1.1358695652173112,
+    "weightedR": 0.34076086956519336,
     "summary": {
-      "entry_reasoning": "The entry was made at 1.158975 after observing a slight upward movement in the market with a close above the previous bar. The positive slope on the 30-minute chart indicated potential for continuation despite low volatility. The entry point was chosen near recent micro-structure, suggesting there was room to the next structural level, which justified a long position.",
-      "what_happened": "After entry, the price moved favorably, reaching the take profit target of 1.1595. The trade was held for 4 bars, during which the price showed a consistent upward trend, allowing the target to be hit without hitting the stop loss.",
-      "why_outcome": "The outcome was a win due to the favorable market conditions that aligned with the strategy. The positive slope and slight upward movement provided a conducive environment for the trade, leading to a successful exit at the take profit level.",
-      "lessons": "To improve outcomes, consider implementing stricter criteria for entry during periods of low volatility, as this can help avoid potential false signals. Additionally, refining the wait criteria could enhance decision-making in similar market conditions.",
+      "entry_reasoning": "The entry was made at 1.178195 based on a favorable market context indicating potential upward momentum. The price was near a support level, and the 5-minute slope aligned with the 30-minute trend, suggesting a continuation trade. Additionally, volatility was stable, which supported the decision to enter a long position.",
+      "what_happened": "After entry, the price moved upward, eventually reaching the take profit (TP) level of 1.17924. The trade was held for 69 bars, indicating that the price maintained a favorable trajectory towards the TP without hitting the stop loss (SL) at 1.177275.",
+      "why_outcome": "The outcome was successful, reaching the TP. This can be attributed to the strategy being well-aligned with the market conditions at the time of entry. The favorable slope and stable volatility contributed to the upward movement, leading to a profitable exit.",
+      "lessons": "To improve outcomes, consider incorporating additional indicators to confirm entry points during periods of low volatility. Additionally, refining the criteria for waiting periods before entering could help avoid entries during compression phases.",
       "rating": "GOOD"
     }
   },
   {
     "tradeNum": 15,
-    "anchorTime": "20260114 10:30:00 US/Eastern",
-    "entryTime": "20260114 10:40:00 US/Eastern",
+    "anchorTime": "20260116 15:35:00 US/Eastern",
+    "entryTime": "20260116 15:55:00 US/Eastern",
     "waitCount": 4,
+    "selectedStrategy": "STRATEGY_1",
+    "indicators": {
+      "currentSession": "NY",
+      "previousSession": "LONDON",
+      "support": 1.1590450000000003,
+      "resistance": 1.1622235,
+      "swingHighs": [
+        {
+          "index": 3,
+          "price": 1.161115,
+          "time": "2026-01-15T17:35:00.000Z",
+          "_t": 1768498500000
+        },
+        {
+          "index": 6,
+          "price": 1.16103,
+          "time": "2026-01-15T19:05:00.000Z",
+          "_t": 1768503900000
+        },
+        {
+          "index": 12,
+          "price": 1.161415,
+          "time": "2026-01-15T22:05:00.000Z",
+          "_t": 1768514700000
+        },
+        {
+          "index": 15,
+          "price": 1.16138,
+          "time": "2026-01-15T23:35:00.000Z",
+          "_t": 1768520100000
+        },
+        {
+          "index": 30,
+          "price": 1.16235,
+          "time": "2026-01-16T07:05:00.000Z",
+          "_t": 1768547100000
+        },
+        {
+          "index": 37,
+          "price": 1.162745,
+          "time": "2026-01-16T10:35:00.000Z",
+          "_t": 1768559700000
+        },
+        {
+          "index": 40,
+          "price": 1.16059,
+          "time": "2026-01-16T12:05:00.000Z",
+          "_t": 1768565100000
+        },
+        {
+          "index": 44,
+          "price": 1.159935,
+          "time": "2026-01-16T14:05:00.000Z",
+          "_t": 1768572300000
+        }
+      ],
+      "swingLows": [
+        {
+          "index": 8,
+          "price": 1.16024,
+          "time": "2026-01-15T20:05:00.000Z",
+          "_t": 1768507500000
+        },
+        {
+          "index": 20,
+          "price": 1.16043,
+          "time": "2026-01-16T02:05:00.000Z",
+          "_t": 1768529100000
+        },
+        {
+          "index": 24,
+          "price": 1.160815,
+          "time": "2026-01-16T04:05:00.000Z",
+          "_t": 1768536300000
+        },
+        {
+          "index": 27,
+          "price": 1.160815,
+          "time": "2026-01-16T05:35:00.000Z",
+          "_t": 1768541700000
+        },
+        {
+          "index": 33,
+          "price": 1.161165,
+          "time": "2026-01-16T08:35:00.000Z",
+          "_t": 1768552500000
+        },
+        {
+          "index": 38,
+          "price": 1.158445,
+          "time": "2026-01-16T11:05:00.000Z",
+          "_t": 1768561500000
+        },
+        {
+          "index": 43,
+          "price": 1.15894,
+          "time": "2026-01-16T13:35:00.000Z",
+          "_t": 1768570500000
+        }
+      ]
+    },
     "context": {
       "ctx_5m": {
         "n": 15,
-        "mean": 1.1652943333333332,
-        "max": 1.165905,
-        "min": 1.164925,
-        "range_over_mean": 0.0008409892436331373,
-        "ret": -0.0003517516804722236,
-        "vol": 0.00007927091006711549,
-        "slope_over_mean": -0.000025683272090546865,
-        "last_close": 1.165185
+        "mean": 1.159768,
+        "max": 1.160035,
+        "min": 1.15937,
+        "range_over_mean": 0.0005733905401769283,
+        "ret": 0.0004312296513507794,
+        "vol": 0.00005491946383686286,
+        "slope_over_mean": 0.00003752289866840535,
+        "last_close": 1.159975
       },
       "ctx_30m": {
         "n": 15,
-        "mean": 1.1651200000000002,
-        "max": 1.16601,
-        "min": 1.16438,
-        "range_over_mean": 0.001398997528151624,
-        "ret": 0.0003434110157668205,
-        "vol": 0.00029439070030108996,
-        "slope_over_mean": 0.000044753207517560525,
-        "last_close": 1.165185
+        "mean": 1.1602766666666666,
+        "max": 1.162745,
+        "min": 1.158445,
+        "range_over_mean": 0.0037060126464090208,
+        "ret": -0.0015880256838409533,
+        "vol": 0.0008749967976824225,
+        "slope_over_mean": -0.00014294620207577693,
+        "last_close": 1.159975
       },
       "ctx_daily": {
         "n": 15,
-        "mean": 1.169566,
-        "max": 1.178915,
-        "min": 1.161825,
-        "range_over_mean": 0.014612257880273389,
-        "ret": -0.01024425671801552,
-        "vol": 0.002396206701875763,
-        "slope_over_mean": -0.0007960523085364281,
-        "last_close": 1.165185
+        "mean": 1.167458,
+        "max": 1.17649,
+        "min": 1.158445,
+        "range_over_mean": 0.015456658826270484,
+        "ret": -0.011996831507759504,
+        "vol": 0.002358060565339653,
+        "slope_over_mean": -0.0008496175940743519,
+        "last_close": 1.159975
       },
-      "last_close": 1.165185
+      "last_close": 1.159975
     },
     "decision": {
       "side": "LONG",
-      "entry": 1.165275,
-      "tp": 1.16601,
-      "sl": 1.165155,
+      "entry": 1.15994,
+      "tp": 1.16222,
+      "sl": 1.15905,
       "risk": 0.3,
-      "reasoning": "Current bar shows a potential for upward movement despite low volatility. The entry is just above the recent low, with a clear structural level above for target. Risk is set conservatively due to uncertainty in market conditions, but the opportunity to trade is present and should not be missed.",
+      "reasoning": "Current market conditions show a slight upward trend with the last close near support. The entry is near a structural level with visible room to the next resistance. Although volatility is low, the alignment of the 5M and 30M slopes suggests potential for a continuation move. A wider stop is placed to accommodate market noise.",
       "waitCount": 4,
       "waitHistory": [
         {
           "bar": {
-            "time": "20260114 10:30:00 US/Eastern",
-            "open": 1.165155,
-            "high": 1.165375,
-            "low": 1.164925,
-            "close": 1.165185
+            "time": "20260116 15:35:00 US/Eastern",
+            "open": 1.160015,
+            "high": 1.160035,
+            "low": 1.15987,
+            "close": 1.159975
           },
-          "reasoning": "Current market conditions show low volatility and a small slope on the 5M chart, indicating compression. The 5M range over mean is below the recent baseline, suggesting that waiting for a clearer setup is prudent. Entering now could lead to missed opportunities or worse conditions."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is compressed, and the 5M volatility is below session average, indicating a lack of momentum for a trade. It is better to wait for clearer trend signals.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20260114 10:30:00 US/Eastern",
-            "open": 1.165155,
-            "high": 1.165375,
-            "low": 1.164925,
-            "close": 1.165185
+            "time": "20260116 15:40:00 US/Eastern",
+            "open": 1.159975,
+            "high": 1.159975,
+            "low": 1.15955,
+            "close": 1.15981
           },
-          "reasoning": "Current market conditions show low volatility and a small slope on the 5M chart, indicating compression. The risk of entering now is high due to the lack of strong alignment and potential for worse conditions. Waiting for a clearer setup is prudent."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the 5M slope is very small, and there is no clear pullback or structural level to enter a trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20260114 10:35:00 US/Eastern",
-            "open": 1.165185,
-            "high": 1.1654,
-            "low": 1.16516,
-            "close": 1.165275
+            "time": "20260116 15:45:00 US/Eastern",
+            "open": 1.15981,
+            "high": 1.16007,
+            "low": 1.15981,
+            "close": 1.16007
           },
-          "reasoning": "Current market conditions show low volatility and a small slope on the 5M chart, indicating compression. The risk of entering now is high as conditions may worsen. Better setups may appear soon."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. Additionally, the 5M slope is very small, which does not support a strong trend. It is better to wait for clearer conditions before entering a trade.",
+          "strategy": "STRATEGY_1"
         },
         {
           "bar": {
-            "time": "20260114 10:35:00 US/Eastern",
-            "open": 1.165185,
-            "high": 1.1654,
-            "low": 1.16516,
-            "close": 1.165275
+            "time": "20260116 15:50:00 US/Eastern",
+            "open": 1.16007,
+            "high": 1.16023,
+            "low": 1.160065,
+            "close": 1.160225
           },
-          "reasoning": "Current market conditions show low volatility and a small slope on the 5M chart, indicating compression. The risk of missing a better setup is high, but the current conditions do not support a strong trade. Waiting for clearer alignment is prudent."
+          "reasoning": "Current market conditions show low volatility and a lack of meaningful slope alignment. The 5M range is below the recent baseline, indicating compression. It is better to wait for clearer trend signals.",
+          "strategy": "STRATEGY_1"
         }
-      ]
+      ],
+      "selectedStrategy": "STRATEGY_1"
     },
     "simResult": {
       "outcome": "SL",
-      "exitPrice": 1.165155,
-      "exitIndex": 17156,
-      "barsHeld": 1
+      "exitPrice": 1.15905,
+      "exitIndex": 18117,
+      "barsHeld": 13
     },
     "rawR": -1,
     "weightedR": -0.3,
     "summary": {
-      "entry_reasoning": "The entry was based on the potential for upward movement despite low volatility. The decision to enter just above the recent low was supported by a clear structural level for the target, indicating a possible upward breakout. However, the low volatility and compression in the market suggested that the conditions were not optimal for a strong trade.",
-      "what_happened": "After entry at 1.165275, the price initially did not show significant upward movement and quickly retraced to hit the stop loss at 1.165155. The market conditions remained weak, and the price failed to reach the target of 1.16601, leading to an exit.",
-      "why_outcome": "The outcome was a loss due to the combination of low volatility and market compression, which indicated that the upward movement was not strong enough to sustain the trade. The strategy's entry point was valid, but the market conditions were unfavorable, leading to a quick stop loss.",
-      "lessons": "To improve outcomes in similar situations, it may be beneficial to incorporate stricter criteria for entry based on volatility and momentum indicators. Additionally, waiting for clearer signs of strength in the market before entering a trade could prevent premature entries in low-volatility conditions.",
-      "rating": "NEUTRAL"
+      "entry_reasoning": "The entry was made based on a perceived slight upward trend in the market, with the last close near a support level. The trader identified a structural level that suggested potential for upward movement towards the next resistance. However, the low volatility and lack of strong slope alignment in both the 5M and 30M contexts indicated that the market was not conducive for a strong trend, which should have raised caution.",
+      "what_happened": "After entry at 1.15994, the price fluctuated but ultimately hit the stop loss at 1.15905. The price movement showed low volatility and a lack of momentum, which contributed to the inability to reach the take profit target of 1.16222. The market conditions remained compressed, leading to a failure to sustain upward movement.",
+      "why_outcome": "The root cause of the loss was primarily due to the prevailing market conditions, which exhibited low volatility and insufficient trend strength. The strategy employed did not account for the lack of momentum, leading to a premature entry. The combination of these factors resulted in hitting the stop loss.",
+      "lessons": "To improve outcomes, it may be beneficial to incorporate stricter criteria for entry based on volatility and trend strength. Additionally, implementing a more dynamic approach to adjusting stop losses based on market conditions could help mitigate losses in low volatility environments.",
+      "rating": "BAD"
     }
   }
 ]
