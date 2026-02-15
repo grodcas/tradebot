@@ -14,6 +14,7 @@ const RULES_PATHS = {
   STRATEGY_1: "./rules_strategy1.json",
   STRATEGY_2: "./rules_strategy2.json",
   STRATEGY_3: "./rules_strategy3.json",
+  STRATEGY_4: "./rules_strategy4.json",
 };
 
 // Will be initialized when needed
@@ -88,7 +89,7 @@ ${JSON.stringify(currentBar)}
 
 OUTPUT JSON SCHEMA (strict):
 {
-  "strategy": "STRATEGY_1" | "STRATEGY_2" | "STRATEGY_3",
+  "strategy": "STRATEGY_1" | "STRATEGY_2" | "STRATEGY_3 | "STRATEGY_4"",
   "reasoning": string (max 200 chars explaining why this strategy was chosen)
 }
 `;
@@ -109,7 +110,7 @@ OUTPUT JSON SCHEMA (strict):
   const result = JSON.parse(text);
 
   // Validate strategy
-  if (!["STRATEGY_1", "STRATEGY_2", "STRATEGY_3"].includes(result.strategy)) {
+  if (!["STRATEGY_1", "STRATEGY_2", "STRATEGY_3", "STRATEGY_4"].includes(result.strategy)) {
     console.warn(`Invalid strategy "${result.strategy}", defaulting to STRATEGY_1`);
     result.strategy = "STRATEGY_1";
   }
@@ -195,8 +196,15 @@ STRATEGY: TREND PULLBACK CONTINUATION
 INSTRUCTIONS:
 ${JSON.stringify(rules)}
 
-MARKET CONTEXT (15 candles each timeframe):
-${JSON.stringify(context)}
+PRICE CONTEXT (15 candles, oldest to newest):
+5M closes: [${context.prices_5m.map(p => p.toFixed(5)).join(', ')}]
+30M closes: [${context.prices_30m.map(p => p.toFixed(5)).join(', ')}]
+Daily closes: [${context.prices_daily.map(p => p.toFixed(5)).join(', ')}]
+
+RANGE CONTEXT (high-low for each candle):
+5M ranges: [${context.ranges_5m.map(r => r.toFixed(5)).join(', ')}]
+30M ranges: [${context.ranges_30m.map(r => r.toFixed(5)).join(', ')}]
+Daily ranges: [${context.ranges_daily.map(r => r.toFixed(5)).join(', ')}]
 
 KEY INDICATORS:
 - structureState: ${indicators.structureState}
@@ -205,6 +213,13 @@ KEY INDICATORS:
 - pullbackRatio: ${indicators.pullbackRatio}
 - ATR_5m: ${indicators.ATR_5m}
 - ATR_30m: ${indicators.ATR_30m}
+
+INDICATOR LEGEND:
+- structureState: -1=downtrend, 0=range, +1=uptrend
+- EMA50_slope_30m: normalized slope (positive=up, negative=down, magnitude=strength)
+- marketRegime: TREND | EXPANSION | RANGE
+- pullbackRatio: 0-1+ (0.38/0.5/0.62=fib levels, >1=impulse broken)
+- ATR values: absolute volatility in price units
 
 CURRENT 5MIN BAR:
 ${JSON.stringify(currentBar)}
@@ -283,8 +298,15 @@ STRATEGY: LIQUIDITY SWEEP REVERSAL
 INSTRUCTIONS:
 ${JSON.stringify(rules)}
 
-MARKET CONTEXT (15 candles each timeframe):
-${JSON.stringify(context)}
+PRICE CONTEXT (15 candles, oldest to newest):
+5M closes: [${context.prices_5m.map(p => p.toFixed(5)).join(', ')}]
+30M closes: [${context.prices_30m.map(p => p.toFixed(5)).join(', ')}]
+Daily closes: [${context.prices_daily.map(p => p.toFixed(5)).join(', ')}]
+
+RANGE CONTEXT (high-low for each candle):
+5M ranges: [${context.ranges_5m.map(r => r.toFixed(5)).join(', ')}]
+30M ranges: [${context.ranges_30m.map(r => r.toFixed(5)).join(', ')}]
+Daily ranges: [${context.ranges_daily.map(r => r.toFixed(5)).join(', ')}]
 
 KEY INDICATORS:
 - sweepScore: ${indicators.sweepScore}
@@ -294,6 +316,13 @@ KEY INDICATORS:
 - ATR_5m: ${indicators.ATR_5m}
 - prevSessionHigh: ${indicators.prevSessionHigh}
 - prevSessionLow: ${indicators.prevSessionLow}
+
+INDICATOR LEGEND:
+- sweepScore: -1 to +1 (negative=bearish sweep above high, positive=bullish sweep below low, |>0.2|=significant)
+- acceptanceTime: 0-1 (0=no acceptance, 0.5=~15min, 1=30+min beyond level)
+- marketRegime: TREND | EXPANSION | RANGE
+- structureState: -1=downtrend, 0=range, +1=uptrend
+- ATR values: absolute volatility in price units
 
 CURRENT 5MIN BAR:
 ${JSON.stringify(currentBar)}
@@ -372,8 +401,22 @@ STRATEGY: SESSION BREAKOUT EXPANSION
 INSTRUCTIONS:
 ${JSON.stringify(rules)}
 
-MARKET CONTEXT (15 candles each timeframe):
-${JSON.stringify(context)}
+PRICE CONTEXT (15 candles, oldest to newest):
+5M closes: [${context.prices_5m.map(p => p.toFixed(5)).join(', ')}]
+30M closes: [${context.prices_30m.map(p => p.toFixed(5)).join(', ')}]
+Daily closes: [${context.prices_daily.map(p => p.toFixed(5)).join(', ')}]
+
+RANGE CONTEXT (high-low for each candle):
+5M ranges: [${context.ranges_5m.map(r => r.toFixed(5)).join(', ')}]
+30M ranges: [${context.ranges_30m.map(r => r.toFixed(5)).join(', ')}]
+Daily ranges: [${context.ranges_daily.map(r => r.toFixed(5)).join(', ')}]
+
+INDICATOR LEGEND:
+- structureState: -1=downtrend, 0=range, +1=uptrend
+- breakoutScore: positive=bullish breakout, negative=bearish breakout, magnitude=strength
+- acceptanceTime: 0-1 (how long price accepted beyond level, 1=30min+)
+- marketRegime: TREND | EXPANSION | RANGE
+- ATR values: absolute volatility in price units
 
 KEY INDICATORS:
 - breakoutScore: ${indicators.breakoutScore}
@@ -419,6 +462,111 @@ OUTPUT JSON SCHEMA (strict):
 
   return JSON.parse(text);
 }
+
+
+/**
+ * STRATEGY 4: General / Custom
+ * Placeholder strategy for custom trading logic.
+ */
+async function executeStrategy4({ rules, context, indicators, currentBar, waitCount, mustTrade, waitHistory }) {
+
+  const system = `
+You are a disciplined intraday RANGE PARTICIPATION trader.
+Your objective is to trade controlled movements when no strong trend, breakout, or sweep dominates.
+You participate conservatively when price interacts with meaningful levels inside a range.
+
+You must decide:
+- Whether to TRADE or WAIT.
+- If trading, define side, entry (current close), stop loss, take profit and risk.
+- Stop loss must be tight and logically placed.
+- Take profit should be modest and realistic.
+- Risk must reflect confidence (0–1.0).
+
+The decision is probabilistic, not deterministic.
+You MUST output ONLY valid JSON matching the schema exactly.
+No markdown. No commentary.
+`;
+
+  const waitInfo = mustTrade
+    ? `FINAL BAR - You MUST output action="TRADE". Use conservative risk (0.2–0.4).`
+    : `Waits left: ${MAX_WAIT_BARS - waitCount}. Avoid forcing trades in unclear environments.`;
+
+  const waitHistorySection = waitHistory.length > 0
+    ? `\nPREVIOUS REJECTIONS:\n${waitHistory.map((w, i) =>
+        `  ${i + 1}. ${w.bar.time} close=${w.bar.close}`
+      ).join('\n')}\n`
+    : '';
+
+  const user = `
+STRATEGY: CONTROLLED RANGE PARTICIPATION
+
+INSTRUCTIONS:
+${JSON.stringify(rules)}
+
+PRICE CONTEXT (15 candles, oldest to newest):
+5M closes: [${context.prices_5m.map(p => p.toFixed(5)).join(', ')}]
+30M closes: [${context.prices_30m.map(p => p.toFixed(5)).join(', ')}]
+Daily closes: [${context.prices_daily.map(p => p.toFixed(5)).join(', ')}]
+
+RANGE CONTEXT (high-low for each candle):
+5M ranges: [${context.ranges_5m.map(r => r.toFixed(5)).join(', ')}]
+30M ranges: [${context.ranges_30m.map(r => r.toFixed(5)).join(', ')}]
+Daily ranges: [${context.ranges_daily.map(r => r.toFixed(5)).join(', ')}]
+
+INDICATOR LEGEND:
+- structureState: -1=downtrend, 0=range, +1=uptrend
+- marketRegime: TREND | EXPANSION | RANGE
+- breakoutScore: positive=bullish breakout, negative=bearish breakout, magnitude=strength
+- sweepScore: positive=bullish sweep (shorts liquidated), negative=bearish sweep, magnitude=strength
+- pullbackRatio: 0-1+ (0.38/0.5/0.62=fib levels, >1=impulse broken)
+- ATR values: absolute volatility in price units
+
+KEY INDICATORS:
+- marketRegime: ${indicators.marketRegime}
+- structureState: ${indicators.structureState}
+- breakoutScore: ${indicators.breakoutScore}
+- sweepScore: ${indicators.sweepScore}
+- pullbackRatio: ${indicators.pullbackRatio}
+- ATR_5m: ${indicators.ATR_5m}
+- prevSessionHigh: ${indicators.prevSessionHigh}
+- prevSessionLow: ${indicators.prevSessionLow}
+
+CURRENT 5MIN BAR:
+${JSON.stringify(currentBar)}
+${waitHistorySection}
+
+TIMING:
+- Waits used: ${waitCount}/${MAX_WAIT_BARS}
+- ${waitInfo}
+
+OUTPUT JSON SCHEMA (strict):
+{
+  "action": "TRADE" | "WAIT",
+  "side": "LONG" | "SHORT",
+  "entry": number,
+  "tp": number,
+  "sl": number,
+  "risk": number,
+  "reasoning": string
+}
+`;
+
+  const resp = await getClient().chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.2,
+    messages: [
+      { role: "system", content: system.trim() },
+      { role: "user", content: user.trim() },
+    ],
+    response_format: { type: "json_object" },
+  });
+
+  const text = resp.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Empty strategy response.");
+
+  return JSON.parse(text);
+}
+
 
 
 // ----------------------------
@@ -484,6 +632,9 @@ async function callStrategyTradeDecision({ rules, context, indicators, currentBa
     case "STRATEGY_3":
       rawDecision = await executeStrategy3(strategyParams);
       break;
+    case "STRATEGY_4":
+      rawDecision = await executeStrategy4(strategyParams);
+      break;
     default:
       console.warn(`Unknown strategy ${strategyToUse}, using STRATEGY_1`);
       rawDecision = await executeStrategy1(strategyParams);
@@ -503,6 +654,7 @@ module.exports = {
   executeStrategy1,
   executeStrategy2,
   executeStrategy3,
+  executeStrategy4,
   callStrategyTradeDecision,
   validateDecision,
   MAX_WAIT_BARS,

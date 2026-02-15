@@ -11,6 +11,14 @@ const DATA_PATH = "./eurusd_5m.json";
 const RULES_PATH = "./rules.json";
 const RESULTS_PATH = "./trade_results.json";
 
+// Strategy-specific rules files
+const STRATEGY_RULES_PATHS = {
+  STRATEGY_1: "./rules_strategy1.json",
+  STRATEGY_2: "./rules_strategy2.json",
+  STRATEGY_3: "./rules_strategy3.json",
+  STRATEGY_4: "./rules_strategy4.json",
+};
+
 const SESSION_TZ = "Europe/Zurich";
 const SESSION_START_HOUR = 8;
 const SESSION_END_HOUR = 18;
@@ -23,7 +31,7 @@ const MIN_DAILY_BARS = 5;      // minimum required
 const SIM_FORWARD_5M_BARS = 300;
 const DEFAULT_SPREAD = 0.00008;
 
-const NUM_SCENARIOS = 15;
+const NUM_SCENARIOS = 10;
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -162,10 +170,22 @@ function summarizeSeries(bars) {
 }
 
 function buildLLMContext({ bars5m, bars30m, barsDaily }) {
+  // Extract clean arrays for prices and ranges
+  const prices5m = bars5m.map(b => b.close);
+  const prices30m = bars30m.map(b => b.close);
+  const pricesDaily = barsDaily.map(b => b.close);
+
+  const ranges5m = bars5m.map(b => b.high - b.low);
+  const ranges30m = bars30m.map(b => b.high - b.low);
+  const rangesDaily = barsDaily.map(b => b.high - b.low);
+
   return {
-    ctx_5m: summarizeSeries(bars5m),
-    ctx_30m: summarizeSeries(bars30m),
-    ctx_daily: summarizeSeries(barsDaily),
+    prices_5m: prices5m,
+    prices_30m: prices30m,
+    prices_daily: pricesDaily,
+    ranges_5m: ranges5m,
+    ranges_30m: ranges30m,
+    ranges_daily: rangesDaily,
     last_close: bars5m[bars5m.length - 1].close,
   };
 }
@@ -190,31 +210,85 @@ function getRandomAnchorIndices(bars5m, count) {
 // ----------------------------
 // LLM CALLS
 // ----------------------------
-async function callTradeSummary({ context, decision, simResult, R }) {
+async function callTradeSummary({ context, decision, simResult, R, selectedStrategy, indicators, priceBarsAfterEntry }) {
+  // Load strategy-specific rules if available
+  let strategyRules = null;
+  let strategyName = "Unknown";
+  if (selectedStrategy && STRATEGY_RULES_PATHS[selectedStrategy]) {
+    try {
+      strategyRules = JSON.parse(fs.readFileSync(STRATEGY_RULES_PATHS[selectedStrategy], "utf8"));
+      strategyName = strategyRules.strategy_name || selectedStrategy;
+    } catch (e) {
+      // Rules file not found, continue without
+    }
+  }
+
   const system = `
-You are a trading analyst. Analyze the trade and explain what happened.
-Output valid JSON only.
+You are a professional trading analyst reviewing completed trades.
+Your job is to analyze what happened and explain WHY the trade won or lost.
+You have access to:
+- The strategy rules that were supposed to be followed
+- The market conditions at entry
+- The actual price action after entry
+- The final outcome
+
+Be specific and reference actual price levels. Output valid JSON only.
 `;
 
+  // Format price bars after entry for analysis
+  const priceAfterEntry = priceBarsAfterEntry.map(b => ({
+    time: b.time,
+    O: b.open.toFixed(5),
+    H: b.high.toFixed(5),
+    L: b.low.toFixed(5),
+    C: b.close.toFixed(5)
+  }));
+
   const user = `
-MARKET CONTEXT at entry:
-${JSON.stringify(context)}
+STRATEGY USED: ${strategyName} (${selectedStrategy || "N/A"})
 
-DECISION:
-${JSON.stringify(decision)}
+MARKET CONDITIONS AT ENTRY:
+- Session: ${indicators.currentSession}
+- Market Regime: ${indicators.marketRegime}
+- Structure State: ${indicators.structureState} (${indicators.structureLabel})
+- Breakout Score: ${indicators.breakoutScore}
+- Sweep Score: ${indicators.sweepScore}
+- Pullback Ratio: ${indicators.pullbackRatio}
+- Acceptance Time: ${indicators.acceptanceTime}
+- ATR_5m: ${indicators.ATR_5m}
+- Prev Session High: ${indicators.prevSessionHigh}
+- Prev Session Low: ${indicators.prevSessionLow}
 
-SIMULATION RESULT:
-${JSON.stringify(simResult)}
+PRICE CONTEXT AT ENTRY (15 candles before):
+5M closes: [${context.prices_5m.map(p => p.toFixed(5)).join(', ')}]
+30M closes: [${context.prices_30m.map(p => p.toFixed(5)).join(', ')}]
 
-PnL (R-multiple): ${R.toFixed(3)}
+TRADE DECISION:
+- Side: ${decision.side}
+- Entry: ${decision.entry}
+- Stop Loss: ${decision.sl}
+- Take Profit: ${decision.tp}
+- Risk: ${decision.risk}
+- Original Reasoning: ${decision.reasoning}
 
-Analyze this trade. Output JSON:
+PRICE ACTION AFTER ENTRY (${priceAfterEntry.length} bars until exit, only showing 15 next bars):
+${priceAfterEntry.slice(0, 15).map(b => `${b.time}: O=${b.O}`).join('\n')}
+
+OUTCOME:
+- Result: ${simResult.outcome} (TP=win, SL=loss, TIMEOUT=expired)
+- Exit Price: ${simResult.exitPrice}
+- Bars to Exit: ${simResult.barsToExit}
+- PnL (R-multiple): ${R.toFixed(3)}
+
+Analyze this trade thoroughly. Output JSON:
 {
-  "entry_reasoning": "Why this entry made sense (or didn't) given the context",
-  "what_happened": "What price did after entry, why TP/SL/timeout occurred",
-  "why_outcome": "Root cause of win/loss - was it the strategy, market conditions, or bad luck?",
-  "lessons": "What rule changes could improve this outcome?",
-  "rating": "GOOD" | "BAD" | "NEUTRAL"
+  "strategy_compliance": "Did the trade follow the strategy rules? What was done correctly or incorrectly?",
+  "entry_quality": "Was the entry well-timed given the conditions? Reference specific indicators.",
+  "what_happened": "Describe the price action after entry. What did price actually do?",
+  "why_outcome": "Root cause: Was it good/bad strategy execution, unfavorable market conditions, or random noise?",
+  "lessons": "Specific actionable improvements for the strategy rules or execution.",
+  "rating": "GOOD | BAD | NEUTRAL",
+   DO NOT OUTPUT MORE THAN 1.5K chars
 }
 `;
 
@@ -319,9 +393,9 @@ async function main() {
 
       const context = buildLLMContext({ bars5m: win5m, bars30m, barsDaily });
 
-      // Compute and print trade indicators
+      // Compute indicators (saved to trade_results.json)
       const indicators = computeIndicators(bars5m, bars30m, idx);
-      printIndicators(indicators);
+      // printIndicators(indicators);
 
       // Entry timing loop - AI can wait up to 4 bars (20 min)
       let waitCount = 0;
@@ -331,7 +405,7 @@ async function main() {
       let selectedStrategy = null;  // Track selected strategy across waits
 
       while (waitCount <= MAX_WAIT_BARS) {
-        const mustTrade = waitCount === MAX_WAIT_BARS;
+        const mustTrade = true;  // TEMP: Force trade on first bar (disable WAIT)
         const currentBar = {
           time: bars5m[entryIdx].time,
           open: bars5m[entryIdx].open,
@@ -416,8 +490,20 @@ async function main() {
         else timeouts++;
       }
 
-      // Get AI summary
-      const summary = await callTradeSummary({ context, decision, simResult, R: rawR });
+      // Get AI summary with full context
+      // Extract price bars from entry to exit for post-trade analysis
+      const exitBarIdx = entryIdx + (simResult.barsToExit || 0);
+      const priceBarsAfterEntry = bars5m.slice(entryIdx, Math.min(exitBarIdx + 1, bars5m.length));
+
+      const summary = await callTradeSummary({
+        context,
+        decision,
+        simResult,
+        R: rawR,
+        selectedStrategy: decision.selectedStrategy,
+        indicators,
+        priceBarsAfterEntry,
+      });
 
       const waitInfo = decision.waitCount > 0 ? ` (waited ${decision.waitCount * 5}min)` : "";
       const strategyInfo = decision.selectedStrategy ? ` [${decision.selectedStrategy}]` : "";
@@ -427,23 +513,51 @@ async function main() {
       console.log(`   ${decision.side}${strategyInfo} | TP target: ${tpR.toFixed(2)}R | Result: ${rawR.toFixed(2)}R × ${decision.risk.toFixed(1)} = ${weightedR.toFixed(2)} | ${simResult.outcome}${waitInfo}`);
       console.log(`   Reasoning: ${decision.reasoning?.slice(0, 150)}...`);
 
+      // Print post-trade analysis
+      if (summary && !summary.error) {
+        const ratingIcon = summary.rating === "GOOD" ? "✅" : summary.rating === "BAD" ? "❌" : "⚪";
+        console.log(`   Analysis: ${ratingIcon} ${summary.rating} | ${summary.why_outcome?.slice(0, 120)}...`);
+      }
+
       results.push({
         tradeNum: i + 1,
         anchorTime: anchor.time,
         entryTime: bars5m[entryIdx].time,
-        waitCount: decision.waitCount,
+        // waitCount: decision.waitCount,
         selectedStrategy: decision.selectedStrategy,
         strategyReasoning: decision.strategyReasoning,
         indicators: {
           currentSession: indicators.currentSession,
           previousSession: indicators.previousSession,
+          marketRegime: indicators.marketRegime,
+          structureState: indicators.structureState,
+          structureLabel: indicators.structureLabel,
+          breakoutScore: indicators.breakoutScore,
+          breakoutBarsAgo: indicators.breakoutBarsAgo,
+          sweepScore: indicators.sweepScore,
+          sweepBarsAgo: indicators.sweepBarsAgo,
+          pullbackRatio: indicators.pullbackRatio,
+          acceptanceTime: indicators.acceptanceTime,
+          EMA50_slope_30m: indicators.EMA50_slope_30m,
+          ATR_5m: indicators.ATR_5m,
+          ATR_30m: indicators.ATR_30m,
           support: indicators.support,
           resistance: indicators.resistance,
-          swingHighs: indicators.swingHighs,
-          swingLows: indicators.swingLows,
+          prevSessionHigh: indicators.prevSessionHigh,
+          prevSessionLow: indicators.prevSessionLow,
         },
-        context,
-        decision,
+        // context,
+        decision: {
+          side: decision.side,
+          entry: decision.entry,
+          tp: decision.tp,
+          sl: decision.sl,
+          risk: decision.risk,
+          reasoning: decision.reasoning,
+          selectedStrategy: decision.selectedStrategy,
+          // waitCount: decision.waitCount,
+          // waitHistory: decision.waitHistory,
+        },
         simResult,
         rawR,
         weightedR,

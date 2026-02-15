@@ -3,50 +3,62 @@
 
     "STRATEGY_1": {
       "name": "Trend Pullback Continuation",
-      "conditions": [
-        "Best used during active liquidity windows: London 09:00–13:30 Zurich time, and NY 14:30–17:30 Zurich time.",
-        "Avoid Asia session (01:00–08:59 Zurich) unless a strong pre-existing trend is already established.",
-        "structureState should be non-zero, indicating directional bias on 30m.",
-        "EMA50_slope_30m should align with the structure direction.",
-        "pullbackRatio ideally between 0.3 and 0.6, indicating a healthy retracement.",
-        "marketRegime should favor TREND rather than EXPANSION.",
-        "If breakoutScore or sweepScore dominate strongly, this strategy becomes less appropriate."
+      "scoring_logic": [
+        "Increase confidence as |structureState| increases.",
+        "Increase confidence as EMA50_slope_30m aligns with structureState.",
+        "Highest confidence when pullbackRatio is near 0.4–0.6.",
+        "Confidence decreases as pullbackRatio moves above 0.8 or below 0.2.",
+        "Favor when marketRegime leans TREND.",
+        "Reduce confidence if sweepScore meaningfully dominates environment.",
+        "Reduce confidence if breakoutScore + high acceptanceTime suggests expansion."
       ]
     },
 
     "STRATEGY_2": {
       "name": "Liquidity Sweep Reversal",
-      "conditions": [
-        "Best used during NY session 14:30–17:30 Zurich time, especially during London-NY overlap.",
-        "Can also appear late London session 11:30–13:30 if liquidity has built up.",
-        "Avoid Asia session unless an extreme liquidity event occurs.",
-        "Absolute sweepScore should be meaningfully elevated.",
-        "acceptanceTime should remain low, indicating rejection rather than acceptance.",
-        "Market should not be in strong continuation expansion.",
-        "Structure can be TREND or RANGE, but the rejection must dominate."
+      "scoring_logic": [
+        "Increase confidence as |sweepScore| increases.",
+        "Increase confidence when sweepScore meaningfully exceeds breakoutScore.",
+        "Increase confidence when acceptanceTime is very low (strong rejection).",
+        "Decrease confidence as acceptanceTime rises.",
+        "Increase confidence when sweep is recent (small sweepBarsAgo).",
+        "Reduce confidence if strong structure continuation opposes reversal.",
+        "Favor NY session and overlap periods."
       ]
     },
 
     "STRATEGY_3": {
       "name": "Session Breakout Expansion",
-      "conditions": [
-        "Best used early London session 09:00–11:00 Zurich time.",
-        "Also valid during NY open 14:30–16:00 during volatility expansion.",
-        "Avoid low-volatility Asia session.",
-        "Absolute breakoutScore should be meaningfully elevated.",
-        "acceptanceTime should indicate continued trading beyond the breakout level.",
-        "marketRegime should favor EXPANSION.",
-        "Strong volatility expansion increases confidence."
+      "scoring_logic": [
+        "Increase confidence as |breakoutScore| increases.",
+        "Increase confidence when breakoutScore exceeds sweepScore.",
+        "Increase confidence as acceptanceTime rises (sustained acceptance).",
+        "Decrease confidence if acceptanceTime remains low.",
+        "Favor early London and NY open.",
+        "Increase confidence when regime leans EXPANSION.",
+        "Boost confidence when breakout aligns with structure direction."
+      ]
+    },
+
+    "STRATEGY_4": {
+      "name": "Controlled Range Participation",
+      "scoring_logic": [
+        "Increase confidence when both breakoutScore and sweepScore are small relative to other signals.",
+        "Increase confidence when structureState is near zero.",
+        "Increase confidence when EMA slope is weak.",
+        "Favor RANGE regime.",
+        "Increase confidence when price is near session extremes.",
+        "Reduce confidence when directional or event-driven dominance is visible."
       ]
     }
 
   },
 
   "decision_framework": [
-    "First evaluate if the current time fits the preferred timing window of a strategy.",
-    "Then evaluate whether breakoutScore or sweepScore dominate the environment.",
-    "Then evaluate structureState, EMA slope and pullbackRatio alignment.",
-    "Select the strategy that best probabilistically fits the current environment.",
-    "If no strategy clearly dominates, prefer Trend Pullback when structureState is non-zero."
+    "Compute relative confidence for each strategy based on signal alignment.",
+    "Compare weighted dominance rather than binary thresholds.",
+    "Select strategy with highest probabilistic alignment.",
+    "If all confidence levels are weak or conflicting, output WAIT.",
+    "Dominance hierarchy is dynamic, not fixed."
   ]
 }

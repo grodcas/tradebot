@@ -1269,43 +1269,85 @@ function computeIndicators(bars5m, bars30m, anchorIndex) {
   const EMA200_30m = calculateEMA(bars30mForEMA200.slice(-210), 200);
 
   // ----------------------------
-  // Breakout Score Calculation
+  // Breakout Score Calculation (scan last 2h = 24 bars)
   // ----------------------------
-  const breakoutAnalysis = calculateBreakoutScore({
-    currentBar: {
-      open: anchorBar.open,
-      high: anchorBar.high,
-      low: anchorBar.low,
-      close: anchorBar.close,
-    },
-    robustHigh: srData ? srData.resistance : null,
-    robustLow: srData ? srData.support : null,
-    ATR_5m: ATR_5m,
-  });
+  const LOOKBACK_BARS = 24; // 2 hours of 5m bars
+  const recentBars = bars5mUpToAnchor.slice(-LOOKBACK_BARS);
 
-  // ----------------------------
-  // Sweep Score Calculation
-  // ----------------------------
-  // Get next 3 bars for acceptance penalty check
-  const nextBars = [];
-  for (let i = 1; i <= 3; i++) {
-    if (anchorIndex + i < bars5m.length) {
-      nextBars.push(bars5m[anchorIndex + i]);
+  let breakoutAnalysis = {
+    breakoutScore: 0,
+    bullScore: 0,
+    bearScore: 0,
+    components: null,
+    breakoutDirection: "NONE",
+    isBreakout: false,
+    barsAgo: null,
+  };
+
+  // Find the strongest breakout in the last 2h
+  for (let i = 0; i < recentBars.length; i++) {
+    const bar = recentBars[i];
+    const analysis = calculateBreakoutScore({
+      currentBar: {
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+      },
+      robustHigh: srData ? srData.resistance : null,
+      robustLow: srData ? srData.support : null,
+      ATR_5m: ATR_5m,
+    });
+
+    // Keep the strongest breakout (max absolute score)
+    if (Math.abs(analysis.breakoutScore) > Math.abs(breakoutAnalysis.breakoutScore)) {
+      breakoutAnalysis = { ...analysis, barsAgo: recentBars.length - 1 - i };
     }
   }
 
-  const sweepAnalysis = calculateSweepScore({
-    currentBar: {
-      open: anchorBar.open,
-      high: anchorBar.high,
-      low: anchorBar.low,
-      close: anchorBar.close,
-    },
-    sessionHigh: srData ? srData.rawHigh : null,
-    sessionLow: srData ? srData.rawLow : null,
-    ATR_5m: ATR_5m,
-    nextBars: nextBars,
-  });
+  // ----------------------------
+  // Sweep Score Calculation (scan last 2h = 24 bars)
+  // ----------------------------
+  let sweepAnalysis = {
+    sweepScore: 0,
+    bullSweep: 0,
+    bearSweep: 0,
+    sweepDirection: "NONE",
+    isSweep: false,
+    components: null,
+    barsAgo: null,
+  };
+
+  // Find the strongest sweep in the last 2h
+  for (let i = 0; i < recentBars.length; i++) {
+    const bar = recentBars[i];
+    // Get next 3 bars after this bar for acceptance penalty
+    const nextBarsForSweep = [];
+    const barGlobalIndex = anchorIndex - (recentBars.length - 1 - i);
+    for (let j = 1; j <= 3; j++) {
+      if (barGlobalIndex + j < bars5m.length) {
+        nextBarsForSweep.push(bars5m[barGlobalIndex + j]);
+      }
+    }
+
+    const analysis = calculateSweepScore({
+      currentBar: {
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+      },
+      sessionHigh: srData ? srData.rawHigh : null,
+      sessionLow: srData ? srData.rawLow : null,
+      ATR_5m: ATR_5m,
+      nextBars: nextBarsForSweep,
+    });
+
+    // Keep the strongest sweep (max absolute score)
+    if (Math.abs(analysis.sweepScore) > Math.abs(sweepAnalysis.sweepScore)) {
+      sweepAnalysis = { ...analysis, barsAgo: recentBars.length - 1 - i };
+    }
+  }
 
   // ----------------------------
   // Market Regime Calculation
@@ -1406,18 +1448,23 @@ function computeIndicators(bars5m, bars30m, anchorIndex) {
     EMA50_30m: EMA50_30m,
     EMA200_30m: EMA200_30m,
 
-    // Breakout Score
+    // EMA50 Slope (normalized by ATR, from market regime calculation)
+    EMA50_slope_30m: marketRegimeAnalysis.components ? marketRegimeAnalysis.components.slope : null,
+
+    // Breakout Score (scanned last 2h)
     breakoutScore: breakoutAnalysis.breakoutScore,
     breakoutDirection: breakoutAnalysis.breakoutDirection,
     isBreakout: breakoutAnalysis.isBreakout,
+    breakoutBarsAgo: breakoutAnalysis.barsAgo,
     bullScore: breakoutAnalysis.bullScore,
     bearScore: breakoutAnalysis.bearScore,
     breakoutComponents: breakoutAnalysis.components,
 
-    // Sweep Score
+    // Sweep Score (scanned last 2h)
     sweepScore: sweepAnalysis.sweepScore,
     sweepDirection: sweepAnalysis.sweepDirection,
     isSweep: sweepAnalysis.isSweep,
+    sweepBarsAgo: sweepAnalysis.barsAgo,
     bullSweep: sweepAnalysis.bullSweep,
     bearSweep: sweepAnalysis.bearSweep,
     sweepComponents: sweepAnalysis.components,
@@ -1503,8 +1550,10 @@ function printIndicators(indicators) {
                        indicators.breakoutDirection === "BEARISH" ? "🔴" : "⚪";
   const breakoutScoreStr = indicators.breakoutScore !== undefined ? indicators.breakoutScore.toFixed(3) : "N/A";
   const breakoutDirStr = `${breakoutIcon} ${indicators.breakoutDirection || "NONE"}`;
+  const breakoutBarsAgoStr = indicators.breakoutBarsAgo !== null ? `${indicators.breakoutBarsAgo} bars ago` : "N/A";
   console.log(`│ Breakout Score:        ${breakoutScoreStr.padEnd(36)}│`);
   console.log(`│ Direction:             ${breakoutDirStr.padEnd(36)}│`);
+  console.log(`│ When:                  ${breakoutBarsAgoStr.padEnd(36)}│`);
   console.log(`│ Is Breakout:           ${String(indicators.isBreakout || false).padEnd(36)}│`);
 
   // Show component scores
@@ -1535,8 +1584,10 @@ function printIndicators(indicators) {
                     indicators.sweepDirection === "BEARISH" ? "🔴" : "⚪";
   const sweepScoreStr = indicators.sweepScore !== undefined ? indicators.sweepScore.toFixed(3) : "N/A";
   const sweepDirStr = `${sweepIcon} ${indicators.sweepDirection || "NONE"}`;
+  const sweepBarsAgoStr = indicators.sweepBarsAgo !== null ? `${indicators.sweepBarsAgo} bars ago` : "N/A";
   console.log(`│ Sweep Score:           ${sweepScoreStr.padEnd(36)}│`);
   console.log(`│ Direction:             ${sweepDirStr.padEnd(36)}│`);
+  console.log(`│ When:                  ${sweepBarsAgoStr.padEnd(36)}│`);
   console.log(`│ Is Sweep:              ${String(indicators.isSweep || false).padEnd(36)}│`);
 
   // Show component scores

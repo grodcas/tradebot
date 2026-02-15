@@ -16,7 +16,7 @@
   ],
 
   "regime_preferences": [
-    "Most effective early London session (09:00–11:00 Zurich time).",
+    "Most effective early London session (08:00–11:00 Zurich time).",
     "Also valid during NY open (14:30–16:00 Zurich time) when volatility expands.",
     "Less reliable during low-volatility Asia session.",
     "Prefer marketRegime aligned with EXPANSION."

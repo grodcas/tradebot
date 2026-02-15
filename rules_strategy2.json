@@ -1,56 +1,61 @@
 {
   "strategy_name": "Liquidity Sweep Reversal",
 
-  "core_principle": "Trade reversals after liquidity grabs beyond key session highs or lows when price fails to sustain acceptance.",
+  "core_principle": "Trade reversals after a stop-hunt beyond a key session high/low where price REJECTS the level (fails acceptance). This is a short-window event trade: quality decays quickly as time passes.",
 
   "event_requirements": [
-    "sweepScore should be meaningfully elevated.",
-    "Stronger sweepScore increases probability of valid stop hunt.",
-    "Sweep intensity should dominate over breakout intensity."
+    "Absolute sweepScore should be elevated (prefer > 0.6).",
+    "Sweep should be relatively fresh: prefer sweepBarsAgo <= 6 (within ~30 minutes).",
+    "Sweep intensity should dominate breakout intensity: |sweepScore| should be meaningfully larger than |breakoutScore|."
   ],
 
   "acceptance_logic": [
-    "acceptanceTime should remain low, indicating rejection rather than continuation.",
-    "Increasing acceptanceTime reduces reversal probability.",
-    "Immediate rejection after level violation strengthens setup."
+    "acceptanceTime should remain low for a valid reversal (prefer < 0.4).",
+    "If acceptanceTime is high, treat it as continuation risk and reduce confidence sharply.",
+    "Best setups show immediate rejection (acceptanceTime near 0)."
+  ],
+
+  "timing_preferences": [
+    "Most effective during NY session (14:30–17:30 Zurich time), especially London-NY overlap.",
+    "Second best: late London (11:30–13:30 Zurich) if liquidity has built up.",
+    "Avoid Asia unless sweepScore is extreme and rejection is immediate."
   ],
 
   "regime_preferences": [
-    "Most effective during NY session (14:30–17:30 Zurich time).",
-    "Can occur late London session if liquidity build-up is visible.",
-    "Less reliable during low-volatility Asia session.",
-    "Avoid trading against strong expansion continuation."
+    "Best in RANGE or weak TREND environments.",
+    "Avoid strong EXPANSION continuation regimes unless rejection is extremely clear."
   ],
 
   "structure_considerations": [
     "Structure may be TREND or RANGE.",
-    "Counter-trend reversals require stronger sweepScore.",
-    "If structure strongly supports continuation, reduce confidence."
+    "If reversal is counter-trend (structureState opposes the reversal direction), require stronger sweepScore and lower acceptanceTime.",
+    "If structure strongly supports continuation in the opposite direction, reduce risk."
   ],
 
   "entry_logic": [
-    "Trade opposite to the sweep direction.",
-    "Enter when rejection is visible and momentum shifts.",
-    "Do not trade if price continues accepting beyond the level."
+    "Trade opposite to the sweep direction (bearish sweep -> short, bullish sweep -> long).",
+    "Entry quality increases when price is still near the swept level (not already far away).",
+    "Do not treat old sweeps as signals; the edge is in the immediate rejection."
   ],
 
   "stop_loss_guidelines": [
-    "Place stop beyond the liquidity sweep extreme.",
-    "Allow room for normal ATR-based fluctuation.",
-    "Avoid overly tight stops inside the sweep wick."
+    "Stop must be beyond the sweep extreme (not inside the wick).",
+    "Minimum stop distance must be at least 0.8 × ATR_5m to avoid noise stopouts.",
+    "If ATR_5m is very low, widen stop slightly rather than using micro-stops."
   ],
 
   "take_profit_guidelines": [
-    "Target return toward session mean or opposite liquidity zone.",
-    "Risk-to-reward should generally exceed 1.5:1.",
-    "Stronger rejection allows more ambitious targets."
+    "Primary target is mean reversion toward session interior (mid-range or prior equilibrium).",
+    "If rejection is strong and structure supports the reversal, target can extend toward the opposite liquidity boundary.",
+    "Risk-to-reward should generally exceed 1.5:1."
   ],
 
   "risk_management": [
-    "Increase risk when sweepScore is strong and acceptanceTime is very low.",
-    "Reduce risk if structure opposes the reversal.",
-    "If rejection is unclear, prefer WAIT."
+    "High-quality setup (|sweepScore| > 0.8 AND acceptanceTime < 0.2 AND sweepBarsAgo <= 3): risk 0.6–0.8.",
+    "Moderate-quality setup (|sweepScore| 0.6–0.8 AND acceptanceTime < 0.4 AND sweepBarsAgo <= 6): risk 0.4–0.6.",
+    "Low-quality setup (older sweep, weaker score, or counter-trend): risk 0.2–0.4.",
+    "Risk scales with freshness + rejection quality, not a fixed default."
   ],
 
-  "probabilistic_note": "Not all conditions must be perfectly satisfied. The strategy is valid when liquidity rejection dominates the current environment and continuation beyond the level appears unlikely."
+  "probabilistic_note": "This strategy is event-driven. The closer you are to the sweep event and the clearer the rejection (low acceptance), the higher the probability. Old sweeps or accepted levels lose edge quickly."
 }
