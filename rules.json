@@ -1,0 +1,81 @@
+{
+  "regime_filter": [
+
+    "Do not trade if 5M range_over_mean is below recent baseline AND 5M vol is low. This is compression.",
+
+    "Require minimum slope magnitude on 5M. Tiny slopes are noise even if aligned.",
+
+    "Only classify as trend if slope magnitude AND volatility are both meaningful.",
+
+    "If 5M and 30M slopes align but volatility is contracting, do not treat as trend."
+  ],
+
+  "direction_rules": [
+
+    "Trade only in direction of strongest timeframe alignment.",
+
+    "If 5M slope is very small but 30M large, wait for pullback or expansion.",
+
+    "Do not buy at local highs after 2+ consecutive expansion candles.",
+
+    "Do not sell at local lows after 2+ consecutive expansion candles."
+  ],
+
+  "structure_rules": [
+
+    "Entry must be near recent micro-structure: pullback to prior break level or small consolidation edge.",
+
+    "Avoid entries in middle of recent 5M range.",
+
+    "Avoid entries directly into recent swing high or swing low.",
+
+    "There must be visible room to next structural level."
+  ],
+
+  "volatility_rules": [
+
+    "Require stable or expanding 5M volatility for continuation trades.",
+
+    "Do not trade when 5M volatility is below session average.",
+
+    "Avoid trading immediately after abnormal spike without structure."
+  ],
+
+  "stop_loss_rules": [
+
+    "Stop must be beyond structural invalidation (last higher low / lower high).",
+
+    "Stop distance must not be smaller than typical 5M candle body.",
+
+    "Avoid ultra-tight stops inside micro-noise."
+  ],
+
+  "take_profit_rules": [
+
+    "Target must be next structural liquidity level.",
+
+    "R multiple should normally fall within realistic intraday range.",
+
+    "If required target implies extreme expansion beyond recent volatility, skip trade."
+  ],
+
+  "risk_rules": [
+
+    "High risk only when slope magnitude, volatility expansion, and structure all align strongly.",
+
+    "Moderate risk when structure is good but volatility moderate.",
+
+    "Low risk when minor alignment or counter-move within larger regime.",
+
+    "Do not use similar risk repeatedly; adjust based on structural clarity."
+  ],
+
+  "participation_control": [
+
+    "No trade is better than low-quality trade.",
+
+    "If regime unclear after short waiting window, skip instead of forcing entry.",
+
+    "Do not trade compression expecting expansion without breakout confirmation."
+  ]
+}

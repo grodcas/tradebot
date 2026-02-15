@@ -1,0 +1,92 @@
+[
+  {
+    "timestamp": "2026-02-14T21:21:40.776Z",
+    "previousRules": {
+      "movement_types": [
+        "Noise is defined as low 5M volatility_ratio combined with flat 5M mean slope and no alignment with 30M direction. In noise conditions the system should avoid trading.",
+        "A micro trend exists when the 5M mean slope is consistent in one direction for multiple windows and volatility_ratio is stable or expanding.",
+        "A macro trend exists when the 1D mean slope shows sustained direction and 30M aligns with it.",
+        "Range compression exists when both 5M and 30M volatility_ratio contract below their rolling average and mean slopes are flat.",
+        "Volatility expansion is detected when 5M volatility_ratio increases sharply relative to its recent baseline.",
+        "Exhaustion movement is defined as extreme 5M volatility_ratio combined with parabolic 5M slope and overextension relative to 30M mean."
+      ],
+      "trade_logic_rules": [
+        "Only trade when volatility is expanding or when clear directional alignment exists between 5M and 30M.",
+        "Avoid entering trades during volatility contraction unless preparing for breakout conditions.",
+        "If 1D, 30M and 5M slopes align, preference is trend continuation.",
+        "If 5M shows expansion but 30M is flat, treat move as potential short-lived impulse.",
+        "If 5M is counter to strong 1D trend, reduce conviction and risk.",
+        "Breakout logic applies after range compression followed by volatility expansion.",
+        "Mean reversion logic applies after exhaustion movement with slope deceleration.",
+        "Do not trade when 5M slope frequently flips direction within short window."
+      ],
+      "entry_behavior_expectations": [
+        "After entry, price should move in the intended direction within a small number of candles.",
+        "Winning trades should not experience deep adverse excursion relative to target distance.",
+        "A valid trade should show continued volatility expansion after entry.",
+        "If price stagnates after entry and volatility contracts, exit early."
+      ],
+      "risk_rules": [
+        "Base risk per trade should remain small and consistent across scenarios.",
+        "Increase risk when multi-timeframe alignment is strong and volatility expansion confirms.",
+        "Reduce risk during extreme volatility spikes.",
+        "Reduce risk when trading against macro slope.",
+        "Reduce risk after consecutive losses.",
+        "Stop trading for the session after predefined drawdown threshold."
+      ],
+      "position_management_rules": [
+        "Scale out when volatility expansion slows.",
+        "Hold full position only when slope remains consistent and volatility supports continuation.",
+        "Exit immediately if 5M slope flips strongly against position.",
+        "Avoid holding trades in prolonged stagnation environments."
+      ],
+      "environment_filters": [
+        "Prefer trading during high liquidity sessions.",
+        "Avoid trading when 5M volatility_ratio is at extreme lows.",
+        "Avoid trading during abnormal variance spikes not aligned with structure.",
+        "Limit total trades during unclear macro conditions."
+      ],
+      "meta_learning_guidance": [
+        "Log maximum adverse excursion for every trade.",
+        "Log time to first favorable movement.",
+        "Track performance by movement_type classification.",
+        "Adapt risk multipliers based on historical performance of each movement_type.",
+        "Penalize rule clusters that generate stagnating trades."
+      ]
+    },
+    "stats": {
+      "total": 25,
+      "wins": 15,
+      "losses": 9,
+      "timeouts": 1,
+      "totalR": 16.592448676649756,
+      "avgR": 0.6636979470659903,
+      "winRate": 0.6,
+      "avgWinR": 1.698060114354924,
+      "avgLossR": -1
+    },
+    "evolution": {
+      "analysis": "The current trading strategy shows a decent win rate of 60% with an average R per trade of 0.664. However, there are notable issues with entries and exits, particularly regarding stop loss placements and market condition filtering. Losses often stem from trades initiated in noise conditions or during sudden volatility spikes, while wins typically occur during clear trend alignments with appropriate risk management.",
+      "key_problems": [
+        "Entries are occasionally made during noise conditions or low volatility, leading to losses.",
+        "Stop loss levels are often too tight, causing premature exits in volatile conditions.",
+        "Take profit levels may not be sufficiently adjusted based on market context, leading to missed opportunities.",
+        "Lack of dynamic adjustment for stop losses based on market volatility and sentiment."
+      ],
+      "improvements": [
+        "Implement a dynamic stop loss strategy that adjusts based on current volatility, allowing for more room during fluctuations.",
+        "Enhance market condition filters to avoid trading during noise or low volatility periods.",
+        "Refine entry criteria to include additional confirmation signals, especially in uncertain market environments.",
+        "Adjust take profit levels to align more closely with recent price action and support/resistance levels."
+      ],
+      "expected_impact": "These changes are expected to improve the win rate and average R per trade by enhancing entry timing, reducing premature stop outs, and ensuring trades are taken in favorable market conditions. Overall, this should lead to a more robust and profitable trading strategy."
+    },
+    "newRules": {
+      "rule1": "Only enter trades when the 5M volatility_ratio is above its rolling average and both 5M and 30M slopes show clear directional alignment.",
+      "rule2": "Implement a dynamic stop loss that adjusts based on the volatility_ratio; increase stop loss distance during high volatility and tighten during low volatility.",
+      "rule3": "Set take profit levels based on a multiple of the average recent price movement, ensuring they are realistic targets based on current market conditions.",
+      "rule4": "Incorporate additional confirmation signals such as momentum indicators or volume analysis to validate entry points.",
+      "rule5": "Avoid entering trades during periods of extreme volatility spikes or when the market is reacting to significant news events."
+    }
+  }
+]
