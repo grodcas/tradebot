@@ -10,7 +10,11 @@ const fs = require("fs");
 const OpenAI = require("openai");
 
 const STRAT_RULES_PATH = "./strat_rules.json";
-const RULES_PATH = "./rules.json";
+const RULES_PATHS = {
+  STRATEGY_1: "./rules_strategy1.json",
+  STRATEGY_2: "./rules_strategy2.json",
+  STRATEGY_3: "./rules_strategy3.json",
+};
 
 // Will be initialized when needed
 let client = null;
@@ -39,23 +43,39 @@ async function selectStrategy({ context, indicators, currentBar }) {
   const stratRules = JSON.parse(fs.readFileSync(STRAT_RULES_PATH, "utf8"));
 
   const system = `
-You are a strategy selection engine for forex intraday trading.
-Your job is to analyze market conditions and select the most appropriate trading strategy.
+You are a professional intraday FX strategy advisor.
+Your role is to SELECT the most appropriate trading strategy at a given timestamp,
+based on probabilistic alignment between market conditions and predefined strategy instructions.
 You MUST output ONLY valid JSON matching the schema exactly.
 No markdown, no commentary.
 `;
 
   const user = `
+
+  You operate using:
+
+1) INSTRUCTIONS → Strategic decision framework (from JSON file)
+2) INSTRUMENTS → Market indicators (provided data snapshot)
+
+You must:
+
+- Evaluate timing first (session relevance).
+- Evaluate regime (trend, expansion, range).
+- Evaluate event intensity (breakoutScore, sweepScore).
+- Evaluate structural alignment (structureState, pullbackRatio, EMA slope).
+
+The decision is probabilistic.
+Conditions do NOT need to be perfectly satisfied.
+Choose the strategy that best fits the current environment.
+
+If no strategy strongly fits, default to the most structurally stable option.
+
 STRATEGY OPTIONS:
 ${JSON.stringify(stratRules.strategy_selection_criteria, null, 2)}
 
-SELECTION RULES:
-${stratRules.selection_rules.map((r, i) => `${i + 1}. ${r}`).join("\n")}
-
-MARKET CONTEXT:
-${JSON.stringify(context, null, 2)}
 
 TRADE INDICATORS:
+- Zurich Time: ${indicators.anchorZurichTime || "N/A"}
 - Current Session: ${indicators.currentSession}
 - Previous Session: ${indicators.previousSession}
 - Support (5th %ile): ${indicators.support ? indicators.support.toFixed(5) : "N/A"}
@@ -140,43 +160,51 @@ function validateDecision(dec, fallbackEntry) {
  * Trades in the direction of the trend with momentum confirmation.
  */
 async function executeStrategy1({ rules, context, indicators, currentBar, waitCount, mustTrade, waitHistory }) {
-  const system = `
-You are an aggressive TREND FOLLOWING forex trader.
-You trade WITH the trend, looking for momentum continuation.
-You MUST output ONLY valid JSON matching the schema exactly.
-No markdown, no commentary.
 
-TREND FOLLOWING PHILOSOPHY:
-- Trade in the direction of the dominant trend (aligned slopes)
-- Enter on pullbacks within the trend
-- Use wider stops to stay in the trade
-- Target trend continuation moves
+  const system = `
+You are a professional intraday TREND PULLBACK trader.
+Your objective is to trade continuation moves in the direction of the dominant 30m structure.
+You trade structured pullbacks inside an established trend.
+
+You must decide:
+- Whether to TRADE or WAIT.
+- If trading, define side, entry (current close), stop loss, take profit and risk.
+- Stop loss must allow structural fluctuation.
+- Take profit must aim for continuation beyond recent structure.
+- Risk must reflect confidence (0–1.0).
+
+The decision is probabilistic, not deterministic.
+
+You MUST output ONLY valid JSON matching the schema exactly.
+No markdown. No commentary.
 `;
 
   const waitInfo = mustTrade
-    ? `FINAL BAR - You MUST output action="TRADE" now. Use lower risk (0.2-0.5) if uncertain.`
-    : `Waits left: ${MAX_WAIT_BARS - waitCount}. WARNING: Trends don't wait - hesitation means missing the move.`;
+    ? `FINAL BAR - You MUST output action="TRADE". If uncertain, reduce risk (0.2–0.5).`
+    : `Waits left: ${MAX_WAIT_BARS - waitCount}. Trends require timing precision.`;
 
   const waitHistorySection = waitHistory.length > 0
-    ? `\nBARS YOU ALREADY REJECTED:\n${waitHistory.map((w, i) =>
-        `  ${i + 1}. ${w.bar.time} close=${w.bar.close} - "${w.reasoning?.slice(0, 100)}..."`
+    ? `\nPREVIOUS REJECTIONS:\n${waitHistory.map((w, i) =>
+        `  ${i + 1}. ${w.bar.time} close=${w.bar.close}`
       ).join('\n')}\n`
     : '';
 
   const user = `
-STRATEGY: TREND FOLLOWING
+STRATEGY: TREND PULLBACK CONTINUATION
 
-RULES:
+INSTRUCTIONS:
 ${JSON.stringify(rules)}
 
-MARKET CONTEXT:
+MARKET CONTEXT (15 candles each timeframe):
 ${JSON.stringify(context)}
 
-INDICATORS:
-- Support: ${indicators.support ? indicators.support.toFixed(5) : "N/A"}
-- Resistance: ${indicators.resistance ? indicators.resistance.toFixed(5) : "N/A"}
-- Swing Highs: ${JSON.stringify(indicators.swingHighs)}
-- Swing Lows: ${JSON.stringify(indicators.swingLows)}
+KEY INDICATORS:
+- structureState: ${indicators.structureState}
+- EMA50_slope_30m: ${indicators.EMA50_slope_30m}
+- marketRegime: ${indicators.marketRegime}
+- pullbackRatio: ${indicators.pullbackRatio}
+- ATR_5m: ${indicators.ATR_5m}
+- ATR_30m: ${indicators.ATR_30m}
 
 CURRENT 5MIN BAR:
 ${JSON.stringify(currentBar)}
@@ -189,12 +217,12 @@ TIMING:
 OUTPUT JSON SCHEMA (strict):
 {
   "action": "TRADE" | "WAIT",
-  "side": "LONG" | "SHORT" (required if action=TRADE),
-  "entry": number (required if action=TRADE, use current close),
-  "tp": number (required if action=TRADE),
-  "sl": number (required if action=TRADE),
-  "risk": number 0-1 (required if action=TRADE),
-  "reasoning": string (max 500 chars)
+  "side": "LONG" | "SHORT",
+  "entry": number,
+  "tp": number,
+  "sl": number,
+  "risk": number,
+  "reasoning": string
 }
 `;
 
@@ -209,52 +237,63 @@ OUTPUT JSON SCHEMA (strict):
   });
 
   const text = resp.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Empty LLM response.");
+  if (!text) throw new Error("Empty strategy response.");
+
   return JSON.parse(text);
 }
+
 
 /**
  * STRATEGY 2: Mean Reversion
  * Trades against extremes, expecting price to return to mean.
  */
 async function executeStrategy2({ rules, context, indicators, currentBar, waitCount, mustTrade, waitHistory }) {
-  const system = `
-You are a MEAN REVERSION forex trader.
-You trade AGAINST extreme moves, expecting price to revert to the mean.
-You MUST output ONLY valid JSON matching the schema exactly.
-No markdown, no commentary.
 
-MEAN REVERSION PHILOSOPHY:
-- Look for overextended moves away from session levels
-- Trade reversals at support and resistance
-- Use tighter stops at extreme levels
-- Target a return to the mean/session mid-point
+  const system = `
+You are a professional intraday LIQUIDITY SWEEP REVERSAL trader.
+Your objective is to trade failed breakouts after stop hunts beyond key session levels.
+You trade rejection and liquidity traps.
+
+You must decide:
+- Whether to TRADE or WAIT.
+- If trading, define side, entry (current close), stop loss, take profit and risk.
+- Stop loss must sit beyond the liquidity sweep extreme.
+- Take profit should target return toward session mean or opposite structure.
+- Risk must reflect confidence (0–1.0).
+
+The decision is probabilistic, not deterministic.
+
+You MUST output ONLY valid JSON matching the schema exactly.
+No markdown. No commentary.
 `;
 
   const waitInfo = mustTrade
-    ? `FINAL BAR - You MUST output action="TRADE" now. Use lower risk (0.2-0.5) if uncertain.`
-    : `Waits left: ${MAX_WAIT_BARS - waitCount}. Mean reversion setups require patience for the right level.`;
+    ? `FINAL BAR - You MUST output action="TRADE". If uncertain, reduce risk (0.2–0.5).`
+    : `Waits left: ${MAX_WAIT_BARS - waitCount}. Reversal setups are short-lived.`;
 
   const waitHistorySection = waitHistory.length > 0
-    ? `\nBARS YOU ALREADY REJECTED:\n${waitHistory.map((w, i) =>
-        `  ${i + 1}. ${w.bar.time} close=${w.bar.close} - "${w.reasoning?.slice(0, 100)}..."`
+    ? `\nPREVIOUS REJECTIONS:\n${waitHistory.map((w, i) =>
+        `  ${i + 1}. ${w.bar.time} close=${w.bar.close}`
       ).join('\n')}\n`
     : '';
 
   const user = `
-STRATEGY: MEAN REVERSION
+STRATEGY: LIQUIDITY SWEEP REVERSAL
 
-RULES:
+INSTRUCTIONS:
 ${JSON.stringify(rules)}
 
-MARKET CONTEXT:
+MARKET CONTEXT (15 candles each timeframe):
 ${JSON.stringify(context)}
 
-INDICATORS:
-- Support: ${indicators.support ? indicators.support.toFixed(5) : "N/A"}
-- Resistance: ${indicators.resistance ? indicators.resistance.toFixed(5) : "N/A"}
-- Swing Highs: ${JSON.stringify(indicators.swingHighs)}
-- Swing Lows: ${JSON.stringify(indicators.swingLows)}
+KEY INDICATORS:
+- sweepScore: ${indicators.sweepScore}
+- acceptanceTime: ${indicators.acceptanceTime}
+- marketRegime: ${indicators.marketRegime}
+- structureState: ${indicators.structureState}
+- ATR_5m: ${indicators.ATR_5m}
+- prevSessionHigh: ${indicators.prevSessionHigh}
+- prevSessionLow: ${indicators.prevSessionLow}
 
 CURRENT 5MIN BAR:
 ${JSON.stringify(currentBar)}
@@ -267,12 +306,12 @@ TIMING:
 OUTPUT JSON SCHEMA (strict):
 {
   "action": "TRADE" | "WAIT",
-  "side": "LONG" | "SHORT" (required if action=TRADE),
-  "entry": number (required if action=TRADE, use current close),
-  "tp": number (required if action=TRADE),
-  "sl": number (required if action=TRADE),
-  "risk": number 0-1 (required if action=TRADE),
-  "reasoning": string (max 500 chars)
+  "side": "LONG" | "SHORT",
+  "entry": number,
+  "tp": number,
+  "sl": number,
+  "risk": number,
+  "reasoning": string
 }
 `;
 
@@ -287,53 +326,63 @@ OUTPUT JSON SCHEMA (strict):
   });
 
   const text = resp.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Empty LLM response.");
+  if (!text) throw new Error("Empty strategy response.");
+
   return JSON.parse(text);
 }
+
 
 /**
  * STRATEGY 3: Breakout
  * Trades breakouts from ranges and key levels.
  */
 async function executeStrategy3({ rules, context, indicators, currentBar, waitCount, mustTrade, waitHistory }) {
-  const system = `
-You are a BREAKOUT forex trader.
-You trade breakouts from ranges, support/resistance, and key levels.
-You MUST output ONLY valid JSON matching the schema exactly.
-No markdown, no commentary.
 
-BREAKOUT PHILOSOPHY:
-- Wait for price to break key levels (support/resistance)
-- Confirm with volatility expansion
-- Enter on the breakout or first pullback after break
-- Use the broken level as your stop reference
-- Target the next structural level
+  const system = `
+You are a professional intraday SESSION BREAKOUT trader.
+Your objective is to trade volatility expansion when price escapes a defined session range with momentum.
+You trade continuation after range escape.
+
+You must decide:
+- Whether to TRADE or WAIT.
+- If trading, define side, entry (current close), stop loss, take profit and risk.
+- Stop loss must allow structural volatility.
+- Take profit must target continuation expansion.
+- Risk must reflect confidence (0–1.0).
+
+The decision is probabilistic, not deterministic.
+
+You MUST output ONLY valid JSON matching the schema exactly.
+No markdown. No commentary.
 `;
 
   const waitInfo = mustTrade
-    ? `FINAL BAR - You MUST output action="TRADE" now. Use lower risk (0.2-0.5) if uncertain.`
-    : `Waits left: ${MAX_WAIT_BARS - waitCount}. Breakouts are time-sensitive - act quickly or miss the move.`;
+    ? `FINAL BAR - You MUST output action="TRADE". If uncertain, reduce risk (0.2–0.5).`
+    : `Waits left: ${MAX_WAIT_BARS - waitCount}. Breakouts require timely execution.`;
 
   const waitHistorySection = waitHistory.length > 0
-    ? `\nBARS YOU ALREADY REJECTED:\n${waitHistory.map((w, i) =>
-        `  ${i + 1}. ${w.bar.time} close=${w.bar.close} - "${w.reasoning?.slice(0, 100)}..."`
+    ? `\nPREVIOUS REJECTIONS:\n${waitHistory.map((w, i) =>
+        `  ${i + 1}. ${w.bar.time} close=${w.bar.close}`
       ).join('\n')}\n`
     : '';
 
   const user = `
-STRATEGY: BREAKOUT
+STRATEGY: SESSION BREAKOUT EXPANSION
 
-RULES:
+INSTRUCTIONS:
 ${JSON.stringify(rules)}
 
-MARKET CONTEXT:
+MARKET CONTEXT (15 candles each timeframe):
 ${JSON.stringify(context)}
 
-INDICATORS:
-- Support: ${indicators.support ? indicators.support.toFixed(5) : "N/A"}
-- Resistance: ${indicators.resistance ? indicators.resistance.toFixed(5) : "N/A"}
-- Swing Highs: ${JSON.stringify(indicators.swingHighs)}
-- Swing Lows: ${JSON.stringify(indicators.swingLows)}
+KEY INDICATORS:
+- breakoutScore: ${indicators.breakoutScore}
+- acceptanceTime: ${indicators.acceptanceTime}
+- marketRegime: ${indicators.marketRegime}
+- structureState: ${indicators.structureState}
+- ATR_5m: ${indicators.ATR_5m}
+- prevSessionHigh: ${indicators.prevSessionHigh}
+- prevSessionLow: ${indicators.prevSessionLow}
 
 CURRENT 5MIN BAR:
 ${JSON.stringify(currentBar)}
@@ -346,12 +395,12 @@ TIMING:
 OUTPUT JSON SCHEMA (strict):
 {
   "action": "TRADE" | "WAIT",
-  "side": "LONG" | "SHORT" (required if action=TRADE),
-  "entry": number (required if action=TRADE, use current close),
-  "tp": number (required if action=TRADE),
-  "sl": number (required if action=TRADE),
-  "risk": number 0-1 (required if action=TRADE),
-  "reasoning": string (max 500 chars)
+  "side": "LONG" | "SHORT",
+  "entry": number,
+  "tp": number,
+  "sl": number,
+  "risk": number,
+  "reasoning": string
 }
 `;
 
@@ -366,9 +415,11 @@ OUTPUT JSON SCHEMA (strict):
   });
 
   const text = resp.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Empty LLM response.");
+  if (!text) throw new Error("Empty strategy response.");
+
   return JSON.parse(text);
 }
+
 
 // ----------------------------
 // MAIN ORCHESTRATION
@@ -388,9 +439,6 @@ OUTPUT JSON SCHEMA (strict):
  * @returns {Promise<Object>} Trade decision with strategy info
  */
 async function callStrategyTradeDecision({ rules, context, indicators, currentBar, waitCount, mustTrade, waitHistory = [] }) {
-  // Load rules if not provided
-  const tradingRules = rules || JSON.parse(fs.readFileSync(RULES_PATH, "utf8"));
-
   // Step 1: Select strategy (only on first call, waitCount === 0)
   let selectedStrategy = null;
   let strategyReasoning = "";
@@ -404,6 +452,15 @@ async function callStrategyTradeDecision({ rules, context, indicators, currentBa
     console.log(`   [STRATEGY] Reason: ${strategyReasoning}`);
   }
 
+  // If we're continuing (waitCount > 0), use the strategy stored in waitHistory
+  const strategyToUse = selectedStrategy ||
+    (waitHistory.length > 0 && waitHistory[0].strategy) ||
+    "STRATEGY_1";
+
+  // Load strategy-specific rules
+  const rulesPath = RULES_PATHS[strategyToUse] || RULES_PATHS.STRATEGY_1;
+  const tradingRules = rules || JSON.parse(fs.readFileSync(rulesPath, "utf8"));
+
   // Step 2: Execute the appropriate strategy
   const strategyParams = {
     rules: tradingRules,
@@ -416,11 +473,6 @@ async function callStrategyTradeDecision({ rules, context, indicators, currentBa
   };
 
   let rawDecision;
-
-  // If we're continuing (waitCount > 0), use the strategy stored in waitHistory
-  const strategyToUse = selectedStrategy ||
-    (waitHistory.length > 0 && waitHistory[0].strategy) ||
-    "STRATEGY_1";
 
   switch (strategyToUse) {
     case "STRATEGY_1":

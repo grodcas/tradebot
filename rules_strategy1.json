@@ -1,0 +1,56 @@
+{
+  "strategy_name": "Trend Pullback Continuation",
+
+  "core_principle": "Trade continuation moves in the direction of established 30m structure after controlled pullbacks.",
+
+  "trend_requirements": [
+    "structureState should be non-zero, indicating directional bias.",
+    "EMA50_slope_30m should align with structure direction.",
+    "Stronger slope increases confidence but is not mandatory if structure is clear."
+  ],
+
+  "pullback_requirements": [
+    "pullbackRatio ideally between 0.3 and 0.6.",
+    "pullbackRatio below 0.2 suggests insufficient retracement.",
+    "pullbackRatio above 0.7 suggests structure weakening.",
+    "Pullback slightly outside ideal band may still qualify if structure and slope are strong."
+  ],
+
+  "regime_preferences": [
+    "Prefer marketRegime == TREND.",
+    "Avoid trading during strong EXPANSION regime unless trend continuation is clear.",
+    "Range regime reduces confidence."
+  ],
+
+  "context_considerations": [
+    "Prefer trading during London (09:00–13:30 Zurich) and NY (14:30–17:30 Zurich).",
+    "Avoid low-volatility Asia session unless strong prior trend exists.",
+    "Higher recent variance in 5m and 30m context supports continuation potential."
+  ],
+
+  "entry_logic": [
+    "Trade in the same direction as structureState.",
+    "Enter at current close when pullback appears stabilized.",
+    "Do not trade counter-trend."
+  ],
+
+  "stop_loss_guidelines": [
+    "Place stop beyond recent pullback extreme.",
+    "Allow room for normal volatility using ATR_5m.",
+    "Avoid overly tight stops that invalidate structural continuation."
+  ],
+
+  "take_profit_guidelines": [
+    "Target continuation beyond recent swing high (for longs) or swing low (for shorts).",
+    "Risk-to-reward should generally exceed 1.5:1.",
+    "Stronger structural alignment allows more ambitious targets."
+  ],
+
+  "risk_management": [
+    "Increase risk when structureState, EMA slope, pullbackRatio and regime align.",
+    "Reduce risk when one or more elements are weak but still acceptable.",
+    "If conditions are unclear, prefer WAIT rather than forcing a trade."
+  ],
+
+  "probabilistic_note": "Not all requirements must be perfectly satisfied. The strategy should be selected when most structural and contextual elements probabilistically favor continuation."
+}

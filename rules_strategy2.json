@@ -1,0 +1,56 @@
+{
+  "strategy_name": "Liquidity Sweep Reversal",
+
+  "core_principle": "Trade reversals after liquidity grabs beyond key session highs or lows when price fails to sustain acceptance.",
+
+  "event_requirements": [
+    "sweepScore should be meaningfully elevated.",
+    "Stronger sweepScore increases probability of valid stop hunt.",
+    "Sweep intensity should dominate over breakout intensity."
+  ],
+
+  "acceptance_logic": [
+    "acceptanceTime should remain low, indicating rejection rather than continuation.",
+    "Increasing acceptanceTime reduces reversal probability.",
+    "Immediate rejection after level violation strengthens setup."
+  ],
+
+  "regime_preferences": [
+    "Most effective during NY session (14:30–17:30 Zurich time).",
+    "Can occur late London session if liquidity build-up is visible.",
+    "Less reliable during low-volatility Asia session.",
+    "Avoid trading against strong expansion continuation."
+  ],
+
+  "structure_considerations": [
+    "Structure may be TREND or RANGE.",
+    "Counter-trend reversals require stronger sweepScore.",
+    "If structure strongly supports continuation, reduce confidence."
+  ],
+
+  "entry_logic": [
+    "Trade opposite to the sweep direction.",
+    "Enter when rejection is visible and momentum shifts.",
+    "Do not trade if price continues accepting beyond the level."
+  ],
+
+  "stop_loss_guidelines": [
+    "Place stop beyond the liquidity sweep extreme.",
+    "Allow room for normal ATR-based fluctuation.",
+    "Avoid overly tight stops inside the sweep wick."
+  ],
+
+  "take_profit_guidelines": [
+    "Target return toward session mean or opposite liquidity zone.",
+    "Risk-to-reward should generally exceed 1.5:1.",
+    "Stronger rejection allows more ambitious targets."
+  ],
+
+  "risk_management": [
+    "Increase risk when sweepScore is strong and acceptanceTime is very low.",
+    "Reduce risk if structure opposes the reversal.",
+    "If rejection is unclear, prefer WAIT."
+  ],
+
+  "probabilistic_note": "Not all conditions must be perfectly satisfied. The strategy is valid when liquidity rejection dominates the current environment and continuation beyond the level appears unlikely."
+}

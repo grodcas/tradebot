@@ -1,0 +1,56 @@
+{
+  "strategy_name": "Session Breakout Expansion",
+
+  "core_principle": "Trade continuation when price escapes a defined session range with sustained volatility and acceptance.",
+
+  "event_requirements": [
+    "breakoutScore should be meaningfully elevated.",
+    "Stronger breakoutScore increases probability of valid expansion.",
+    "Breakout intensity should dominate over sweep intensity."
+  ],
+
+  "acceptance_logic": [
+    "acceptanceTime should indicate sustained trading beyond the breakout level.",
+    "Low acceptanceTime suggests potential false breakout.",
+    "Continuation probability increases as acceptance persists."
+  ],
+
+  "regime_preferences": [
+    "Most effective early London session (09:00–11:00 Zurich time).",
+    "Also valid during NY open (14:30–16:00 Zurich time) when volatility expands.",
+    "Less reliable during low-volatility Asia session.",
+    "Prefer marketRegime aligned with EXPANSION."
+  ],
+
+  "structure_considerations": [
+    "Structure alignment strengthens continuation probability but is not mandatory.",
+    "Breakouts aligned with existing trend have higher continuation odds.",
+    "Breakouts against strong higher timeframe structure require stronger momentum."
+  ],
+
+  "entry_logic": [
+    "Trade in the direction of the breakout.",
+    "Enter when momentum and volatility expansion are visible.",
+    "Avoid trading if breakout lacks conviction or follow-through."
+  ],
+
+  "stop_loss_guidelines": [
+    "Place stop beyond the breakout level or recent structural boundary.",
+    "Allow room based on ATR_5m to avoid premature exit.",
+    "Avoid overly tight stops inside the prior range."
+  ],
+
+  "take_profit_guidelines": [
+    "Target continuation beyond recent structural highs or lows.",
+    "Risk-to-reward should generally exceed 1.5:1.",
+    "Stronger expansion allows more extended targets."
+  ],
+
+  "risk_management": [
+    "Increase risk when breakoutScore and acceptanceTime both support continuation.",
+    "Reduce risk if expansion is moderate or structure is unclear.",
+    "If breakout lacks sustained acceptance, prefer WAIT."
+  ],
+
+  "probabilistic_note": "Not all conditions must be perfectly satisfied. The strategy is valid when volatility expansion and sustained acceptance beyond the session boundary indicate a higher probability of continuation."
+}

@@ -1,34 +1,52 @@
 {
   "strategy_selection_criteria": {
+
     "STRATEGY_1": {
-      "name": "Trend Following",
+      "name": "Trend Pullback Continuation",
       "conditions": [
-        "Use when 5M and 30M slopes align in the same direction",
-        "Use when volatility is expanding or stable",
-        "Use when price is trending away from session support/resistance"
+        "Best used during active liquidity windows: London 09:00–13:30 Zurich time, and NY 14:30–17:30 Zurich time.",
+        "Avoid Asia session (01:00–08:59 Zurich) unless a strong pre-existing trend is already established.",
+        "structureState should be non-zero, indicating directional bias on 30m.",
+        "EMA50_slope_30m should align with the structure direction.",
+        "pullbackRatio ideally between 0.3 and 0.6, indicating a healthy retracement.",
+        "marketRegime should favor TREND rather than EXPANSION.",
+        "If breakoutScore or sweepScore dominate strongly, this strategy becomes less appropriate."
       ]
     },
+
     "STRATEGY_2": {
-      "name": "Mean Reversion",
+      "name": "Liquidity Sweep Reversal",
       "conditions": [
-        "Use when price is at extreme levels relative to session range",
-        "Use when volatility is contracting after expansion",
-        "Use when price is near previous session support or resistance"
+        "Best used during NY session 14:30–17:30 Zurich time, especially during London-NY overlap.",
+        "Can also appear late London session 11:30–13:30 if liquidity has built up.",
+        "Avoid Asia session unless an extreme liquidity event occurs.",
+        "Absolute sweepScore should be meaningfully elevated.",
+        "acceptanceTime should remain low, indicating rejection rather than acceptance.",
+        "Market should not be in strong continuation expansion.",
+        "Structure can be TREND or RANGE, but the rejection must dominate."
       ]
     },
+
     "STRATEGY_3": {
-      "name": "Breakout",
+      "name": "Session Breakout Expansion",
       "conditions": [
-        "Use when price breaks above resistance or below support",
-        "Use when volatility is suddenly expanding",
-        "Use when there is clear structure to trade against"
+        "Best used early London session 09:00–11:00 Zurich time.",
+        "Also valid during NY open 14:30–16:00 during volatility expansion.",
+        "Avoid low-volatility Asia session.",
+        "Absolute breakoutScore should be meaningfully elevated.",
+        "acceptanceTime should indicate continued trading beyond the breakout level.",
+        "marketRegime should favor EXPANSION.",
+        "Strong volatility expansion increases confidence."
       ]
     }
+
   },
-  "selection_rules": [
-    "Analyze the market context and indicators to determine the best strategy",
-    "Consider the current session and previous session levels",
-    "Look at swing points to understand market structure",
-    "If conditions are unclear, prefer STRATEGY_1 (Trend Following)"
+
+  "decision_framework": [
+    "First evaluate if the current time fits the preferred timing window of a strategy.",
+    "Then evaluate whether breakoutScore or sweepScore dominate the environment.",
+    "Then evaluate structureState, EMA slope and pullbackRatio alignment.",
+    "Select the strategy that best probabilistically fits the current environment.",
+    "If no strategy clearly dominates, prefer Trend Pullback when structureState is non-zero."
   ]
 }
