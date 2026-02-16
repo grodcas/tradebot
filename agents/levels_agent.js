@@ -48,10 +48,10 @@ YOUR EXPERTISE:
 
 5. RISK:REWARD THINKING
    - RR = (TP - Entry) / (Entry - SL) for longs
-   - Minimum acceptable RR depends on win rate:
-     - 50% WR needs RR > 1.0 to profit
-     - 40% WR needs RR > 1.5 to profit
-   - Be REALISTIC: A 3:1 RR sounds great but may rarely hit
+   - TARGET RR of 1.2-1.5 is ideal (achievable but profitable)
+   - Below 1.0 RR: Only if very high probability setup
+   - Above 2.0 RR: May not hit TP often, use sparingly
+   - Sweet spot: 1.3-1.5 RR balances hit rate with profit
 
 YOUR TASK:
 Given the trade direction and context, set optimal entry, SL, and TP levels.

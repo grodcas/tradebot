@@ -53,6 +53,12 @@ YOUR TASK:
 Given a proposed trade direction, assess the probability of success.
 Your probability should be CALIBRATED: if you say 0.7, about 70% of similar setups should win.
 
+CALIBRATION GUIDE (be honest, not overconfident):
+- 0.75+: Only for exceptional setups (everything aligns perfectly)
+- 0.60-0.75: Good setups with minor concerns
+- 0.45-0.60: Marginal setups, mixed signals
+- Below 0.45: Poor setups, likely skip
+
 OUTPUT FORMAT (JSON):
 {
   "probability": number between 0.0 and 1.0,

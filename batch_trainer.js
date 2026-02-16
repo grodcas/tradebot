@@ -23,7 +23,7 @@ const MIN_DAILY_BARS = 5;
 const SIM_FORWARD_5M_BARS = 300;
 const DEFAULT_SPREAD = 0.00008;
 
-const NUM_SCENARIOS = 15;
+const NUM_SCENARIOS = 100;
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
