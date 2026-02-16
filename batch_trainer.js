@@ -8,16 +8,8 @@ const { callStrategyTradeDecision, validateDecision, MAX_WAIT_BARS } = require("
 // CONFIG
 // ----------------------------
 const DATA_PATH = "./eurusd_5m.json";
-const RULES_PATH = "./rules.json";
+const RULES_PATH = "./strategy_rules.json";
 const RESULTS_PATH = "./trade_results.json";
-
-// Strategy-specific rules files
-const STRATEGY_RULES_PATHS = {
-  STRATEGY_1: "./rules_strategy1.json",
-  STRATEGY_2: "./rules_strategy2.json",
-  STRATEGY_3: "./rules_strategy3.json",
-  STRATEGY_4: "./rules_strategy4.json",
-};
 
 const SESSION_TZ = "Europe/Zurich";
 const SESSION_START_HOUR = 8;
@@ -25,18 +17,18 @@ const SESSION_END_HOUR = 18;
 
 const WIN_5M_BARS = 15;
 const WIN_30M_BARS = 15;
-const WIN_DAILY_BARS = 15;     // max daily bars to use
-const MIN_DAILY_BARS = 5;      // minimum required
+const WIN_DAILY_BARS = 15;
+const MIN_DAILY_BARS = 5;
 
 const SIM_FORWARD_5M_BARS = 300;
 const DEFAULT_SPREAD = 0.00008;
 
-const NUM_SCENARIOS = 50;
+const NUM_SCENARIOS = 15;
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ----------------------------
-// HELPERS (same as trainer.js)
+// HELPERS
 // ----------------------------
 function parseIBDate(str) {
   if (!str || typeof str !== "string") return null;
@@ -139,38 +131,7 @@ function sliceEndingAt(bars, endIndex, count) {
   return bars.slice(start, endIndex + 1);
 }
 
-function summarizeSeries(bars) {
-  const closes = bars.map((b) => b.close);
-  const highs = bars.map((b) => b.high);
-  const lows = bars.map((b) => b.low);
-
-  const mean = closes.reduce((a, x) => a + x, 0) / closes.length;
-  const max = Math.max(...highs);
-  const min = Math.min(...lows);
-  const range_over_mean = mean ? (max - min) / mean : 0;
-  const ret = (closes[closes.length - 1] - closes[0]) / closes[0];
-
-  const rets = [];
-  for (let i = 1; i < closes.length; i++) rets.push((closes[i] - closes[i - 1]) / closes[i - 1]);
-  const rmean = rets.reduce((a, x) => a + x, 0) / (rets.length || 1);
-  const rvar = rets.reduce((a, x) => a + (x - rmean) ** 2, 0) / (rets.length || 1);
-  const vol = Math.sqrt(rvar);
-
-  const n = closes.length;
-  const xmean = (n - 1) / 2;
-  let num = 0, den = 0;
-  for (let i = 0; i < n; i++) {
-    num += (i - xmean) * (closes[i] - mean);
-    den += (i - xmean) ** 2;
-  }
-  const slope = den ? num / den : 0;
-  const slope_over_mean = mean ? slope / mean : 0;
-
-  return { n, mean, max, min, range_over_mean, ret, vol, slope_over_mean, last_close: closes[n - 1] };
-}
-
 function buildLLMContext({ bars5m, bars30m, barsDaily }) {
-  // Extract clean arrays for prices and ranges
   const prices5m = bars5m.map(b => b.close);
   const prices30m = bars30m.map(b => b.close);
   const pricesDaily = barsDaily.map(b => b.close);
@@ -192,14 +153,12 @@ function buildLLMContext({ bars5m, bars30m, barsDaily }) {
 
 function getRandomAnchorIndices(bars5m, count) {
   const candidates = [];
-  // Need ~750 bars minimum for 3 days of daily history (3 days * ~250 bars/day)
   const minIndex = 750;
   for (let i = minIndex; i < bars5m.length - SIM_FORWARD_5M_BARS; i++) {
     if (isInZurichSession(bars5m[i]._d)) candidates.push(i);
   }
   if (candidates.length < count) throw new Error(`Not enough candidates: ${candidates.length}`);
 
-  // Shuffle and pick first 'count'
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
@@ -210,32 +169,20 @@ function getRandomAnchorIndices(bars5m, count) {
 // ----------------------------
 // LLM CALLS
 // ----------------------------
-async function callTradeSummary({ context, decision, simResult, R, selectedStrategy, indicators, priceBarsAfterEntry }) {
-  // Load strategy-specific rules if available
+async function callTradeSummary({ context, decision, simResult, R, indicators, priceBarsAfterEntry }) {
   let strategyRules = null;
-  let strategyName = "Unknown";
-  if (selectedStrategy && STRATEGY_RULES_PATHS[selectedStrategy]) {
-    try {
-      strategyRules = JSON.parse(fs.readFileSync(STRATEGY_RULES_PATHS[selectedStrategy], "utf8"));
-      strategyName = strategyRules.strategy_name || selectedStrategy;
-    } catch (e) {
-      // Rules file not found, continue without
-    }
+  try {
+    strategyRules = JSON.parse(fs.readFileSync(RULES_PATH, "utf8"));
+  } catch (e) {
+    // Rules file not found
   }
 
   const system = `
 You are a professional trading analyst reviewing completed trades.
 Your job is to analyze what happened and explain WHY the trade won or lost.
-You have access to:
-- The strategy rules that were supposed to be followed
-- The market conditions at entry
-- The actual price action after entry
-- The final outcome
-
 Be specific and reference actual price levels. Output valid JSON only.
 `;
 
-  // Format price bars after entry for analysis
   const priceAfterEntry = priceBarsAfterEntry.map(b => ({
     time: b.time,
     O: b.open.toFixed(5),
@@ -245,8 +192,6 @@ Be specific and reference actual price levels. Output valid JSON only.
   }));
 
   const user = `
-STRATEGY USED: ${strategyName} (${selectedStrategy || "N/A"})
-
 MARKET CONDITIONS AT ENTRY:
 - Session: ${indicators.currentSession}
 - Market Regime: ${indicators.marketRegime}
@@ -282,10 +227,9 @@ OUTCOME:
 
 Analyze this trade thoroughly. Output JSON:
 {
-  "strategy_compliance": "Did the trade follow the strategy rules? What was done correctly or incorrectly?",
   "entry_quality": "Was the entry well-timed given the conditions? Reference specific indicators.",
   "what_happened": "Describe the price action after entry. What did price actually do?",
-  "why_outcome": "Root cause: Was it good/bad strategy execution, unfavorable market conditions, or random noise?",
+  "why_outcome": "Root cause: Was it good/bad execution, unfavorable market conditions, or random noise?",
   "lessons": "Specific actionable improvements for the strategy rules or execution.",
   "rating": "GOOD | BAD | NEUTRAL",
    DO NOT OUTPUT MORE THAN 1.5K chars
@@ -330,20 +274,20 @@ function simulateTrade({ bars5m, entryIndex, decision, spread = DEFAULT_SPREAD, 
     if (side === "LONG") {
       const hitSL = b.low <= sl;
       const hitTP = b.high >= tp;
-      if (hitSL && hitTP) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsHeld: i - entryIndex };
-      if (hitSL) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsHeld: i - entryIndex };
-      if (hitTP) return { outcome: "TP", exitPrice: tp, exitIndex: i, barsHeld: i - entryIndex };
+      if (hitSL && hitTP) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsToExit: i - entryIndex };
+      if (hitSL) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsToExit: i - entryIndex };
+      if (hitTP) return { outcome: "TP", exitPrice: tp, exitIndex: i, barsToExit: i - entryIndex };
     } else {
       const hitSL = b.high >= sl;
       const hitTP = b.low <= tp;
-      if (hitSL && hitTP) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsHeld: i - entryIndex };
-      if (hitSL) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsHeld: i - entryIndex };
-      if (hitTP) return { outcome: "TP", exitPrice: tp, exitIndex: i, barsHeld: i - entryIndex };
+      if (hitSL && hitTP) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsToExit: i - entryIndex };
+      if (hitSL) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsToExit: i - entryIndex };
+      if (hitTP) return { outcome: "TP", exitPrice: tp, exitIndex: i, barsToExit: i - entryIndex };
     }
   }
 
   const last = bars5m[end - 1];
-  return { outcome: "TIMEOUT", exitPrice: last.close, exitIndex: end - 1, barsHeld: end - 1 - entryIndex };
+  return { outcome: "TIMEOUT", exitPrice: last.close, exitIndex: end - 1, barsToExit: end - 1 - entryIndex };
 }
 
 function pnlInR({ side, entry, sl, exitPrice }) {
@@ -358,7 +302,6 @@ function pnlInR({ side, entry, sl, exitPrice }) {
 async function main() {
   if (!process.env.OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY env var.");
 
-  const rules = JSON.parse(fs.readFileSync(RULES_PATH, "utf8"));
   const bars5m = loadBars(DATA_PATH);
   console.log(`Loaded 5m bars: ${bars5m.length}`);
 
@@ -367,8 +310,8 @@ async function main() {
 
   const results = [];
   let wins = 0, losses = 0, timeouts = 0, skipped = 0;
-  let totalRawR = 0;   // Unweighted R (trade quality)
-  let totalR = 0;      // Weighted R (actual PnL impact)
+  let totalRawR = 0;
+  let totalR = 0;
   let totalWaits = 0;
 
   for (let i = 0; i < anchors.length; i++) {
@@ -388,24 +331,20 @@ async function main() {
 
       const upToAnchor = bars5m.slice(0, idx + 1);
       const dailyAll = aggregateDaily(upToAnchor);
-      const barsDaily = dailyAll.slice(-WIN_DAILY_BARS);  // take up to 15, or as many as available
+      const barsDaily = dailyAll.slice(-WIN_DAILY_BARS);
       if (barsDaily.length < MIN_DAILY_BARS) throw new Error(`Not enough daily history (need ${MIN_DAILY_BARS}, got ${barsDaily.length}).`);
 
       const context = buildLLMContext({ bars5m: win5m, bars30m, barsDaily });
-
-      // Compute indicators (saved to trade_results.json)
       const indicators = computeIndicators(bars5m, bars30m, idx);
-      // printIndicators(indicators);
 
-      // Entry timing loop - AI can wait up to 4 bars (20 min)
+      // Entry timing loop
       let waitCount = 0;
       let entryIdx = idx;
       let decision = null;
       let waitHistory = [];
-      let selectedStrategy = null;  // Track selected strategy across waits
 
       while (waitCount <= MAX_WAIT_BARS) {
-        const mustTrade = true;  // TEMP: Force trade on first bar (disable WAIT)
+        const mustTrade = waitCount >= MAX_WAIT_BARS;  // Allow WAIT until max reached
         const currentBar = {
           time: bars5m[entryIdx].time,
           open: bars5m[entryIdx].open,
@@ -414,9 +353,7 @@ async function main() {
           close: bars5m[entryIdx].close,
         };
 
-        // Use strategy selector instead of direct trade decision
         const rawDecision = await callStrategyTradeDecision({
-          rules,
           context,
           indicators,
           currentBar,
@@ -425,17 +362,10 @@ async function main() {
           waitHistory,
         });
 
-        // Capture strategy on first call
-        if (waitCount === 0 && rawDecision.selectedStrategy) {
-          selectedStrategy = rawDecision.selectedStrategy;
-        }
-
         if (rawDecision.action === "WAIT" && !mustTrade) {
-          // Store strategy in wait history so subsequent calls use same strategy
           waitHistory.push({
             bar: currentBar,
             reasoning: rawDecision.reasoning,
-            strategy: selectedStrategy,
           });
           console.log(`   WAIT ${waitCount + 1}/${MAX_WAIT_BARS}: ${rawDecision.reasoning?.slice(0, 80)}...`);
           waitCount++;
@@ -443,31 +373,25 @@ async function main() {
           if (entryIdx >= bars5m.length - SIM_FORWARD_5M_BARS) {
             throw new Error("Ran out of bars while waiting.");
           }
-          await new Promise(r => setTimeout(r, 300)); // small delay between waits
+          await new Promise(r => setTimeout(r, 300));
         } else if (rawDecision.action === "WAIT" && mustTrade) {
-          // AI refused to trade even when forced - create skip trade with risk=0
           const closePrice = bars5m[entryIdx].close;
           decision = {
-            side: "LONG",  // arbitrary, won't matter since risk=0
+            side: "LONG",
             entry: closePrice,
             tp: closePrice + 0.001,
             sl: closePrice - 0.001,
             risk: 0,
             reasoning: rawDecision.reasoning || "Refused to trade - conditions not met",
             skippedByAI: true,
-            selectedStrategy: selectedStrategy,
           };
           decision.waitCount = waitCount;
           decision.waitHistory = waitHistory;
           break;
         } else {
-          decision = validateDecision(rawDecision, bars5m[entryIdx].close);
+          decision = validateDecision(rawDecision, bars5m[entryIdx].close, indicators);
           decision.waitCount = waitCount;
           decision.waitHistory = waitHistory;
-          decision.selectedStrategy = selectedStrategy;
-          if (rawDecision.strategyReasoning) {
-            decision.strategyReasoning = rawDecision.strategyReasoning;
-          }
           break;
         }
       }
@@ -475,7 +399,7 @@ async function main() {
       // Simulate from the actual entry point
       const simResult = simulateTrade({ bars5m, entryIndex: entryIdx, decision });
       const rawR = pnlInR({ side: decision.side, entry: decision.entry, sl: decision.sl, exitPrice: simResult.exitPrice });
-      const weightedR = rawR * decision.risk;  // Position-sized R
+      const weightedR = rawR * decision.risk;
 
       // Track stats
       totalWaits += decision.waitCount || 0;
@@ -483,15 +407,14 @@ async function main() {
         skipped++;
         console.log(`   SKIPPED (risk=0)`);
       } else {
-        totalRawR += rawR;      // Unweighted (trade quality)
-        totalR += weightedR;    // Weighted (actual PnL)
+        totalRawR += rawR;
+        totalR += weightedR;
         if (simResult.outcome === "TP") wins++;
         else if (simResult.outcome === "SL") losses++;
         else timeouts++;
       }
 
-      // Get AI summary with full context
-      // Extract price bars from entry to exit for post-trade analysis
+      // Get AI summary
       const exitBarIdx = entryIdx + (simResult.barsToExit || 0);
       const priceBarsAfterEntry = bars5m.slice(entryIdx, Math.min(exitBarIdx + 1, bars5m.length));
 
@@ -500,22 +423,19 @@ async function main() {
         decision,
         simResult,
         R: rawR,
-        selectedStrategy: decision.selectedStrategy,
         indicators,
         priceBarsAfterEntry,
       });
 
       const waitInfo = decision.waitCount > 0 ? ` (waited ${decision.waitCount * 5}min)` : "";
-      const strategyInfo = decision.selectedStrategy ? ` [${decision.selectedStrategy}]` : "";
       const tpR = decision.side === "LONG"
         ? (decision.tp - decision.entry) / Math.abs(decision.entry - decision.sl)
         : (decision.entry - decision.tp) / Math.abs(decision.sl - decision.entry);
-      console.log(`   ${decision.side}${strategyInfo} | TP target: ${tpR.toFixed(2)}R | Result: ${rawR.toFixed(2)}R × ${decision.risk.toFixed(1)} = ${weightedR.toFixed(2)} | ${simResult.outcome}${waitInfo}`);
+      console.log(`   ${decision.side} | TP target: ${tpR.toFixed(2)}R | Result: ${rawR.toFixed(2)}R x ${decision.risk.toFixed(1)} = ${weightedR.toFixed(2)} | ${simResult.outcome}${waitInfo}`);
       console.log(`   Reasoning: ${decision.reasoning?.slice(0, 150)}...`);
 
-      // Print post-trade analysis
       if (summary && !summary.error) {
-        const ratingIcon = summary.rating === "GOOD" ? "✅" : summary.rating === "BAD" ? "❌" : "⚪";
+        const ratingIcon = summary.rating === "GOOD" ? "+" : summary.rating === "BAD" ? "-" : "o";
         console.log(`   Analysis: ${ratingIcon} ${summary.rating} | ${summary.why_outcome?.slice(0, 120)}...`);
       }
 
@@ -523,9 +443,6 @@ async function main() {
         tradeNum: i + 1,
         anchorTime: anchor.time,
         entryTime: bars5m[entryIdx].time,
-        // waitCount: decision.waitCount,
-        selectedStrategy: decision.selectedStrategy,
-        strategyReasoning: decision.strategyReasoning,
         indicators: {
           currentSession: indicators.currentSession,
           previousSession: indicators.previousSession,
@@ -546,7 +463,6 @@ async function main() {
           prevSessionHigh: indicators.prevSessionHigh,
           prevSessionLow: indicators.prevSessionLow,
         },
-        // context,
         decision: {
           side: decision.side,
           entry: decision.entry,
@@ -554,9 +470,6 @@ async function main() {
           sl: decision.sl,
           risk: decision.risk,
           reasoning: decision.reasoning,
-          selectedStrategy: decision.selectedStrategy,
-          // waitCount: decision.waitCount,
-          // waitHistory: decision.waitHistory,
         },
         simResult,
         rawR,
@@ -573,7 +486,6 @@ async function main() {
       });
     }
 
-    // Small delay to avoid rate limits
     await new Promise(r => setTimeout(r, 500));
   }
 

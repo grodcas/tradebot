@@ -1,0 +1,106 @@
+{
+  "strategy_name": "AI-Optimized Mean Reversion",
+  "version": "1.0",
+
+  "core_insight": {
+    "finding": "AI with random entry timing wins 69% when using LONG + tight TP + low acceptance",
+    "key_metrics": {
+      "LONG_win_rate": "48% vs SHORT 36%",
+      "tight_TP_win_rate": "RR<1.5 = 60% WR, RR>2.5 = 7% WR",
+      "low_acceptance_win_rate": "acc<0.1 = 49% WR, acc>0.3 = 20% WR"
+    }
+  },
+
+  "direction_rules": {
+    "default_bias": "LONG",
+    "rationale": "AI consistently performs better on LONG trades (48% vs 36% WR, +0.06R vs -0.09R EV)",
+    "when_to_go_SHORT": [
+      "Only when ALL of these align:",
+      "- Price clearly near session high (within 20% of range from top)",
+      "- structureState = -1 (bearish)",
+      "- acceptanceTime < 0.1 (rejection, not acceptance)",
+      "Even then, reduce risk by 30%"
+    ],
+    "when_to_go_LONG": [
+      "Default choice when:",
+      "- Price near session low OR mid-range",
+      "- structureState >= 0",
+      "- acceptanceTime < 0.2"
+    ]
+  },
+
+  "tp_sl_rules": {
+    "critical": "TIGHT TPs WIN. Wide TPs lose badly.",
+    "optimal_RR": "1.2 to 1.5 (NEVER above 2.0)",
+    "calculation": {
+      "stop_loss": "0.8 to 1.2 ATR_5m from entry",
+      "take_profit": "1.2x to 1.5x the stop distance (tight!)",
+      "example": "If SL is 15 pips, TP should be 18-22 pips (NOT 40+ pips)"
+    },
+    "why_tight_works": "Random entry timing means price often reverses before reaching distant TPs. Tight TPs capture the mean-reversion move."
+  },
+
+  "risk_scaling": {
+    "philosophy": "Bet big on high-probability setups, tiny on low-probability",
+
+    "high_risk_0.55_to_0.7": {
+      "conditions": [
+        "LONG direction",
+        "acceptanceTime < 0.1",
+        "structureState >= 0",
+        "ATR_5m > 0.0004 OR ATR_5m < 0.00025 (avoid middle)",
+        "RR target is 1.2-1.5"
+      ],
+      "this_is_the_bread_and_butter": true
+    },
+
+    "medium_risk_0.35_to_0.55": {
+      "conditions": [
+        "LONG direction",
+        "acceptanceTime 0.1-0.2",
+        "Mixed structure signals",
+        "Acceptable ATR"
+      ]
+    },
+
+    "low_risk_0.15_to_0.35": {
+      "conditions": [
+        "SHORT direction (always reduce for shorts)",
+        "acceptanceTime > 0.2",
+        "ATR_5m in dead zone (0.0003-0.0004)",
+        "Conflicting signals"
+      ]
+    },
+
+    "minimum_risk_0.15": {
+      "conditions": [
+        "acceptanceTime > 0.3 (bad signal)",
+        "SHORT in unclear structure",
+        "Dead market (both scores near 0)"
+      ],
+      "note": "Still take the trade but protect capital"
+    }
+  },
+
+  "red_flags_reduce_risk": [
+    "acceptanceTime > 0.2 → reduce risk 30%",
+    "acceptanceTime > 0.3 → minimum risk (0.15)",
+    "SHORT direction → reduce risk 30%",
+    "RR target > 2.0 → force tighter TP instead",
+    "ATR_5m between 0.0003 and 0.0004 → reduce risk 20%"
+  ],
+
+  "green_flags_increase_risk": [
+    "LONG + acceptanceTime < 0.1 → high risk",
+    "LONG + structureState = 1 → add 10%",
+    "ATR_5m > 0.0004 → add 10%",
+    "Price near session low → add 10%"
+  ],
+
+  "what_NOT_to_do": [
+    "DO NOT set TP beyond 2.0R (historically 7% win rate)",
+    "DO NOT go SHORT unless conditions are perfect",
+    "DO NOT ignore acceptanceTime (most predictive indicator)",
+    "DO NOT use medium ATR setups aggressively"
+  ]
+}
