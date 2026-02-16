@@ -1,56 +1,92 @@
 {
   "strategy_name": "Trend Pullback Continuation",
 
-  "core_principle": "Trade continuation moves in the direction of established 30m structure after controlled pullbacks.",
+  "core_principle": "Trade continuation in the direction of established structure after a pullback. This strategy requires trend alignment - when structure, slope, and regime all point the same way, it's powerful. When they conflict, it fails.",
 
-  "trend_requirements": [
-    "structureState should be non-zero, indicating directional bias.",
-    "EMA50_slope_30m should align with structure direction.",
-    "Stronger slope increases confidence but is not mandatory if structure is clear."
+  "when_this_strategy_wins": [
+    "structureState is non-zero AND EMA slope aligns (same sign).",
+    "pullbackRatio is in the sweet spot (0.35-0.55) - not too shallow, not too deep.",
+    "marketRegime is TREND or at least not strongly RANGE.",
+    "ATR is healthy enough for continuation moves.",
+    "Direction matches the trend - no counter-trend gambling."
   ],
 
-  "pullback_requirements": [
-    "pullbackRatio ideally between 0.3 and 0.6.",
-    "pullbackRatio below 0.2 suggests insufficient retracement.",
-    "pullbackRatio above 0.7 suggests structure weakening.",
-    "Pullback slightly outside ideal band may still qualify if structure and slope are strong."
+  "when_this_strategy_loses": [
+    "pullbackRatio > 0.7 - the 'pullback' is actually trend exhaustion.",
+    "EMA slope is weak or conflicts with structure (one up, one down).",
+    "ATR is very low - no fuel for continuation.",
+    "Both breakout and sweep scores are 0 - dead market.",
+    "Taking a trend trade in a RANGE regime."
   ],
 
-  "regime_preferences": [
-    "Prefer marketRegime == TREND.",
-    "Avoid trading during strong EXPANSION regime unless trend continuation is clear.",
-    "Range regime reduces confidence."
+  "direction_logic": [
+    "Direction MUST match structureState. No exceptions.",
+    "structureState = +1 → LONG only.",
+    "structureState = -1 → SHORT only.",
+    "structureState = 0 → This strategy should not have been selected.",
+    "If you're tempted to counter-trend, this is the wrong strategy."
   ],
 
-  "context_considerations": [
-    "Prefer trading during London (09:00–13:30 Zurich) and NY (14:30–17:30 Zurich).",
-    "Avoid low-volatility Asia session unless strong prior trend exists.",
-    "Higher recent variance in 5m and 30m context supports continuation potential."
+  "pullback_quality": [
+    "Ideal pullbackRatio: 0.38-0.55 (fibonacci sweet spot).",
+    "Acceptable: 0.25-0.65.",
+    "Shallow (< 0.25): Trend hasn't pulled back enough - may be chasing.",
+    "Deep (0.65-0.75): Structure weakening - reduce risk significantly.",
+    "Very deep (> 0.75): This is likely trend reversal, not pullback - very low risk or wrong strategy."
   ],
 
   "entry_logic": [
-    "Trade in the same direction as structureState.",
-    "Enter at current close when pullback appears stabilized.",
-    "Do not trade counter-trend."
+    "Enter when pullback appears to stabilize.",
+    "Micro-rejection (wick, failed lower low) increases confidence.",
+    "Don't chase - if trend already resumed strongly, the entry is late."
   ],
 
   "stop_loss_guidelines": [
-    "Place stop beyond recent pullback extreme.",
-    "Allow room for normal volatility using ATR_5m.",
-    "Avoid overly tight stops that invalidate structural continuation."
+    "Stop beyond recent pullback extreme.",
+    "Minimum 1.0-1.2x ATR_5m for noise buffer.",
+    "If pullback is very deep, stop may need to be wide - factor into risk."
   ],
 
   "take_profit_guidelines": [
-    "Target continuation beyond recent swing high (for longs) or swing low (for shorts).",
-    "Risk-to-reward should generally exceed 1.5:1.",
-    "Stronger structural alignment allows more ambitious targets."
+    "Target: continuation beyond recent swing high (longs) or swing low (shorts).",
+    "Aim for 1.5-2.5R on good setups.",
+    "Stronger trends allow more ambitious targets."
   ],
 
-  "risk_management": [
-    "Increase risk when structureState, EMA slope, pullbackRatio and regime align.",
-    "Reduce risk when one or more elements are weak but still acceptable.",
-    "If conditions are unclear, prefer WAIT rather than forcing a trade."
+  "risk_scaling_critical": [
+    "Risk varies from 0.15 to 0.7 based on alignment quality.",
+    "",
+    "HIGH RISK (0.55-0.7):",
+    "- structureState and EMA slope strongly aligned (both clearly positive or negative)",
+    "- pullbackRatio in ideal zone (0.38-0.55)",
+    "- marketRegime = TREND",
+    "- ATR_5m > 0.0003",
+    "- No conflicting signals",
+    "",
+    "MODERATE RISK (0.35-0.55):",
+    "- Structure and slope aligned but one is weak",
+    "- pullbackRatio acceptable but not ideal (0.25-0.38 or 0.55-0.65)",
+    "- Some noise in the setup but trend is visible",
+    "",
+    "LOW RISK (0.2-0.35):",
+    "- pullbackRatio > 0.65 (deep, structure weakening)",
+    "- EMA slope near zero (weak trend)",
+    "- RANGE regime but structure exists",
+    "- Low ATR environment",
+    "",
+    "VERY LOW RISK (0.15-0.25):",
+    "- pullbackRatio > 0.75 (likely reversal not pullback)",
+    "- Multiple conflicting signals",
+    "- Dead market indicators (scores=0, low ATR)",
+    "- This strategy was selected but fit is poor"
   ],
 
-  "probabilistic_note": "Not all requirements must be perfectly satisfied. The strategy should be selected when most structural and contextual elements probabilistically favor continuation."
+  "slope_and_structure_alignment": [
+    "Strongest signal: structureState and EMA50_slope_30m both clearly same direction.",
+    "If EMA slope is near zero (< 0.1 magnitude), trend is weak - reduce risk.",
+    "If EMA slope opposes structureState, something is wrong - this is a weak setup.",
+    "The magnitude of alignment matters - strong slope + strong structure = high confidence."
+  ],
+
+  "philosophy": "Trend continuation is high-probability when everything aligns. The danger is forcing trend trades when alignment is weak. Deep pullbacks, weak slopes, and conflicting signals all suggest the 'trend' may be exhausted. Risk should reflect alignment quality - not default to 0.5 on every trend trade."
 }

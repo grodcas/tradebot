@@ -1,61 +1,100 @@
 {
   "strategy_name": "Liquidity Sweep Reversal",
 
-  "core_principle": "Trade reversals after a stop-hunt beyond a key session high/low where price REJECTS the level (fails acceptance). This is a short-window event trade: quality decays quickly as time passes.",
+  "core_principle": "Trade reversals after stop-hunts beyond session highs/lows where price REJECTS the level. This is event-driven - the sweep must be real, fresh, and rejected. When it works, it works big. When the sweep is old or accepted, it fails.",
 
-  "event_requirements": [
-    "Absolute sweepScore should be elevated (prefer > 0.6).",
-    "Sweep should be relatively fresh: prefer sweepBarsAgo <= 6 (within ~30 minutes).",
-    "Sweep intensity should dominate breakout intensity: |sweepScore| should be meaningfully larger than |breakoutScore|."
+  "when_this_strategy_wins": [
+    "sweepScore is elevated (|sweepScore| > 0.5).",
+    "Sweep is fresh (sweepBarsAgo < 10, ideally < 5).",
+    "acceptanceTime is low (< 0.4) - price rejected the level, didn't accept it.",
+    "Price is still near the swept level (not already far away).",
+    "Direction is clear: sweep one way → trade the other way."
   ],
 
-  "acceptance_logic": [
-    "acceptanceTime should remain low for a valid reversal (prefer < 0.4).",
-    "If acceptanceTime is high, treat it as continuation risk and reduce confidence sharply.",
-    "Best setups show immediate rejection (acceptanceTime near 0)."
+  "when_this_strategy_loses": [
+    "Sweep is old (sweepBarsAgo > 15) - the edge has decayed.",
+    "acceptanceTime is high (> 0.5) - price accepted the level, not rejecting it.",
+    "Counter-trend sweep in a strong trend - trend resumes anyway.",
+    "Sweep wasn't strong enough (|sweepScore| < 0.4).",
+    "Price already moved significantly from sweep level - chasing."
   ],
 
-  "timing_preferences": [
-    "Most effective during NY session (14:30–17:30 Zurich time), especially London-NY overlap.",
-    "Second best: late London (11:30–13:30 Zurich) if liquidity has built up.",
-    "Avoid Asia unless sweepScore is extreme and rejection is immediate."
+  "direction_logic": [
+    "Direction is OPPOSITE to the sweep.",
+    "Negative sweepScore (bearish sweep, stopped out longs above) → LONG (reversal down to up).",
+    "Positive sweepScore (bullish sweep, stopped out shorts below) → SHORT (reversal up to down).",
+    "This is counter-trend by nature - the sweep exhausted one side."
   ],
 
-  "regime_preferences": [
-    "Best in RANGE or weak TREND environments.",
-    "Avoid strong EXPANSION continuation regimes unless rejection is extremely clear."
+  "freshness_matters": [
+    "Sweeps are time-sensitive events. Edge decays rapidly.",
+    "sweepBarsAgo 0-3: Freshest, highest edge.",
+    "sweepBarsAgo 4-8: Still valid, moderate edge.",
+    "sweepBarsAgo 9-15: Edge weakening, reduce risk.",
+    "sweepBarsAgo > 15: Old news, not a valid setup anymore."
   ],
 
-  "structure_considerations": [
-    "Structure may be TREND or RANGE.",
-    "If reversal is counter-trend (structureState opposes the reversal direction), require stronger sweepScore and lower acceptanceTime.",
-    "If structure strongly supports continuation in the opposite direction, reduce risk."
+  "acceptance_vs_rejection": [
+    "Low acceptanceTime = rejection = good for reversal.",
+    "High acceptanceTime = price is accepting the new level = bad for reversal.",
+    "acceptanceTime < 0.2: Strong rejection, high confidence.",
+    "acceptanceTime 0.2-0.4: Moderate rejection, decent setup.",
+    "acceptanceTime > 0.5: Price is accepting, not rejecting - reconsider this strategy."
   ],
 
   "entry_logic": [
-    "Trade opposite to the sweep direction (bearish sweep -> short, bullish sweep -> long).",
-    "Entry quality increases when price is still near the swept level (not already far away).",
-    "Do not treat old sweeps as signals; the edge is in the immediate rejection."
+    "Enter opposite to sweep direction.",
+    "Best entry: price still near swept level, rejection visible.",
+    "Acceptable: price moved somewhat but sweep is fresh.",
+    "Poor: price already far from sweep level - you're chasing."
   ],
 
   "stop_loss_guidelines": [
-    "Stop must be beyond the sweep extreme (not inside the wick).",
-    "Minimum stop distance must be at least 0.8 × ATR_5m to avoid noise stopouts.",
-    "If ATR_5m is very low, widen stop slightly rather than using micro-stops."
+    "Stop beyond the sweep extreme (the wick/spike that triggered the sweep).",
+    "Must give room for the sweep extreme not to be retested.",
+    "Minimum 1.0x ATR_5m, often needs 1.2-1.5x for sweep volatility."
   ],
 
   "take_profit_guidelines": [
-    "Primary target is mean reversion toward session interior (mid-range or prior equilibrium).",
-    "If rejection is strong and structure supports the reversal, target can extend toward the opposite liquidity boundary.",
-    "Risk-to-reward should generally exceed 1.5:1."
+    "Primary target: mid-range or session interior.",
+    "Strong rejection + supportive structure: can target opposite boundary.",
+    "Aim for 1.5-3R on good setups."
   ],
 
-  "risk_management": [
-    "High-quality setup (|sweepScore| > 0.8 AND acceptanceTime < 0.2 AND sweepBarsAgo <= 3): risk 0.6–0.8.",
-    "Moderate-quality setup (|sweepScore| 0.6–0.8 AND acceptanceTime < 0.4 AND sweepBarsAgo <= 6): risk 0.4–0.6.",
-    "Low-quality setup (older sweep, weaker score, or counter-trend): risk 0.2–0.4.",
-    "Risk scales with freshness + rejection quality, not a fixed default."
+  "risk_scaling_critical": [
+    "Sweep reversals are binary - they work big or fail. Risk must reflect setup quality.",
+    "",
+    "HIGH RISK (0.5-0.7):",
+    "- |sweepScore| > 0.7",
+    "- sweepBarsAgo < 5 (fresh)",
+    "- acceptanceTime < 0.2 (clear rejection)",
+    "- Price still near swept level",
+    "- Direction doesn't fight strong structure",
+    "",
+    "MODERATE RISK (0.35-0.5):",
+    "- |sweepScore| 0.5-0.7",
+    "- sweepBarsAgo 5-10",
+    "- acceptanceTime 0.2-0.4",
+    "- Decent setup but not perfect",
+    "",
+    "LOW RISK (0.2-0.35):",
+    "- |sweepScore| 0.4-0.5 (weak sweep)",
+    "- sweepBarsAgo 10-15 (old)",
+    "- acceptanceTime > 0.4 (questionable rejection)",
+    "- Counter-trend against strong structure",
+    "",
+    "VERY LOW RISK (0.15-0.25):",
+    "- Old sweep + weak score + high acceptance",
+    "- Multiple red flags",
+    "- Strategy selected but fit is marginal"
   ],
 
-  "probabilistic_note": "This strategy is event-driven. The closer you are to the sweep event and the clearer the rejection (low acceptance), the higher the probability. Old sweeps or accepted levels lose edge quickly."
+  "counter_trend_consideration": [
+    "Sweep reversals are often counter-trend by nature.",
+    "If structureState strongly opposes the reversal, be cautious.",
+    "Strong trend + weak sweep = trend likely continues (reduce risk).",
+    "Weak trend or range + strong sweep = reversal more likely (normal risk)."
+  ],
+
+  "philosophy": "Sweep reversals are event-driven opportunities. The edge is in the immediate aftermath of the stop-hunt. Fresh sweep + clear rejection = high confidence, size up. Old sweep or acceptance = edge is gone, size down. Time kills this setup - act on fresh sweeps or don't act at all."
 }

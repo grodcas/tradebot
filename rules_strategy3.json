@@ -1,56 +1,101 @@
 {
   "strategy_name": "Session Breakout Expansion",
 
-  "core_principle": "Trade continuation when price escapes a defined session range with sustained volatility and acceptance.",
+  "core_principle": "Trade continuation when price breaks out of a session range with momentum and ACCEPTANCE. The key differentiator from a sweep is acceptance - price holds beyond the level, doesn't reject it. Breakouts need follow-through.",
 
-  "event_requirements": [
-    "breakoutScore should be meaningfully elevated.",
-    "Stronger breakoutScore increases probability of valid expansion.",
-    "Breakout intensity should dominate over sweep intensity."
+  "when_this_strategy_wins": [
+    "breakoutScore is elevated (|breakoutScore| > 0.5).",
+    "acceptanceTime is HIGH (> 0.4) - price is holding beyond the level.",
+    "ATR is expanding or elevated - volatility supports continuation.",
+    "Direction aligns with structure (breakout WITH the trend).",
+    "Session timing favors expansion (London open, NY open)."
   ],
 
-  "acceptance_logic": [
-    "acceptanceTime should indicate sustained trading beyond the breakout level.",
-    "Low acceptanceTime suggests potential false breakout.",
-    "Continuation probability increases as acceptance persists."
+  "when_this_strategy_loses": [
+    "acceptanceTime is low - this might be a sweep, not a breakout.",
+    "Breakout is against strong structure (counter-trend breakout).",
+    "ATR is contracting - no fuel for expansion.",
+    "Range regime still dominant despite the 'breakout'.",
+    "Breakout already extended far - chasing."
   ],
 
-  "regime_preferences": [
-    "Most effective early London session (08:00–11:00 Zurich time).",
-    "Also valid during NY open (14:30–16:00 Zurich time) when volatility expands.",
-    "Less reliable during low-volatility Asia session.",
-    "Prefer marketRegime aligned with EXPANSION."
+  "breakout_vs_sweep_distinction": [
+    "This is CRITICAL. Breakout and sweep look similar but trade opposite.",
+    "BREAKOUT: Price breaks level AND HOLDS (high acceptance) → Trade WITH the break.",
+    "SWEEP: Price breaks level AND REJECTS (low acceptance) → Trade AGAINST the break.",
+    "If acceptanceTime < 0.3, consider STRATEGY_2 instead.",
+    "If acceptanceTime > 0.5, breakout continuation is more likely."
   ],
 
-  "structure_considerations": [
-    "Structure alignment strengthens continuation probability but is not mandatory.",
-    "Breakouts aligned with existing trend have higher continuation odds.",
-    "Breakouts against strong higher timeframe structure require stronger momentum."
+  "direction_logic": [
+    "Direction matches the breakout.",
+    "Positive breakoutScore (bullish breakout above resistance) → LONG.",
+    "Negative breakoutScore (bearish breakout below support) → SHORT.",
+    "If breakout aligns with structureState, higher confidence.",
+    "If breakout opposes structureState, it's a trend reversal breakout - can work but riskier."
+  ],
+
+  "acceptance_is_key": [
+    "Acceptance differentiates real breakouts from fake ones.",
+    "acceptanceTime > 0.6: Strong acceptance, high confidence.",
+    "acceptanceTime 0.4-0.6: Moderate acceptance, decent setup.",
+    "acceptanceTime 0.2-0.4: Questionable - might be sweep not breakout.",
+    "acceptanceTime < 0.2: This is rejection, not acceptance - wrong strategy."
   ],
 
   "entry_logic": [
-    "Trade in the direction of the breakout.",
-    "Enter when momentum and volatility expansion are visible.",
-    "Avoid trading if breakout lacks conviction or follow-through."
+    "Enter in direction of breakout after acceptance confirmed.",
+    "Best: Breakout fresh (breakoutBarsAgo < 10) with acceptance building.",
+    "Acceptable: Breakout established, pullback to breakout level, hold.",
+    "Poor: Breakout extended, chasing far from the breakout level."
   ],
 
   "stop_loss_guidelines": [
-    "Place stop beyond the breakout level or recent structural boundary.",
-    "Allow room based on ATR_5m to avoid premature exit.",
-    "Avoid overly tight stops inside the prior range."
+    "Stop inside the prior range or just beyond breakout level.",
+    "If breakout is real, price shouldn't return deep into range.",
+    "1.0-1.5x ATR_5m typically appropriate."
   ],
 
   "take_profit_guidelines": [
-    "Target continuation beyond recent structural highs or lows.",
-    "Risk-to-reward should generally exceed 1.5:1.",
-    "Stronger expansion allows more extended targets."
+    "Target: Extension beyond breakout, often 1-2x the prior range width.",
+    "Stronger breakouts with trend alignment can run further.",
+    "If breakout aligned with structure, let it run. If counter-structure, take profits quicker."
   ],
 
-  "risk_management": [
-    "Increase risk when breakoutScore and acceptanceTime both support continuation.",
-    "Reduce risk if expansion is moderate or structure is unclear.",
-    "If breakout lacks sustained acceptance, prefer WAIT."
+  "risk_scaling_critical": [
+    "Breakouts are momentum plays. Quality varies significantly.",
+    "",
+    "HIGH RISK (0.5-0.7):",
+    "- |breakoutScore| > 0.6",
+    "- acceptanceTime > 0.5",
+    "- Breakout aligns with structureState",
+    "- ATR expanding or elevated",
+    "- marketRegime = EXPANSION or TREND",
+    "",
+    "MODERATE RISK (0.35-0.5):",
+    "- |breakoutScore| 0.4-0.6",
+    "- acceptanceTime 0.35-0.5",
+    "- Some structure alignment or neutral",
+    "- ATR stable",
+    "",
+    "LOW RISK (0.2-0.35):",
+    "- |breakoutScore| 0.3-0.4 (weak breakout)",
+    "- acceptanceTime 0.2-0.35 (questionable)",
+    "- Counter-structure breakout",
+    "- Breakout old (breakoutBarsAgo > 15)",
+    "",
+    "VERY LOW RISK (0.15-0.25):",
+    "- Weak breakout + low acceptance",
+    "- RANGE regime (breakout failing)",
+    "- Multiple conflicting signals"
   ],
 
-  "probabilistic_note": "Not all conditions must be perfectly satisfied. The strategy is valid when volatility expansion and sustained acceptance beyond the session boundary indicate a higher probability of continuation."
+  "timing_considerations": [
+    "Breakouts work best at session opens when volatility expands.",
+    "Early London (07:00-10:00 Zurich): Session range breaks.",
+    "NY open (14:30-16:00 Zurich): Volatility injection.",
+    "Late session or Asia: Breakouts less reliable, reduce confidence."
+  ],
+
+  "philosophy": "Breakouts require both the initial break AND acceptance beyond the level. Many 'breakouts' are actually sweeps that reverse. The acceptance time is your main signal. High acceptance = real breakout, trade with it. Low acceptance = probably a sweep, consider the opposite. Size according to how clearly the breakout is being accepted."
 }

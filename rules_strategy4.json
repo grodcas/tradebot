@@ -1,52 +1,101 @@
 {
   "strategy_name": "Controlled Range Participation",
 
-  "core_principle": "Trade structured mean-reversion moves inside a defined range when no dominant breakout, sweep, or directional expansion is present. Risk is scaled based on proximity to range extremes and clarity of rejection.",
+  "core_principle": "Trade mean-reversion inside ranges when no dominant trend or event signal exists. This is the 'default' strategy when nothing else fits - but quality varies enormously. Risk sizing is everything.",
 
-  "environment_requirements": [
-    "Absolute breakoutScore must be below 0.3.",
-    "Absolute sweepScore must be below 0.3.",
-    "marketRegime should favor RANGE or show weak directional bias.",
-    "If structureState is strong and aligned with EMA slope, this strategy becomes less appropriate."
+  "when_this_strategy_wins": [
+    "Price is genuinely near a session extreme (within 15-20% of high or low).",
+    "ATR is healthy enough for price to actually move (ATR_5m > 0.0003 is good).",
+    "Direction aligns with structure or has clear mean-reversion logic.",
+    "There's actual room to the target (not a 5-pip move in a 20-pip range)."
   ],
 
-  "location_logic": [
-    "High-quality setup when price is within 20% of previous session high or low boundary.",
-    "Moderate-quality setup when price is within 20%–35% of range boundary.",
-    "Low-quality setup when price is mid-range (40%–60% range position).",
-    "Avoid trading mid-range unless clear micro-rejection occurs."
+  "when_this_strategy_loses": [
+    "Both breakoutScore and sweepScore are exactly 0 - 'dead market' with no momentum.",
+    "ATR is extremely low (< 0.00025) - price chops around and stops get hit by noise.",
+    "Direction conflicts with structure (going LONG when structureState = -1).",
+    "Entry is mid-range with no clear extreme to trade away from.",
+    "Structure and EMA slope point opposite directions - confused market."
   ],
 
-  "volatility_considerations": [
-    "ATR_5m should be stable or slightly contracting.",
-    "If ATR_5m expands sharply, downgrade confidence.",
-    "If volatility is extremely low, widen stop to avoid micro-noise stopouts."
+  "direction_logic": [
+    "DO NOT default to LONG. Direction must be reasoned.",
+    "If structureState = -1 (downtrend), prefer SHORT unless at clear support with rejection.",
+    "If structureState = +1 (uptrend), prefer LONG unless at clear resistance with rejection.",
+    "If structureState = 0, use breakoutScore as hint: negative = lean SHORT, positive = lean LONG.",
+    "If price is near session HIGH, natural direction is SHORT (mean reversion down).",
+    "If price is near session LOW, natural direction is LONG (mean reversion up).",
+    "When structure conflicts with location (e.g., downtrend but at session low), reduce risk significantly."
   ],
 
   "entry_logic": [
-    "Trade away from the nearest session extreme toward the interior of the range.",
-    "Prefer visible rejection behavior (low acceptanceTime or minor wick rejection).",
-    "Do not trade if price is compressing near mid-range without directional intent."
+    "Best entries are near session extremes (within 15% of high or low boundary).",
+    "Acceptable entries are 15-30% from boundary.",
+    "Poor entries are mid-range (30-70% of range) - reduce risk heavily or reconsider.",
+    "Look for micro-rejection at the level (wick, failed push) as confirmation.",
+    "If no rejection visible and just 'hoping' for reversal, that's a low-quality entry."
   ],
 
   "stop_loss_guidelines": [
-    "Stop must be placed beyond the range extreme or recent structural minor swing.",
-    "Minimum stop distance must be at least 0.8 × ATR_5m.",
-    "Avoid ultra-tight stops below 0.6 × ATR_5m as they increase noise stopouts."
+    "Stop beyond the range extreme with buffer for noise.",
+    "Minimum stop should be 1.0-1.2x ATR_5m to avoid noise stopouts.",
+    "In very low ATR environments, stops get hit by random fluctuation - this is a setup quality issue, not a stop placement issue.",
+    "If proper stop placement gives bad R:R, the setup is bad - reduce risk, don't force it."
   ],
 
   "take_profit_guidelines": [
-    "Primary target should be mid-range or opposite liquidity pocket.",
-    "Risk-to-reward should generally exceed 1.5:1.",
-    "If setup quality is high (near extreme with clear rejection), target may extend beyond mid-range."
+    "Primary target: mid-range or opposite boundary.",
+    "Near-extreme entries can target 50-70% of range.",
+    "Mid-range entries should have modest targets.",
+    "If target is only 0.5R away with proper stop, setup is marginal - reduce risk."
   ],
 
-  "risk_management": [
-    "High-quality setup (near extreme with clear rejection): risk 0.5–0.7.",
-    "Moderate-quality setup (near boundary but weaker rejection): risk 0.3–0.5.",
-    "Low-quality setup (not near boundary or unclear structure): risk 0.2–0.3.",
-    "Risk should reflect setup quality, not default to minimum."
+  "risk_scaling_critical": [
+    "THIS IS THE MOST IMPORTANT SECTION.",
+    "Risk should vary from 0.15 to 0.7 based on setup quality. NOT clustered at 0.4.",
+    "",
+    "HIGH RISK (0.5-0.7):",
+    "- Price within 15% of session extreme",
+    "- ATR_5m > 0.0004 (healthy volatility)",
+    "- Direction aligns with structure OR clear mean-reversion from extreme",
+    "- At least one of breakoutScore/sweepScore is non-zero (market has pulse)",
+    "- Structure and EMA slope don't conflict",
+    "",
+    "MODERATE RISK (0.3-0.5):",
+    "- Price within 25% of session extreme",
+    "- ATR_5m between 0.00025-0.0004",
+    "- Direction is reasonable but not perfectly aligned",
+    "- Mixed signals but this strategy still fits best",
+    "",
+    "LOW RISK (0.15-0.3):",
+    "- Both breakoutScore AND sweepScore are 0 or near-zero (dead market)",
+    "- ATR_5m < 0.00025 (low volatility, noise stopouts likely)",
+    "- Structure and EMA slope conflict (one up, one down)",
+    "- Entry is mid-range (30-50% from boundary)",
+    "- Direction unclear or conflicts with structure",
+    "- Multiple warning signs present",
+    "",
+    "VERY LOW RISK (0.15-0.25):",
+    "- Dead market (scores=0) AND low ATR AND mid-range entry",
+    "- Everything is unclear, this is truly random",
+    "- Taking the trade because we must, but it's garbage"
   ],
 
-  "probabilistic_note": "This strategy is not inherently low quality. It becomes high probability when executed at range extremes with structural clarity. Risk must scale with setup strength rather than defaulting to conservative sizing."
+  "dead_market_pattern": [
+    "When breakoutScore=0 AND sweepScore=0 AND ATR is low, market is 'dead'.",
+    "Dead markets produce choppy, directionless price action.",
+    "Stops get hit by noise, not by directional moves.",
+    "This is the #1 loss pattern in backtesting.",
+    "Response: REDUCE RISK to 0.15-0.25, not skip the trade."
+  ],
+
+  "what_we_learned_from_data": [
+    "Winners had: higher ATR, price near extremes, direction aligned with structure.",
+    "Losers had: low ATR, both scores=0, wrong direction, mid-range entries.",
+    "Many losses went LONG in downtrends - direction matters.",
+    "Risk was always 0.4 - no differentiation between good and bad setups.",
+    "The edge comes from sizing up good setups and sizing down bad ones."
+  ],
+
+  "philosophy": "This strategy is the catch-all when nothing else fits. Quality varies from excellent to garbage. The ONLY way to profit is aggressive risk differentiation. A beautiful setup near an extreme with good ATR deserves 0.6+ risk. A mid-range entry in a dead market deserves 0.15 risk. Treat them the same and you lose the edge."
 }
