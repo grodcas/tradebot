@@ -1,14 +1,13 @@
 require('dotenv').config();
 const fs = require("fs");
 const OpenAI = require("openai");
-const { computeIndicators, printIndicators } = require("./trade_indicators");
+const { computeIndicators } = require("./trade_indicators");
 const { callStrategyTradeDecision, validateDecision, MAX_WAIT_BARS } = require("./strategy_selector");
 
 // ----------------------------
 // CONFIG
 // ----------------------------
 const DATA_PATH = "./eurusd_5m.json";
-const RULES_PATH = "./strategy_rules.json";
 const RESULTS_PATH = "./trade_results.json";
 
 const SESSION_TZ = "Europe/Zurich";
@@ -170,13 +169,6 @@ function getRandomAnchorIndices(bars5m, count) {
 // LLM CALLS
 // ----------------------------
 async function callTradeSummary({ context, decision, simResult, R, indicators, priceBarsAfterEntry }) {
-  let strategyRules = null;
-  try {
-    strategyRules = JSON.parse(fs.readFileSync(RULES_PATH, "utf8"));
-  } catch (e) {
-    // Rules file not found
-  }
-
   const system = `
 You are a professional trading analyst reviewing completed trades.
 Your job is to analyze what happened and explain WHY the trade won or lost.
