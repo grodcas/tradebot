@@ -10,6 +10,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const http = require('http');
+const ngrok = require('ngrok');
 const { IBApi, EventName, BarSizeSetting, WhatToShow } = require('@stoqey/ib');
 const OpenAI = require('openai');
 const { computeIndicators } = require('./trade_indicators');
@@ -641,7 +642,7 @@ function printFinalSummary() {
 // ----------------------------
 // WEB DASHBOARD
 // ----------------------------
-function startDashboard() {
+async function startDashboard() {
   const server = http.createServer((req, res) => {
     const url = req.url.split('?')[0];
 
@@ -663,6 +664,18 @@ function startDashboard() {
   server.listen(DASHBOARD_PORT, () => {
     log(`Dashboard running at http://localhost:${DASHBOARD_PORT}`);
   });
+
+  // Start ngrok tunnel for remote access
+  try {
+    const url = await ngrok.connect(DASHBOARD_PORT);
+    log(`========================================`);
+    log(`PUBLIC URL: ${url}`);
+    log(`========================================`);
+    log(`Access dashboard from anywhere using the URL above`);
+  } catch (err) {
+    log(`ngrok error: ${err.message}`);
+    log(`Dashboard available locally only. Run 'ngrok config add-authtoken YOUR_TOKEN' to enable remote access.`);
+  }
 
   return server;
 }
@@ -944,7 +957,7 @@ async function main() {
   log(`Current Zurich time: ${formatTime(new Date())}`);
 
   // Start web dashboard
-  const dashboardServer = startDashboard();
+  const dashboardServer = await startDashboard();
 
   // Check if within session
   if (!isWithinSession()) {
