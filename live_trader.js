@@ -9,6 +9,7 @@
 
 require('dotenv').config();
 const fs = require('fs');
+const http = require('http');
 const { IBApi, EventName, BarSizeSetting, WhatToShow } = require('@stoqey/ib');
 const OpenAI = require('openai');
 const { computeIndicators } = require('./trade_indicators');
@@ -31,6 +32,8 @@ const BAR_SIZE_MINUTES = 5;
 const RESULTS_PATH = './trade_results.json';
 const LOG_PATH = './live_trader.log';
 
+const DASHBOARD_PORT = 3000;  // Web dashboard port
+
 const SPREAD = 0.00008;  // Typical EUR/USD spread
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -46,6 +49,9 @@ let isConnected = false;
 let lastBarTime = null;
 let tradeCounter = 0;
 let sessionEnded = false;  // Flag: past 18:00, no new trades
+let lastPrice = null;      // Latest market price
+let sessionStartTime = null;  // When trading session started
+let statusMessage = 'Initializing...';  // Current status for dashboard
 
 // ----------------------------
 // LOGGING
@@ -282,6 +288,9 @@ function aggregateRealTimeBar(timestamp, open, high, low, close) {
     pendingBar._t = timestamp;
     pendingBar._d = date;
   }
+
+  // Update last price for dashboard
+  lastPrice = Number(close);
 }
 
 async function finalizeBar(bar) {
@@ -428,6 +437,7 @@ async function executeTrade(decision, entryBar, indicators) {
   };
 
   logTrade(`ENTERED ${decision.side} @ ${decision.entry} | SL: ${decision.sl} | TP: ${decision.tp}`);
+  statusMessage = `In ${decision.side} trade @ ${decision.entry.toFixed(5)}`;
 }
 
 async function checkPositionStatus(bar) {
@@ -526,6 +536,13 @@ async function closePosition(outcome, exitPrice, exitBar) {
   saveResults();
 
   currentPosition = null;
+
+  // Update status
+  if (!sessionEnded) {
+    statusMessage = 'Trading active - monitoring for setups';
+  } else {
+    statusMessage = 'Session ended - shutting down';
+  }
 }
 
 async function getTradeAnalysis(pos, outcome, exitPrice, rawR) {
@@ -622,6 +639,301 @@ function printFinalSummary() {
 }
 
 // ----------------------------
+// WEB DASHBOARD
+// ----------------------------
+function startDashboard() {
+  const server = http.createServer((req, res) => {
+    const url = req.url.split('?')[0];
+
+    if (url === '/status') {
+      // JSON status endpoint
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(getDashboardData()));
+    } else if (url === '/trades') {
+      // JSON trades endpoint
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(tradeResults));
+    } else {
+      // HTML dashboard
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(generateDashboardHTML());
+    }
+  });
+
+  server.listen(DASHBOARD_PORT, () => {
+    log(`Dashboard running at http://localhost:${DASHBOARD_PORT}`);
+  });
+
+  return server;
+}
+
+function getDashboardData() {
+  const summary = calculateSummary();
+  const zurich = getZurichTime();
+
+  return {
+    status: sessionEnded ? 'SESSION_ENDED' : (isConnected ? 'RUNNING' : 'DISCONNECTED'),
+    statusMessage,
+    currentTime: zurich.toLocaleTimeString('en-GB'),
+    sessionHours: `${SESSION_START_HOUR}:00 - ${SESSION_END_HOUR}:00`,
+    lastPrice: lastPrice ? lastPrice.toFixed(5) : 'N/A',
+    position: currentPosition ? {
+      side: currentPosition.side,
+      entry: currentPosition.entry.toFixed(5),
+      sl: currentPosition.sl.toFixed(5),
+      tp: currentPosition.tp.toFixed(5),
+      risk: currentPosition.risk.toFixed(2),
+      barsInTrade: currentPosition.barsInTrade,
+      entryTime: currentPosition.entryTime,
+    } : null,
+    summary,
+    recentTrades: tradeResults.slice(-10).reverse(),
+  };
+}
+
+function generateDashboardHTML() {
+  const data = getDashboardData();
+  const statusColor = data.status === 'RUNNING' ? '#4ade80' : (data.status === 'SESSION_ENDED' ? '#fbbf24' : '#ef4444');
+
+  const positionHTML = data.position ? `
+    <div class="card">
+      <h2>Current Position</h2>
+      <div class="position ${data.position.side.toLowerCase()}">
+        <div class="position-side">${data.position.side}</div>
+        <div class="position-details">
+          <div><span class="label">Entry:</span> ${data.position.entry}</div>
+          <div><span class="label">Stop Loss:</span> ${data.position.sl}</div>
+          <div><span class="label">Take Profit:</span> ${data.position.tp}</div>
+          <div><span class="label">Risk:</span> ${data.position.risk}</div>
+          <div><span class="label">Bars in trade:</span> ${data.position.barsInTrade}</div>
+        </div>
+      </div>
+    </div>
+  ` : `
+    <div class="card">
+      <h2>Current Position</h2>
+      <div class="no-position">No open position</div>
+    </div>
+  `;
+
+  const tradesHTML = data.recentTrades.length > 0 ? data.recentTrades.map(t => {
+    const outcomeClass = t.outcome === 'TP' ? 'win' : (t.outcome === 'SL' ? 'loss' : 'timeout');
+    const sign = t.rawR >= 0 ? '+' : '';
+    return `
+      <div class="trade-row ${outcomeClass}">
+        <span class="trade-time">${new Date(t.exitTime).toLocaleTimeString('en-GB')}</span>
+        <span class="trade-side">${t.side}</span>
+        <span class="trade-outcome">${t.outcome}</span>
+        <span class="trade-r">${sign}${t.rawR.toFixed(2)}R</span>
+      </div>
+    `;
+  }).join('') : '<div class="no-trades">No trades yet</div>';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TradeBot Dashboard</title>
+  <meta http-equiv="refresh" content="10">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #334155;
+    }
+    .title { font-size: 24px; font-weight: bold; }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #1e293b;
+      border-radius: 8px;
+    }
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: ${statusColor};
+      animation: ${data.status === 'RUNNING' ? 'pulse 2s infinite' : 'none'};
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 16px;
+    }
+    .stat {
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #f8fafc;
+    }
+    .stat-value.positive { color: #4ade80; }
+    .stat-value.negative { color: #ef4444; }
+    .stat-label {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .position {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .position-side {
+      font-size: 24px;
+      font-weight: bold;
+      padding: 12px 24px;
+      border-radius: 8px;
+    }
+    .position.long .position-side { background: #166534; color: #4ade80; }
+    .position.short .position-side { background: #991b1b; color: #fca5a5; }
+    .position-details { font-size: 14px; line-height: 1.8; }
+    .label { color: #94a3b8; }
+    .no-position {
+      color: #64748b;
+      font-style: italic;
+      padding: 20px;
+      text-align: center;
+    }
+    .trade-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      background: #334155;
+    }
+    .trade-row.win { border-left: 3px solid #4ade80; }
+    .trade-row.loss { border-left: 3px solid #ef4444; }
+    .trade-row.timeout { border-left: 3px solid #fbbf24; }
+    .trade-time { color: #94a3b8; font-size: 13px; }
+    .trade-side { font-weight: 500; }
+    .trade-outcome { font-size: 13px; }
+    .trade-r { font-weight: bold; }
+    .trade-row.win .trade-r { color: #4ade80; }
+    .trade-row.loss .trade-r { color: #ef4444; }
+    .no-trades {
+      color: #64748b;
+      font-style: italic;
+      padding: 20px;
+      text-align: center;
+    }
+    .info-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 20px;
+    }
+    .price { font-size: 18px; color: #f8fafc; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <div class="title">TradeBot Live</div>
+        <div style="color: #64748b; font-size: 14px; margin-top: 4px;">${data.statusMessage}</div>
+      </div>
+      <div class="status">
+        <div class="status-dot"></div>
+        <span>${data.status}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Session Info</h2>
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="stat-value">${data.currentTime}</div>
+          <div class="stat-label">Zurich Time</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${data.sessionHours}</div>
+          <div class="stat-label">Session Hours</div>
+        </div>
+        <div class="stat">
+          <div class="price">${data.lastPrice}</div>
+          <div class="stat-label">EUR/USD</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Today's Performance</h2>
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="stat-value">${data.summary.totalTrades}</div>
+          <div class="stat-label">Total Trades</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${data.summary.wins}</div>
+          <div class="stat-label">Wins</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${data.summary.losses}</div>
+          <div class="stat-label">Losses</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${data.summary.winRate}</div>
+          <div class="stat-label">Win Rate</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value ${parseFloat(data.summary.totalWeightedR) >= 0 ? 'positive' : 'negative'}">${parseFloat(data.summary.totalWeightedR) >= 0 ? '+' : ''}${data.summary.totalWeightedR}R</div>
+          <div class="stat-label">Total P&L</div>
+        </div>
+      </div>
+    </div>
+
+    ${positionHTML}
+
+    <div class="card">
+      <h2>Recent Trades</h2>
+      ${tradesHTML}
+    </div>
+
+    <div class="info-bar">
+      <span>Auto-refreshes every 10 seconds</span>
+      <span>API: /status | /trades</span>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+// ----------------------------
 // MAIN LOOP
 // ----------------------------
 async function main() {
@@ -631,10 +943,14 @@ async function main() {
   log(`Session hours: ${SESSION_START_HOUR}:00 - ${SESSION_END_HOUR}:00 ${SESSION_TZ}`);
   log(`Current Zurich time: ${formatTime(new Date())}`);
 
+  // Start web dashboard
+  const dashboardServer = startDashboard();
+
   // Check if within session
   if (!isWithinSession()) {
     const zurich = getZurichTime();
     log(`Outside trading session. Current hour: ${zurich.getHours()}`);
+    statusMessage = 'Waiting for session to start...';
     log('Waiting for session to start...');
 
     // Wait until session starts
@@ -649,17 +965,22 @@ async function main() {
 
   try {
     // Connect to IBKR
+    statusMessage = 'Connecting to IBKR...';
     await connectToIBKR();
     await sleep(2000);
 
     // Fetch historical data for indicators
+    statusMessage = 'Fetching historical data...';
     const historicalBars = await fetchHistoricalBars();
     bars5m = historicalBars;
     log(`Loaded ${bars5m.length} historical bars`);
 
     // Subscribe to real-time data
+    statusMessage = 'Subscribing to real-time data...';
     subscribeToRealTimeBars();
 
+    sessionStartTime = new Date();
+    statusMessage = 'Trading active - monitoring for setups';
     log('Live trading loop started. Press Ctrl+C to stop.\n');
 
     // Main monitoring loop
@@ -674,6 +995,9 @@ async function main() {
         if (currentPosition) {
           log(`Open position detected: ${currentPosition.side} @ ${currentPosition.entry}`);
           log('Waiting for trade to finish (TP/SL)...');
+          statusMessage = 'Session ended - waiting for open trade to close';
+        } else {
+          statusMessage = 'Session ended - shutting down';
         }
       }
 
