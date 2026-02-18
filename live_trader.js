@@ -31,13 +31,20 @@ const HISTORY_BARS_NEEDED = 800;  // Bars needed for indicator calculation
 const BAR_SIZE_MINUTES = 5;
 
 const RESULTS_PATH = './trade_results.json';
+const GLOBAL_TRADES_PATH = './global_trades.json';  // All-time trades history
 const LOG_PATH = './live_trader.log';
 
 const DASHBOARD_PORT = 3000;  // Web dashboard port
 
 const SPREAD = 0.00008;  // Typical EUR/USD spread
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let client = null;
+function getOpenAIClient() {
+  if (!client) {
+    client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return client;
+}
 
 // ----------------------------
 // GLOBALS
@@ -46,6 +53,7 @@ let ib = null;
 let bars5m = [];
 let currentPosition = null;  // { side, entry, sl, tp, orderId, entryTime }
 let tradeResults = [];
+let globalTrades = [];  // All-time trades history
 let isConnected = false;
 let lastBarTime = null;
 let tradeCounter = 0;
@@ -53,6 +61,7 @@ let sessionEnded = false;  // Flag: past 18:00, no new trades
 let lastPrice = null;      // Latest market price
 let sessionStartTime = null;  // When trading session started
 let statusMessage = 'Initializing...';  // Current status for dashboard
+let currentSessionDate = null;  // Track date to reset daily stats at midnight
 
 // ----------------------------
 // LOGGING
@@ -512,7 +521,7 @@ async function closePosition(outcome, exitPrice, exitBar) {
   }
 
   // Save result
-  tradeResults.push({
+  const tradeResult = {
     tradeNum: pos.tradeNum,
     entryTime: pos.entryTime,
     exitTime: new Date().toISOString(),
@@ -531,10 +540,13 @@ async function closePosition(outcome, exitPrice, exitBar) {
     indicators: pos.indicators,
     reasoning: pos.reasoning,
     summary,
-  });
+  };
 
-  // Save results after each trade
+  tradeResults.push(tradeResult);
+
+  // Save results after each trade (daily and global)
   saveResults();
+  appendToGlobalTrades(tradeResult);
 
   currentPosition = null;
 
@@ -574,7 +586,7 @@ Analyze briefly. Output JSON:
   "rating": "GOOD | BAD | NEUTRAL"
 }`;
 
-  const resp = await client.chat.completions.create({
+  const resp = await getOpenAIClient().chat.completions.create({
     model: 'gpt-4o-mini',
     temperature: 0.3,
     messages: [
@@ -601,6 +613,75 @@ function saveResults() {
 
   fs.writeFileSync(RESULTS_PATH, JSON.stringify(output, null, 2));
   log(`Results saved (${tradeResults.length} trades)`);
+}
+
+function loadGlobalTrades() {
+  try {
+    if (fs.existsSync(GLOBAL_TRADES_PATH)) {
+      const data = JSON.parse(fs.readFileSync(GLOBAL_TRADES_PATH, 'utf8'));
+      globalTrades = data.trades || [];
+      log(`Loaded ${globalTrades.length} historical trades from global history`);
+    } else {
+      globalTrades = [];
+      log('No global trades history found, starting fresh');
+    }
+  } catch (err) {
+    log(`Error loading global trades: ${err.message}`);
+    globalTrades = [];
+  }
+}
+
+function saveGlobalTrades() {
+  const summary = calculateGlobalSummary();
+  const output = {
+    lastUpdated: new Date().toISOString(),
+    trades: globalTrades,
+    summary,
+  };
+
+  fs.writeFileSync(GLOBAL_TRADES_PATH, JSON.stringify(output, null, 2));
+  log(`Global trades saved (${globalTrades.length} total trades)`);
+}
+
+function appendToGlobalTrades(trade) {
+  globalTrades.push(trade);
+  saveGlobalTrades();
+}
+
+function calculateGlobalSummary() {
+  const executed = globalTrades.filter(t => t.outcome);
+  const wins = executed.filter(t => t.outcome === 'TP').length;
+  const losses = executed.filter(t => t.outcome === 'SL').length;
+  const timeouts = executed.filter(t => t.outcome === 'TIMEOUT').length;
+
+  const totalRawR = executed.reduce((sum, t) => sum + t.rawR, 0);
+  const totalWeightedR = executed.reduce((sum, t) => sum + t.weightedR, 0);
+
+  // Calculate by side
+  const longs = executed.filter(t => t.side === 'LONG');
+  const shorts = executed.filter(t => t.side === 'SHORT');
+  const longWins = longs.filter(t => t.outcome === 'TP').length;
+  const shortWins = shorts.filter(t => t.outcome === 'TP').length;
+
+  // Get unique trading days
+  const tradingDays = new Set(executed.map(t => t.entryTime?.split('T')[0])).size;
+
+  return {
+    totalTrades: executed.length,
+    wins,
+    losses,
+    timeouts,
+    winRate: executed.length ? ((wins / executed.length) * 100).toFixed(1) + '%' : '0%',
+    totalRawR: totalRawR.toFixed(2),
+    totalWeightedR: totalWeightedR.toFixed(2),
+    avgRawR: executed.length ? (totalRawR / executed.length).toFixed(3) : '0',
+    avgWeightedR: executed.length ? (totalWeightedR / executed.length).toFixed(3) : '0',
+    longTrades: longs.length,
+    longWinRate: longs.length ? ((longWins / longs.length) * 100).toFixed(1) + '%' : '0%',
+    shortTrades: shorts.length,
+    shortWinRate: shorts.length ? ((shortWins / shorts.length) * 100).toFixed(1) + '%' : '0%',
+    tradingDays,
+  };
 }
 
 function calculateSummary() {
@@ -728,12 +809,14 @@ async function startDashboard() {
 
 function getDashboardData() {
   const summary = calculateSummary();
+  const globalSummary = calculateGlobalSummary();
   const zurich = getZurichTime();
 
   return {
     status: sessionEnded ? 'SESSION_ENDED' : (isConnected ? 'RUNNING' : 'DISCONNECTED'),
     statusMessage,
     currentTime: zurich.toLocaleTimeString('en-GB'),
+    currentDate: currentSessionDate,
     sessionHours: `${SESSION_START_HOUR}:00 - ${SESSION_END_HOUR}:00`,
     lastPrice: lastPrice ? lastPrice.toFixed(5) : 'N/A',
     position: currentPosition ? {
@@ -746,6 +829,7 @@ function getDashboardData() {
       entryTime: currentPosition.entryTime,
     } : null,
     summary,
+    globalSummary,
     recentTrades: tradeResults.slice(-10).reverse(),
   };
 }
@@ -838,6 +922,10 @@ function generateDashboardHTML() {
       border-radius: 12px;
       padding: 20px;
       margin-bottom: 16px;
+    }
+    .card.global-card {
+      background: linear-gradient(135deg, #1e293b 0%, #312e81 100%);
+      border: 1px solid #4f46e5;
     }
     .card h2 {
       font-size: 14px;
@@ -936,6 +1024,10 @@ function generateDashboardHTML() {
       <h2>Session Info</h2>
       <div class="stats-grid">
         <div class="stat">
+          <div class="stat-value">${data.currentDate}</div>
+          <div class="stat-label">Date</div>
+        </div>
+        <div class="stat">
           <div class="stat-value">${data.currentTime}</div>
           <div class="stat-label">Zurich Time</div>
         </div>
@@ -976,6 +1068,40 @@ function generateDashboardHTML() {
       </div>
     </div>
 
+    <div class="card global-card">
+      <h2>All-Time Performance</h2>
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="stat-value">${data.globalSummary.totalTrades}</div>
+          <div class="stat-label">Total Trades</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${data.globalSummary.winRate}</div>
+          <div class="stat-label">Win Rate</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value ${parseFloat(data.globalSummary.totalWeightedR) >= 0 ? 'positive' : 'negative'}">${parseFloat(data.globalSummary.totalWeightedR) >= 0 ? '+' : ''}${data.globalSummary.totalWeightedR}R</div>
+          <div class="stat-label">Total P&L</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${data.globalSummary.avgWeightedR}</div>
+          <div class="stat-label">Avg R/Trade</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${data.globalSummary.tradingDays}</div>
+          <div class="stat-label">Trading Days</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${data.globalSummary.longWinRate}</div>
+          <div class="stat-label">Long WR (${data.globalSummary.longTrades})</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">${data.globalSummary.shortWinRate}</div>
+          <div class="stat-label">Short WR (${data.globalSummary.shortTrades})</div>
+        </div>
+      </div>
+    </div>
+
     ${positionHTML}
 
     <div class="card">
@@ -1002,14 +1128,27 @@ async function main() {
   log(`Trading hours: ${SESSION_START_HOUR}:00 - ${SESSION_END_HOUR}:00 ${SESSION_TZ}`);
   log(`Current Zurich time: ${formatTime(new Date())}`);
 
+  // Load global trades history
+  loadGlobalTrades();
+
+  // Initialize current session date
+  currentSessionDate = new Date().toISOString().split('T')[0];
+
   // Start web dashboard (always running)
   const dashboardServer = await startDashboard();
 
   // 24/7 loop - dashboard always on, trading only during session
   while (true) {
-    // Reset session state for new day
+    // Check if date changed (midnight) - only then reset daily stats
+    const todayDate = new Date().toISOString().split('T')[0];
+    if (todayDate !== currentSessionDate) {
+      log(`New day detected (${todayDate}), resetting daily stats`);
+      tradeResults = [];
+      currentSessionDate = todayDate;
+    }
+
+    // Reset session state for new trading session (but keep daily trades!)
     sessionEnded = false;
-    tradeResults = [];
     bars5m = [];
 
     // Wait for trading session to start
