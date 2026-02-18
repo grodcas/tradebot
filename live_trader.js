@@ -10,7 +10,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const http = require('http');
-const ngrok = require('ngrok');
+const { spawn } = require('child_process');
 const { IBApi, EventName, BarSizeSetting, WhatToShow } = require('@stoqey/ib');
 const OpenAI = require('openai');
 const { computeIndicators } = require('./trade_indicators');
@@ -667,14 +667,60 @@ async function startDashboard() {
 
   // Start ngrok tunnel for remote access
   try {
-    const url = await ngrok.connect(DASHBOARD_PORT);
-    log(`========================================`);
-    log(`PUBLIC URL: ${url}`);
-    log(`========================================`);
-    log(`Access dashboard from anywhere using the URL above`);
+    log('Starting ngrok...');
+    const ngrokProcess = spawn('npx', ['ngrok', 'http', String(DASHBOARD_PORT)], {
+      detached: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
+    });
+
+    ngrokProcess.stderr.on('data', (data) => {
+      log(`ngrok stderr: ${data.toString().trim()}`);
+    });
+
+    ngrokProcess.stdout.on('data', (data) => {
+      log(`ngrok stdout: ${data.toString().trim()}`);
+    });
+
+    ngrokProcess.on('error', (err) => {
+      log(`ngrok process error: ${err.message}`);
+    });
+
+    // Give ngrok time to start, then fetch the public URL from its API
+    log('Waiting for ngrok to initialize...');
+    await sleep(5000);
+
+    log('Fetching ngrok tunnel URL from API...');
+    const http = require('http');
+    const req = http.get('http://127.0.0.1:4040/api/tunnels', (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        log(`ngrok API response: ${data}`);
+        try {
+          const tunnels = JSON.parse(data);
+          const publicUrl = tunnels.tunnels[0]?.public_url;
+          if (publicUrl) {
+            log(`========================================`);
+            log(`PUBLIC URL: ${publicUrl}`);
+            log(`========================================`);
+            log(`Access dashboard from anywhere using the URL above`);
+          } else {
+            log('No tunnel URL found in response');
+          }
+        } catch (e) {
+          log(`Could not parse ngrok response: ${e.message}`);
+        }
+      });
+    });
+    req.on('error', (err) => {
+      log(`ngrok API error: ${err.message}`);
+      log(`Dashboard available locally only at http://localhost:${DASHBOARD_PORT}`);
+    });
+
   } catch (err) {
     log(`ngrok error: ${err.message}`);
-    log(`Dashboard available locally only. Run 'ngrok config add-authtoken YOUR_TOKEN' to enable remote access.`);
+    log(`Dashboard available locally only. Install ngrok CLI and run 'ngrok config add-authtoken YOUR_TOKEN'`);
   }
 
   return server;
@@ -951,90 +997,103 @@ function generateDashboardHTML() {
 // ----------------------------
 async function main() {
   log('\n========================================');
-  log('   LIVE PAPER TRADER - Starting');
+  log('   LIVE PAPER TRADER - Starting (24/7 mode)');
   log('========================================');
-  log(`Session hours: ${SESSION_START_HOUR}:00 - ${SESSION_END_HOUR}:00 ${SESSION_TZ}`);
+  log(`Trading hours: ${SESSION_START_HOUR}:00 - ${SESSION_END_HOUR}:00 ${SESSION_TZ}`);
   log(`Current Zurich time: ${formatTime(new Date())}`);
 
-  // Start web dashboard
+  // Start web dashboard (always running)
   const dashboardServer = await startDashboard();
 
-  // Check if within session
-  if (!isWithinSession()) {
-    const zurich = getZurichTime();
-    log(`Outside trading session. Current hour: ${zurich.getHours()}`);
-    statusMessage = 'Waiting for session to start...';
-    log('Waiting for session to start...');
+  // 24/7 loop - dashboard always on, trading only during session
+  while (true) {
+    // Reset session state for new day
+    sessionEnded = false;
+    tradeResults = [];
+    bars5m = [];
 
-    // Wait until session starts
-    while (!isWithinSession()) {
-      await sleep(60000);  // Check every minute
-      if (shouldStopSession()) {
-        log('Session ended before starting. Exiting.');
-        process.exit(0);
+    // Wait for trading session to start
+    if (!isWithinSession()) {
+      const zurich = getZurichTime();
+      log(`Outside trading hours. Current hour: ${zurich.getHours()}`);
+      statusMessage = `Waiting for next session (${SESSION_START_HOUR}:00)...`;
+
+      while (!isWithinSession()) {
+        await sleep(60000);  // Check every minute
       }
+      log('Trading session starting!');
     }
-  }
 
-  try {
-    // Connect to IBKR
-    statusMessage = 'Connecting to IBKR...';
-    await connectToIBKR();
-    await sleep(2000);
+    try {
+      // Connect to IBKR
+      statusMessage = 'Connecting to IBKR...';
+      await connectToIBKR();
+      await sleep(2000);
 
-    // Fetch historical data for indicators
-    statusMessage = 'Fetching historical data...';
-    const historicalBars = await fetchHistoricalBars();
-    bars5m = historicalBars;
-    log(`Loaded ${bars5m.length} historical bars`);
+      // Fetch historical data for indicators
+      statusMessage = 'Fetching historical data...';
+      const historicalBars = await fetchHistoricalBars();
+      bars5m = historicalBars;
+      log(`Loaded ${bars5m.length} historical bars`);
 
-    // Subscribe to real-time data
-    statusMessage = 'Subscribing to real-time data...';
-    subscribeToRealTimeBars();
+      // Subscribe to real-time data
+      statusMessage = 'Subscribing to real-time data...';
+      subscribeToRealTimeBars();
 
-    sessionStartTime = new Date();
-    statusMessage = 'Trading active - monitoring for setups';
-    log('Live trading loop started. Press Ctrl+C to stop.\n');
+      sessionStartTime = new Date();
+      statusMessage = 'Trading active - monitoring for setups';
+      log('Trading session active. Press Ctrl+C to stop.\n');
 
-    // Main monitoring loop
-    while (true) {
-      await sleep(5000);  // Check every 5 seconds
+      // Trading loop (runs during session hours)
+      while (true) {
+        await sleep(5000);  // Check every 5 seconds
 
-      // Check if session should end (18:00)
-      if (shouldStopSession() && !sessionEnded) {
-        sessionEnded = true;
-        log('Session end time reached (18:00) - No new trades will be opened');
+        // Check if session should end (18:00)
+        if (shouldStopSession() && !sessionEnded) {
+          sessionEnded = true;
+          log('Session end time reached (18:00) - No new trades will be opened');
 
-        if (currentPosition) {
-          log(`Open position detected: ${currentPosition.side} @ ${currentPosition.entry}`);
-          log('Waiting for trade to finish (TP/SL)...');
-          statusMessage = 'Session ended - waiting for open trade to close';
-        } else {
-          statusMessage = 'Session ended - shutting down';
+          if (currentPosition) {
+            log(`Open position detected: ${currentPosition.side} @ ${currentPosition.entry}`);
+            log('Waiting for trade to finish (TP/SL)...');
+            statusMessage = 'Session ended - waiting for open trade to close';
+          } else {
+            statusMessage = 'Session ended - waiting for next session';
+          }
+        }
+
+        // Exit trading loop when session ended AND no open position
+        if (sessionEnded && !currentPosition) {
+          log('Session ended and no open positions.');
+          break;
         }
       }
 
-      // Exit only when session ended AND no open position
-      if (sessionEnded && !currentPosition) {
-        log('Session ended and no open positions. Shutting down.');
-        break;
+      // End of session - save results and disconnect
+      saveResults();
+      printFinalSummary();
+
+      if (ib && isConnected) {
+        ib.disconnect();
+        isConnected = false;
       }
+
+      statusMessage = `Session complete. Waiting for next session (${SESSION_START_HOUR}:00)...`;
+      log('Waiting for next trading session...\n');
+
+    } catch (err) {
+      log(`Error during session: ${err.message}`);
+      console.error(err);
+      statusMessage = `Error: ${err.message}. Retrying in 5 minutes...`;
+
+      if (ib && isConnected) {
+        ib.disconnect();
+        isConnected = false;
+      }
+
+      // Wait before retrying
+      await sleep(300000);  // 5 minutes
     }
-
-  } catch (err) {
-    log(`Fatal error: ${err.message}`);
-    console.error(err);
-  } finally {
-    // Save final results
-    saveResults();
-    printFinalSummary();
-
-    // Disconnect
-    if (ib && isConnected) {
-      ib.disconnect();
-    }
-
-    log('Trader stopped.');
   }
 }
 
