@@ -1,17 +1,11 @@
 /**
- * LEVELS AGENT
+ * LEVELS AGENT - USD/JPY
  *
  * Expert in setting Entry, Stop Loss, and Take Profit levels.
- * Understands order flow, volatility-based sizing, and logical level placement.
+ * Uses GPT-5.2
  */
 
-const OpenAI = require("openai");
-
-let client = null;
-function getClient() {
-  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return client;
-}
+const { callGPT5JSON } = require('../gpt5_client');
 
 const LEVELS_PROMPT = `You are an expert in trade execution and DEFENSIVE level placement. Your PRIMARY goal is to protect capital while capturing reasonable moves.
 
@@ -128,20 +122,7 @@ VOLATILITY:
 Set optimal Entry (limit), Stop Loss, and Take Profit for this ${direction} trade.
 Make sure levels are at LOGICAL points, not arbitrary numbers.`;
 
-  const resp = await getClient().chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.3,
-    messages: [
-      { role: "system", content: LEVELS_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    response_format: { type: "json_object" },
-  });
-
-  const text = resp.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Empty levels response");
-
-  return JSON.parse(text);
+  return await callGPT5JSON(LEVELS_PROMPT, userPrompt);
 }
 
 module.exports = { determineLevels };
