@@ -1,11 +1,18 @@
 /**
- * CONFIDENCE AGENT - EUR/USD
+ * CONFIDENCE AGENT
  *
  * Expert in assessing trade probability and setup quality.
- * Uses GPT-5.2
+ * Does NOT determine direction - evaluates a proposed direction.
+ * Output is a calibrated probability with reasoning.
  */
 
-const { callGPT5JSON } = require('../gpt5_client');
+const OpenAI = require("openai");
+
+let client = null;
+function getClient() {
+  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return client;
+}
 
 const CONFIDENCE_PROMPT = `You are an expert trade probability assessor. Your job is to evaluate HOW LIKELY a proposed trade is to succeed.
 
@@ -125,7 +132,20 @@ VOLATILITY:
 
 Assess the probability of the proposed ${proposedDirection} trade succeeding.`;
 
-  return await callGPT5JSON(CONFIDENCE_PROMPT, userPrompt);
+  const resp = await getClient().chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.3,
+    messages: [
+      { role: "system", content: CONFIDENCE_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    response_format: { type: "json_object" },
+  });
+
+  const text = resp.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Empty confidence response");
+
+  return JSON.parse(text);
 }
 
 module.exports = { assessConfidence };

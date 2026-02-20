@@ -1,11 +1,20 @@
 /**
- * CONFIDENCE AGENT - USD/JPY - Intuitive Market Understanding
+ * CONFIDENCE AGENT - Intuitive Market Understanding
  *
- * Uses GPT-5.2 reasoning to assess trade probability.
+ * Uses AI reasoning to assess trade probability.
+ * No mechanical rules - understand the market context.
+ * Output: calibrated probability 0.0 to 1.0 for position sizing.
+ *
  * EVERY trade gets executed - confidence determines position size.
  */
 
-const { callGPT5JSON } = require('../gpt5_client');
+const OpenAI = require("openai");
+
+let client = null;
+function getClient() {
+  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return client;
+}
 
 const CONFIDENCE_PROMPT = `You are an experienced trader assessing trade probability.
 
@@ -142,7 +151,20 @@ Idea: ${directionAnalysis.trade_idea}
 **YOUR TASK**
 Read the market. Understand what's happening. Assign a probability (0.0-1.0) based on how likely this ${proposedDirection} trade is to succeed. Use the full range - every trade will be executed with sizing based on your probability.`;
 
-  const result = await callGPT5JSON(CONFIDENCE_PROMPT, userPrompt);
+  const resp = await getClient().chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.4,  // Slightly higher for more nuanced reasoning
+    messages: [
+      { role: "system", content: CONFIDENCE_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    response_format: { type: "json_object" },
+  });
+
+  const text = resp.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Empty confidence response");
+
+  const result = JSON.parse(text);
 
   // Map conviction_level to legacy format for compatibility
   const assessment = result.conviction_level === 'HIGH' ? 'FAVORABLE' :

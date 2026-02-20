@@ -590,9 +590,7 @@ async function closePosition(pairCode, outcome, exitPrice, exitBar) {
 }
 
 async function getTradeAnalysis(pos, outcome, exitPrice, rawR) {
-  const { callGPT5JSON } = require('./gpt5_client');
-
-  const system = `You are a professional trading analyst reviewing completed trades. Analyze what happened and explain WHY the trade won or lost. Be specific.`;
+  const system = `You are a professional trading analyst reviewing completed trades. Analyze what happened and explain WHY the trade won or lost. Be specific. Output valid JSON only.`;
 
   const user = `
 TRADE:
@@ -620,11 +618,18 @@ Analyze briefly. Output JSON:
   "rating": "GOOD | BAD | NEUTRAL"
 }`;
 
-  try {
-    return await callGPT5JSON(system, user);
-  } catch (err) {
-    return { error: err.message };
-  }
+  const resp = await getOpenAIClient().chat.completions.create({
+    model: 'gpt-4o-mini',
+    temperature: 0.3,
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    response_format: { type: 'json_object' },
+  });
+
+  const text = resp.choices?.[0]?.message?.content;
+  return text ? JSON.parse(text) : { error: 'Empty response' };
 }
 
 // ----------------------------

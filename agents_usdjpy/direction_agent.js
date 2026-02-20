@@ -1,11 +1,17 @@
 /**
- * DIRECTION AGENT - USD/JPY
+ * DIRECTION AGENT
  *
  * Expert in reading market structure and determining directional bias.
- * Uses GPT-5.2
+ * Output is VERBOSE - explains the reasoning, not just LONG/SHORT.
  */
 
-const { callGPT5JSON } = require('../gpt5_client');
+const OpenAI = require("openai");
+
+let client = null;
+function getClient() {
+  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return client;
+}
 
 const DIRECTION_PROMPT = `You are an expert market structure analyst specializing in DIRECTION reading.
 
@@ -119,7 +125,20 @@ KEY LEVELS:
 
 Analyze this setup. RESPECT the computed structure state - do not override it with optimistic interpretation.`;
 
-  return await callGPT5JSON(DIRECTION_PROMPT, userPrompt);
+  const resp = await getClient().chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.3,
+    messages: [
+      { role: "system", content: DIRECTION_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    response_format: { type: "json_object" },
+  });
+
+  const text = resp.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Empty direction response");
+
+  return JSON.parse(text);
 }
 
 module.exports = { analyzeDirection };

@@ -1,13 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node:*)",
-      "Bash(npm install:*)",
-      "Bash(git ls-tree:*)",
-      "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd multi-pair trading support \\(EURUSD + USDJPY\\)\n\n- Refactor live_trader.js to support multiple pairs simultaneously\n- Each pair trades sequentially \\(one position at a time per pair\\)\n- Both pairs can have open positions at the same time\n- Per-pair state tracking \\(bars, positions, results\\)\n- Dashboard shows both pairs with individual stats\n- Global stats combine results from all pairs\n- Added pair_config.js from other_pairs branch\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(dir:*)",
-      "Bash(git commit:*)"
+      "Bash(node:*)"
     ]
   }
 }
