@@ -15,7 +15,12 @@ const { spawn } = require('child_process');
 const { IBApi, EventName, BarSizeSetting, WhatToShow } = require('@stoqey/ib');
 const OpenAI = require('openai');
 const { computeIndicators } = require('./trade_indicators');
-const { callStrategyTradeDecision, validateDecision, MAX_WAIT_BARS } = require('./strategy_selector');
+
+// Pair-specific strategy selectors (each pair has its own trained model/prompts)
+const strategySelectors = {
+  EURUSD: require('./strategy_selector_eurusd'),
+  USDJPY: require('./strategy_selector_usdjpy'),
+};
 
 // ----------------------------
 // CONFIG
@@ -398,7 +403,9 @@ async function processBar(pairCode, bar) {
 
     log(`[${pairCode}] Calling AI agents for trade decision...`);
 
-    const rawDecision = await callStrategyTradeDecision({
+    // Use pair-specific strategy selector
+    const selector = strategySelectors[pairCode];
+    const rawDecision = await selector.callStrategyTradeDecision({
       context,
       indicators,
       currentBar,
@@ -412,7 +419,7 @@ async function processBar(pairCode, bar) {
       return;
     }
 
-    const decision = validateDecision(rawDecision, bar.close, indicators);
+    const decision = selector.validateDecision(rawDecision, bar.close, indicators);
 
     if (decision.risk === 0) {
       log(`[${pairCode}] Decision has risk=0, skipping...`);
