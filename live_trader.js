@@ -1,8 +1,9 @@
 /**
- * Live Paper Trader for IBKR
+ * Live Paper Trader for IBKR - Multi-Pair Version
  *
- * Runs from 8:00-18:00 Zurich time, executing trades one at a time.
- * Connects to IBKR Gateway (paper account on port 4002).
+ * Trades EUR/USD and USD/JPY simultaneously.
+ * Each pair runs sequentially (one trade at a time per pair).
+ * Runs from 8:00-18:00 Zurich time.
  *
  * Usage: node live_trader.js
  */
@@ -27,16 +28,45 @@ const SESSION_TZ = 'Europe/Zurich';
 const SESSION_START_HOUR = 8;
 const SESSION_END_HOUR = 18;
 
-const HISTORY_BARS_NEEDED = 800;  // Bars needed for indicator calculation
+const HISTORY_BARS_NEEDED = 800;
 const BAR_SIZE_MINUTES = 5;
 
 const RESULTS_PATH = './trade_results.json';
-const GLOBAL_TRADES_PATH = './global_trades.json';  // All-time trades history
+const GLOBAL_TRADES_PATH = './global_trades.json';
 const LOG_PATH = './live_trader.log';
 
-const DASHBOARD_PORT = 3000;  // Web dashboard port
+const DASHBOARD_PORT = 3000;
 
-const SPREAD = 0.00008;  // Typical EUR/USD spread
+// ----------------------------
+// PAIR CONFIGURATIONS
+// ----------------------------
+const PAIRS = {
+  EURUSD: {
+    symbol: 'EUR',
+    currency: 'USD',
+    secType: 'CASH',
+    exchange: 'IDEALPRO',
+    spread: 0.00008,
+    pipMultiplier: 10000,  // 1 pip = 0.0001
+    displayName: 'EUR/USD',
+    histReqId: 1001,
+    rtReqId: 2001,
+  },
+  USDJPY: {
+    symbol: 'USD',
+    currency: 'JPY',
+    secType: 'CASH',
+    exchange: 'IDEALPRO',
+    spread: 0.008,
+    pipMultiplier: 100,  // 1 pip = 0.01 for JPY pairs
+    displayName: 'USD/JPY',
+    histReqId: 1002,
+    rtReqId: 2002,
+  }
+};
+
+// Active pairs to trade
+const ACTIVE_PAIRS = ['EURUSD', 'USDJPY'];
 
 let client = null;
 function getOpenAIClient() {
@@ -47,21 +77,35 @@ function getOpenAIClient() {
 }
 
 // ----------------------------
+// PER-PAIR STATE
+// ----------------------------
+const pairState = {};
+
+function initPairState() {
+  for (const pairCode of ACTIVE_PAIRS) {
+    pairState[pairCode] = {
+      config: PAIRS[pairCode],
+      bars5m: [],
+      currentPosition: null,
+      tradeResults: [],
+      lastPrice: null,
+      pendingBar: null,
+      lastBarMinute: null,
+      tradeCounter: 0,
+    };
+  }
+}
+
+// ----------------------------
 // GLOBALS
 // ----------------------------
 let ib = null;
-let bars5m = [];
-let currentPosition = null;  // { side, entry, sl, tp, orderId, entryTime }
-let tradeResults = [];
-let globalTrades = [];  // All-time trades history
+let globalTrades = [];
 let isConnected = false;
-let lastBarTime = null;
-let tradeCounter = 0;
-let sessionEnded = false;  // Flag: past 18:00, no new trades
-let lastPrice = null;      // Latest market price
-let sessionStartTime = null;  // When trading session started
-let statusMessage = 'Initializing...';  // Current status for dashboard
-let currentSessionDate = null;  // Track date to reset daily stats at midnight
+let sessionEnded = false;
+let sessionStartTime = null;
+let statusMessage = 'Initializing...';
+let currentSessionDate = null;
 
 // ----------------------------
 // LOGGING
@@ -73,8 +117,8 @@ function log(message) {
   fs.appendFileSync(LOG_PATH, line + '\n');
 }
 
-function logTrade(message) {
-  log(`[TRADE] ${message}`);
+function logTrade(pairCode, message) {
+  log(`[${pairCode}] ${message}`);
 }
 
 // ----------------------------
@@ -106,14 +150,17 @@ function sleep(ms) {
 }
 
 // ----------------------------
-// IBKR CONTRACT
+// IBKR CONTRACT BUILDER
 // ----------------------------
-const eurusdContract = {
-  symbol: 'EUR',
-  secType: 'CASH',
-  currency: 'USD',
-  exchange: 'IDEALPRO',
-};
+function getContract(pairCode) {
+  const config = PAIRS[pairCode];
+  return {
+    symbol: config.symbol,
+    secType: config.secType,
+    currency: config.currency,
+    exchange: config.exchange,
+  };
+}
 
 // ----------------------------
 // IBKR CONNECTION
@@ -144,7 +191,7 @@ function connectToIBKR() {
 
     ib.on(EventName.error, (err, code, reqId) => {
       if (err.message?.includes('connection is OK')) return;
-      log(`IBKR Error [${code}]: ${err.message}`);
+      log(`IBKR Error [${code}] reqId=${reqId}: ${err.message}`);
     });
 
     log('Connecting to IBKR Gateway...');
@@ -155,15 +202,17 @@ function connectToIBKR() {
 // ----------------------------
 // FETCH HISTORICAL DATA
 // ----------------------------
-function fetchHistoricalBars() {
+function fetchHistoricalBars(pairCode) {
   return new Promise((resolve, reject) => {
-    log(`Fetching ${HISTORY_BARS_NEEDED} historical 5m bars...`);
+    const config = PAIRS[pairCode];
+    const reqId = config.histReqId;
+    const contract = getContract(pairCode);
 
-    const reqId = 1001;
+    log(`[${pairCode}] Fetching ${HISTORY_BARS_NEEDED} historical 5m bars...`);
+
     const collectedBars = [];
-
-    const endDateTime = '';  // Empty = now
-    const durationStr = '5 D';  // 5 days of data
+    const endDateTime = '';
+    const durationStr = '5 D';
     const barSize = '5 mins';
 
     const onHistoricalData = (id, time, open, high, low, close, volume, count, wap) => {
@@ -172,7 +221,6 @@ function fetchHistoricalBars() {
       if (time.startsWith('finished')) {
         ib.off(EventName.historicalData, onHistoricalData);
 
-        // Sort by time and parse
         const parsed = collectedBars
           .map(b => ({
             ...b,
@@ -182,7 +230,7 @@ function fetchHistoricalBars() {
           .filter(b => b._t)
           .sort((a, b) => a._t - b._t);
 
-        log(`Received ${parsed.length} historical bars`);
+        log(`[${pairCode}] Received ${parsed.length} historical bars`);
         resolve(parsed);
         return;
       }
@@ -200,30 +248,28 @@ function fetchHistoricalBars() {
 
     ib.reqHistoricalData(
       reqId,
-      eurusdContract,
+      contract,
       endDateTime,
       durationStr,
       barSize,
       WhatToShow.MIDPOINT,
-      1,  // useRTH
-      1,  // formatDate
+      1,
+      1,
       false
     );
 
-    // Timeout after 30 seconds
     setTimeout(() => {
       ib.off(EventName.historicalData, onHistoricalData);
       if (collectedBars.length > 0) {
         resolve(collectedBars);
       } else {
-        reject(new Error('Historical data timeout'));
+        reject(new Error(`[${pairCode}] Historical data timeout`));
       }
     }, 30000);
   });
 }
 
 function parseBarTime(timeStr) {
-  // Format: "20260217 14:30:00" (US/Eastern from IBKR)
   if (!timeStr || typeof timeStr !== 'string') return null;
 
   const parts = timeStr.split(' ');
@@ -243,44 +289,40 @@ function parseBarTime(timeStr) {
 // ----------------------------
 // REAL-TIME BAR SUBSCRIPTION
 // ----------------------------
-function subscribeToRealTimeBars() {
-  const reqId = 2001;
+function subscribeToRealTimeBars(pairCode) {
+  const config = PAIRS[pairCode];
+  const reqId = config.rtReqId;
+  const contract = getContract(pairCode);
 
-  log('Subscribing to real-time 5-second bars...');
+  log(`[${pairCode}] Subscribing to real-time 5-second bars...`);
 
   ib.on(EventName.realtimeBar, (id, time, open, high, low, close, volume, wap, count) => {
     if (id !== reqId) return;
-
-    // Aggregate into 5-minute bars
-    const barTime = time * 1000;  // Convert to milliseconds
-    aggregateRealTimeBar(barTime, open, high, low, close);
+    const barTime = time * 1000;
+    aggregateRealTimeBar(pairCode, barTime, open, high, low, close);
   });
 
   ib.reqRealTimeBars(
     reqId,
-    eurusdContract,
-    5,  // 5-second bars (smallest available)
+    contract,
+    5,
     WhatToShow.MIDPOINT,
     false
   );
 }
 
-let pendingBar = null;
-let lastBarMinute = null;
-
-function aggregateRealTimeBar(timestamp, open, high, low, close) {
+function aggregateRealTimeBar(pairCode, timestamp, open, high, low, close) {
+  const state = pairState[pairCode];
   const date = new Date(timestamp);
   const minute = Math.floor(date.getMinutes() / BAR_SIZE_MINUTES) * BAR_SIZE_MINUTES;
   const barKey = `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, '0')}${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
 
-  if (lastBarMinute !== barKey) {
-    // New bar started
-    if (pendingBar) {
-      // Finalize previous bar
-      finalizeBar(pendingBar);
+  if (state.lastBarMinute !== barKey) {
+    if (state.pendingBar) {
+      finalizeBar(pairCode, state.pendingBar);
     }
 
-    pendingBar = {
+    state.pendingBar = {
       time: barKey,
       open: Number(open),
       high: Number(high),
@@ -289,74 +331,62 @@ function aggregateRealTimeBar(timestamp, open, high, low, close) {
       _t: timestamp,
       _d: date,
     };
-    lastBarMinute = barKey;
-  } else if (pendingBar) {
-    // Update current bar
-    pendingBar.high = Math.max(pendingBar.high, Number(high));
-    pendingBar.low = Math.min(pendingBar.low, Number(low));
-    pendingBar.close = Number(close);
-    pendingBar._t = timestamp;
-    pendingBar._d = date;
+    state.lastBarMinute = barKey;
+  } else if (state.pendingBar) {
+    state.pendingBar.high = Math.max(state.pendingBar.high, Number(high));
+    state.pendingBar.low = Math.min(state.pendingBar.low, Number(low));
+    state.pendingBar.close = Number(close);
+    state.pendingBar._t = timestamp;
+    state.pendingBar._d = date;
   }
 
-  // Update last price for dashboard
-  lastPrice = Number(close);
+  state.lastPrice = Number(close);
 }
 
-async function finalizeBar(bar) {
-  bars5m.push(bar);
+async function finalizeBar(pairCode, bar) {
+  const state = pairState[pairCode];
+  state.bars5m.push(bar);
 
-  // Keep only last HISTORY_BARS_NEEDED bars
-  if (bars5m.length > HISTORY_BARS_NEEDED) {
-    bars5m = bars5m.slice(-HISTORY_BARS_NEEDED);
+  if (state.bars5m.length > HISTORY_BARS_NEEDED) {
+    state.bars5m = state.bars5m.slice(-HISTORY_BARS_NEEDED);
   }
 
-  log(`New bar: ${bar.time} | O:${bar.open.toFixed(5)} H:${bar.high.toFixed(5)} L:${bar.low.toFixed(5)} C:${bar.close.toFixed(5)}`);
+  log(`[${pairCode}] New bar: ${bar.time} | O:${bar.open.toFixed(5)} H:${bar.high.toFixed(5)} L:${bar.low.toFixed(5)} C:${bar.close.toFixed(5)}`);
 
-  // Check if we should process this bar for trading
-  if (currentPosition) {
-    // Always monitor open positions
-    await checkPositionStatus(bar);
+  if (state.currentPosition) {
+    await checkPositionStatus(pairCode, bar);
   } else if (!sessionEnded && isWithinSession()) {
-    // Only look for new trades if session hasn't ended
-    await processBar(bar);
+    await processBar(pairCode, bar);
   }
 }
 
 // ----------------------------
 // TRADING LOGIC
 // ----------------------------
-async function processBar(bar) {
-  if (bars5m.length < 100) {
-    log('Not enough bars for indicators yet...');
+async function processBar(pairCode, bar) {
+  const state = pairState[pairCode];
+
+  if (state.bars5m.length < 100) {
+    log(`[${pairCode}] Not enough bars for indicators yet...`);
     return;
   }
 
   try {
-    const idx = bars5m.length - 1;
-
-    // Build context (last 15 bars)
-    const win5m = bars5m.slice(-15);
-
-    // Aggregate 30m bars
-    const bars30m = aggregate30mBars(bars5m.slice(-90));
+    const idx = state.bars5m.length - 1;
+    const win5m = state.bars5m.slice(-15);
+    const bars30m = aggregate30mBars(state.bars5m.slice(-90));
 
     const context = {
       prices_5m: win5m.map(b => b.close),
       prices_30m: bars30m.map(b => b.close),
-      prices_daily: [],  // Not critical for live
+      prices_daily: [],
       ranges_5m: win5m.map(b => b.high - b.low),
       ranges_30m: bars30m.map(b => b.high - b.low),
       ranges_daily: [],
       last_close: bar.close,
     };
 
-    const indicators = computeIndicators(bars5m, bars30m, idx);
-
-    // Entry timing loop
-    let waitCount = 0;
-    let decision = null;
-    let waitHistory = [];
+    const indicators = computeIndicators(state.bars5m, bars30m, idx);
 
     const currentBar = {
       time: bar.time,
@@ -366,37 +396,36 @@ async function processBar(bar) {
       close: bar.close,
     };
 
-    log('Calling AI agents for trade decision...');
+    log(`[${pairCode}] Calling AI agents for trade decision...`);
 
     const rawDecision = await callStrategyTradeDecision({
       context,
       indicators,
       currentBar,
-      waitCount,
+      waitCount: 0,
       mustTrade: false,
-      waitHistory,
+      waitHistory: [],
     });
 
     if (rawDecision.action === 'WAIT') {
-      log(`AI says WAIT: ${rawDecision.reasoning?.slice(0, 100)}...`);
-      return;  // Will try again on next bar
-    }
-
-    decision = validateDecision(rawDecision, bar.close, indicators);
-
-    if (decision.risk === 0) {
-      log('Decision has risk=0, skipping...');
+      log(`[${pairCode}] AI says WAIT: ${rawDecision.reasoning?.slice(0, 100)}...`);
       return;
     }
 
-    logTrade(`SIGNAL: ${decision.side} | Entry: ${decision.entry} | SL: ${decision.sl} | TP: ${decision.tp} | Risk: ${decision.risk}`);
-    logTrade(`Reasoning: ${decision.reasoning?.slice(0, 150)}...`);
+    const decision = validateDecision(rawDecision, bar.close, indicators);
 
-    // Execute the trade
-    await executeTrade(decision, bar, indicators);
+    if (decision.risk === 0) {
+      log(`[${pairCode}] Decision has risk=0, skipping...`);
+      return;
+    }
+
+    logTrade(pairCode, `SIGNAL: ${decision.side} | Entry: ${decision.entry} | SL: ${decision.sl} | TP: ${decision.tp} | Risk: ${decision.risk}`);
+    logTrade(pairCode, `Reasoning: ${decision.reasoning?.slice(0, 150)}...`);
+
+    await executeTrade(pairCode, decision, bar, indicators);
 
   } catch (err) {
-    log(`Error processing bar: ${err.message}`);
+    log(`[${pairCode}] Error processing bar: ${err.message}`);
   }
 }
 
@@ -419,14 +448,13 @@ function aggregate30mBars(bars) {
 // ----------------------------
 // TRADE EXECUTION (Paper)
 // ----------------------------
-async function executeTrade(decision, entryBar, indicators) {
-  tradeCounter++;
+async function executeTrade(pairCode, decision, entryBar, indicators) {
+  const state = pairState[pairCode];
+  state.tradeCounter++;
 
-  // For paper trading, we simulate the entry at the decision price
-  // In a real setup, you'd place actual orders via ib.placeOrder()
-
-  currentPosition = {
-    tradeNum: tradeCounter,
+  state.currentPosition = {
+    pairCode,
+    tradeNum: state.tradeCounter,
     side: decision.side,
     entry: decision.entry,
     sl: decision.sl,
@@ -446,27 +474,26 @@ async function executeTrade(decision, entryBar, indicators) {
     maxAdverse: 0,
   };
 
-  logTrade(`ENTERED ${decision.side} @ ${decision.entry} | SL: ${decision.sl} | TP: ${decision.tp}`);
-  statusMessage = `In ${decision.side} trade @ ${decision.entry.toFixed(5)}`;
+  logTrade(pairCode, `ENTERED ${decision.side} @ ${decision.entry} | SL: ${decision.sl} | TP: ${decision.tp}`);
+  statusMessage = `[${pairCode}] In ${decision.side} trade @ ${decision.entry.toFixed(5)}`;
 }
 
-async function checkPositionStatus(bar) {
-  if (!currentPosition) return;
+async function checkPositionStatus(pairCode, bar) {
+  const state = pairState[pairCode];
+  if (!state.currentPosition) return;
 
-  currentPosition.barsInTrade++;
+  state.currentPosition.barsInTrade++;
 
-  const { side, entry, sl, tp } = currentPosition;
+  const { side, entry, sl, tp } = state.currentPosition;
 
-  // Track max favorable/adverse excursion
   if (side === 'LONG') {
-    currentPosition.maxFavorable = Math.max(currentPosition.maxFavorable, bar.high - entry);
-    currentPosition.maxAdverse = Math.max(currentPosition.maxAdverse, entry - bar.low);
+    state.currentPosition.maxFavorable = Math.max(state.currentPosition.maxFavorable, bar.high - entry);
+    state.currentPosition.maxAdverse = Math.max(state.currentPosition.maxAdverse, entry - bar.low);
   } else {
-    currentPosition.maxFavorable = Math.max(currentPosition.maxFavorable, entry - bar.low);
-    currentPosition.maxAdverse = Math.max(currentPosition.maxAdverse, bar.high - entry);
+    state.currentPosition.maxFavorable = Math.max(state.currentPosition.maxFavorable, entry - bar.low);
+    state.currentPosition.maxAdverse = Math.max(state.currentPosition.maxAdverse, bar.high - entry);
   }
 
-  // Check for TP/SL hit
   let outcome = null;
   let exitPrice = null;
 
@@ -488,19 +515,19 @@ async function checkPositionStatus(bar) {
     }
   }
 
-  // Timeout after 300 bars (25 hours)
-  if (!outcome && currentPosition.barsInTrade >= 300) {
+  if (!outcome && state.currentPosition.barsInTrade >= 300) {
     outcome = 'TIMEOUT';
     exitPrice = bar.close;
   }
 
   if (outcome) {
-    await closePosition(outcome, exitPrice, bar);
+    await closePosition(pairCode, outcome, exitPrice, bar);
   }
 }
 
-async function closePosition(outcome, exitPrice, exitBar) {
-  const pos = currentPosition;
+async function closePosition(pairCode, outcome, exitPrice, exitBar) {
+  const state = pairState[pairCode];
+  const pos = state.currentPosition;
 
   const riskPerUnit = Math.abs(pos.entry - pos.sl);
   const rawR = pos.side === 'LONG'
@@ -508,20 +535,19 @@ async function closePosition(outcome, exitPrice, exitBar) {
     : (pos.entry - exitPrice) / riskPerUnit;
   const weightedR = rawR * pos.risk;
 
-  logTrade(`CLOSED ${pos.side} | ${outcome} @ ${exitPrice} | R: ${rawR.toFixed(2)} | Weighted: ${weightedR.toFixed(2)}`);
-  logTrade(`Bars in trade: ${pos.barsInTrade} | Max favorable: ${pos.maxFavorable.toFixed(5)} | Max adverse: ${pos.maxAdverse.toFixed(5)}`);
+  logTrade(pairCode, `CLOSED ${pos.side} | ${outcome} @ ${exitPrice} | R: ${rawR.toFixed(2)} | Weighted: ${weightedR.toFixed(2)}`);
+  logTrade(pairCode, `Bars in trade: ${pos.barsInTrade} | Max favorable: ${pos.maxFavorable.toFixed(5)} | Max adverse: ${pos.maxAdverse.toFixed(5)}`);
 
-  // Get AI analysis
   let summary = null;
   try {
     summary = await getTradeAnalysis(pos, outcome, exitPrice, rawR);
-    logTrade(`Analysis: ${summary.rating} - ${summary.why_outcome?.slice(0, 100)}...`);
+    logTrade(pairCode, `Analysis: ${summary.rating} - ${summary.why_outcome?.slice(0, 100)}...`);
   } catch (err) {
-    log(`Error getting trade analysis: ${err.message}`);
+    log(`[${pairCode}] Error getting trade analysis: ${err.message}`);
   }
 
-  // Save result
   const tradeResult = {
+    pairCode,
     tradeNum: pos.tradeNum,
     entryTime: pos.entryTime,
     exitTime: new Date().toISOString(),
@@ -542,19 +568,17 @@ async function closePosition(outcome, exitPrice, exitBar) {
     summary,
   };
 
-  tradeResults.push(tradeResult);
+  state.tradeResults.push(tradeResult);
 
-  // Save results after each trade (daily and global)
   saveResults();
   appendToGlobalTrades(tradeResult);
 
-  currentPosition = null;
+  state.currentPosition = null;
 
-  // Update status
   if (!sessionEnded) {
-    statusMessage = 'Trading active - monitoring for setups';
+    statusMessage = `Trading active - monitoring ${ACTIVE_PAIRS.join(', ')}`;
   } else {
-    statusMessage = 'Session ended - shutting down';
+    statusMessage = 'Session ended - waiting for positions to close';
   }
 }
 
@@ -563,6 +587,7 @@ async function getTradeAnalysis(pos, outcome, exitPrice, rawR) {
 
   const user = `
 TRADE:
+- Pair: ${pos.pairCode}
 - Side: ${pos.side}
 - Entry: ${pos.entry}
 - Stop Loss: ${pos.sl}
@@ -604,15 +629,76 @@ Analyze briefly. Output JSON:
 // RESULTS MANAGEMENT
 // ----------------------------
 function saveResults() {
+  const allResults = [];
+  for (const pairCode of ACTIVE_PAIRS) {
+    allResults.push(...pairState[pairCode].tradeResults);
+  }
+
   const summary = calculateSummary();
   const output = {
     sessionDate: new Date().toISOString().split('T')[0],
-    trades: tradeResults,
+    pairs: ACTIVE_PAIRS,
+    trades: allResults,
     summary,
+    pairSummaries: {},
   };
 
+  for (const pairCode of ACTIVE_PAIRS) {
+    output.pairSummaries[pairCode] = calculatePairSummary(pairCode);
+  }
+
   fs.writeFileSync(RESULTS_PATH, JSON.stringify(output, null, 2));
-  log(`Results saved (${tradeResults.length} trades)`);
+  log(`Results saved (${allResults.length} total trades)`);
+}
+
+function calculatePairSummary(pairCode) {
+  const results = pairState[pairCode].tradeResults;
+  const executed = results.filter(t => t.outcome);
+  const wins = executed.filter(t => t.outcome === 'TP').length;
+  const losses = executed.filter(t => t.outcome === 'SL').length;
+  const timeouts = executed.filter(t => t.outcome === 'TIMEOUT').length;
+
+  const totalRawR = executed.reduce((sum, t) => sum + t.rawR, 0);
+  const totalWeightedR = executed.reduce((sum, t) => sum + t.weightedR, 0);
+
+  return {
+    totalTrades: executed.length,
+    wins,
+    losses,
+    timeouts,
+    winRate: executed.length ? ((wins / executed.length) * 100).toFixed(1) + '%' : '0%',
+    totalRawR: totalRawR.toFixed(2),
+    totalWeightedR: totalWeightedR.toFixed(2),
+    avgRawR: executed.length ? (totalRawR / executed.length).toFixed(3) : '0',
+    avgWeightedR: executed.length ? (totalWeightedR / executed.length).toFixed(3) : '0',
+  };
+}
+
+function calculateSummary() {
+  const allResults = [];
+  for (const pairCode of ACTIVE_PAIRS) {
+    allResults.push(...pairState[pairCode].tradeResults);
+  }
+
+  const executed = allResults.filter(t => t.outcome);
+  const wins = executed.filter(t => t.outcome === 'TP').length;
+  const losses = executed.filter(t => t.outcome === 'SL').length;
+  const timeouts = executed.filter(t => t.outcome === 'TIMEOUT').length;
+
+  const totalRawR = executed.reduce((sum, t) => sum + t.rawR, 0);
+  const totalWeightedR = executed.reduce((sum, t) => sum + t.weightedR, 0);
+
+  return {
+    totalTrades: executed.length,
+    wins,
+    losses,
+    timeouts,
+    winRate: executed.length ? ((wins / executed.length) * 100).toFixed(1) + '%' : '0%',
+    totalRawR: totalRawR.toFixed(2),
+    totalWeightedR: totalWeightedR.toFixed(2),
+    avgRawR: executed.length ? (totalRawR / executed.length).toFixed(3) : '0',
+    avgWeightedR: executed.length ? (totalWeightedR / executed.length).toFixed(3) : '0',
+  };
 }
 
 function loadGlobalTrades() {
@@ -657,14 +743,25 @@ function calculateGlobalSummary() {
   const totalRawR = executed.reduce((sum, t) => sum + t.rawR, 0);
   const totalWeightedR = executed.reduce((sum, t) => sum + t.weightedR, 0);
 
-  // Calculate by side
   const longs = executed.filter(t => t.side === 'LONG');
   const shorts = executed.filter(t => t.side === 'SHORT');
   const longWins = longs.filter(t => t.outcome === 'TP').length;
   const shortWins = shorts.filter(t => t.outcome === 'TP').length;
 
-  // Get unique trading days
   const tradingDays = new Set(executed.map(t => t.entryTime?.split('T')[0])).size;
+
+  // Per-pair breakdown
+  const pairStats = {};
+  for (const pairCode of ACTIVE_PAIRS) {
+    const pairTrades = executed.filter(t => t.pairCode === pairCode);
+    const pairWins = pairTrades.filter(t => t.outcome === 'TP').length;
+    const pairR = pairTrades.reduce((sum, t) => sum + t.weightedR, 0);
+    pairStats[pairCode] = {
+      trades: pairTrades.length,
+      winRate: pairTrades.length ? ((pairWins / pairTrades.length) * 100).toFixed(1) + '%' : '0%',
+      totalR: pairR.toFixed(2),
+    };
+  }
 
   return {
     totalTrades: executed.length,
@@ -681,28 +778,7 @@ function calculateGlobalSummary() {
     shortTrades: shorts.length,
     shortWinRate: shorts.length ? ((shortWins / shorts.length) * 100).toFixed(1) + '%' : '0%',
     tradingDays,
-  };
-}
-
-function calculateSummary() {
-  const executed = tradeResults.filter(t => t.outcome);
-  const wins = executed.filter(t => t.outcome === 'TP').length;
-  const losses = executed.filter(t => t.outcome === 'SL').length;
-  const timeouts = executed.filter(t => t.outcome === 'TIMEOUT').length;
-
-  const totalRawR = executed.reduce((sum, t) => sum + t.rawR, 0);
-  const totalWeightedR = executed.reduce((sum, t) => sum + t.weightedR, 0);
-
-  return {
-    totalTrades: executed.length,
-    wins,
-    losses,
-    timeouts,
-    winRate: executed.length ? ((wins / executed.length) * 100).toFixed(1) + '%' : '0%',
-    totalRawR: totalRawR.toFixed(2),
-    totalWeightedR: totalWeightedR.toFixed(2),
-    avgRawR: executed.length ? (totalRawR / executed.length).toFixed(3) : '0',
-    avgWeightedR: executed.length ? (totalWeightedR / executed.length).toFixed(3) : '0',
+    pairStats,
   };
 }
 
@@ -712,11 +788,18 @@ function printFinalSummary() {
   log('\n========================================');
   log('         SESSION COMPLETE');
   log('========================================');
+  log(`Pairs traded: ${ACTIVE_PAIRS.join(', ')}`);
   log(`Total trades: ${summary.totalTrades}`);
   log(`Wins: ${summary.wins} | Losses: ${summary.losses} | Timeouts: ${summary.timeouts}`);
   log(`Win Rate: ${summary.winRate}`);
   log(`Raw R: ${summary.totalRawR} (avg: ${summary.avgRawR})`);
   log(`Weighted R: ${summary.totalWeightedR} (avg: ${summary.avgWeightedR})`);
+
+  for (const pairCode of ACTIVE_PAIRS) {
+    const ps = calculatePairSummary(pairCode);
+    log(`  ${pairCode}: ${ps.totalTrades} trades, ${ps.winRate} WR, ${ps.totalWeightedR}R`);
+  }
+
   log('========================================\n');
 }
 
@@ -728,15 +811,16 @@ async function startDashboard() {
     const url = req.url.split('?')[0];
 
     if (url === '/status') {
-      // JSON status endpoint
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(getDashboardData()));
     } else if (url === '/trades') {
-      // JSON trades endpoint
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(tradeResults));
+      const allTrades = [];
+      for (const pairCode of ACTIVE_PAIRS) {
+        allTrades.push(...pairState[pairCode].tradeResults);
+      }
+      res.end(JSON.stringify(allTrades));
     } else {
-      // HTML dashboard
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(generateDashboardHTML());
     }
@@ -746,7 +830,7 @@ async function startDashboard() {
     log(`Dashboard running at http://localhost:${DASHBOARD_PORT}`);
   });
 
-  // Start ngrok tunnel for remote access
+  // Start ngrok tunnel
   try {
     log('Starting ngrok...');
     const ngrokProcess = spawn('npx', ['ngrok', 'http', String(DASHBOARD_PORT)], {
@@ -759,25 +843,19 @@ async function startDashboard() {
       log(`ngrok stderr: ${data.toString().trim()}`);
     });
 
-    ngrokProcess.stdout.on('data', (data) => {
-      log(`ngrok stdout: ${data.toString().trim()}`);
-    });
-
     ngrokProcess.on('error', (err) => {
       log(`ngrok process error: ${err.message}`);
     });
 
-    // Give ngrok time to start, then fetch the public URL from its API
     log('Waiting for ngrok to initialize...');
     await sleep(5000);
 
     log('Fetching ngrok tunnel URL from API...');
-    const http = require('http');
-    const req = http.get('http://127.0.0.1:4040/api/tunnels', (res) => {
+    const httpLib = require('http');
+    const req = httpLib.get('http://127.0.0.1:4040/api/tunnels', (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        log(`ngrok API response: ${data}`);
         try {
           const tunnels = JSON.parse(data);
           const publicUrl = tunnels.tunnels[0]?.public_url;
@@ -785,7 +863,6 @@ async function startDashboard() {
             log(`========================================`);
             log(`PUBLIC URL: ${publicUrl}`);
             log(`========================================`);
-            log(`Access dashboard from anywhere using the URL above`);
           } else {
             log('No tunnel URL found in response');
           }
@@ -801,7 +878,6 @@ async function startDashboard() {
 
   } catch (err) {
     log(`ngrok error: ${err.message}`);
-    log(`Dashboard available locally only. Install ngrok CLI and run 'ngrok config add-authtoken YOUR_TOKEN'`);
   }
 
   return server;
@@ -812,25 +888,36 @@ function getDashboardData() {
   const globalSummary = calculateGlobalSummary();
   const zurich = getZurichTime();
 
+  const pairData = {};
+  for (const pairCode of ACTIVE_PAIRS) {
+    const state = pairState[pairCode];
+    pairData[pairCode] = {
+      displayName: PAIRS[pairCode].displayName,
+      lastPrice: state.lastPrice ? state.lastPrice.toFixed(pairCode === 'USDJPY' ? 3 : 5) : 'N/A',
+      position: state.currentPosition ? {
+        side: state.currentPosition.side,
+        entry: state.currentPosition.entry.toFixed(pairCode === 'USDJPY' ? 3 : 5),
+        sl: state.currentPosition.sl.toFixed(pairCode === 'USDJPY' ? 3 : 5),
+        tp: state.currentPosition.tp.toFixed(pairCode === 'USDJPY' ? 3 : 5),
+        risk: state.currentPosition.risk.toFixed(2),
+        barsInTrade: state.currentPosition.barsInTrade,
+        entryTime: state.currentPosition.entryTime,
+      } : null,
+      summary: calculatePairSummary(pairCode),
+      recentTrades: state.tradeResults.slice(-5).reverse(),
+    };
+  }
+
   return {
     status: sessionEnded ? 'SESSION_ENDED' : (isConnected ? 'RUNNING' : 'DISCONNECTED'),
     statusMessage,
     currentTime: zurich.toLocaleTimeString('en-GB'),
     currentDate: currentSessionDate,
     sessionHours: `${SESSION_START_HOUR}:00 - ${SESSION_END_HOUR}:00`,
-    lastPrice: lastPrice ? lastPrice.toFixed(5) : 'N/A',
-    position: currentPosition ? {
-      side: currentPosition.side,
-      entry: currentPosition.entry.toFixed(5),
-      sl: currentPosition.sl.toFixed(5),
-      tp: currentPosition.tp.toFixed(5),
-      risk: currentPosition.risk.toFixed(2),
-      barsInTrade: currentPosition.barsInTrade,
-      entryTime: currentPosition.entryTime,
-    } : null,
+    activePairs: ACTIVE_PAIRS,
+    pairData,
     summary,
     globalSummary,
-    recentTrades: tradeResults.slice(-10).reverse(),
   };
 }
 
@@ -838,46 +925,46 @@ function generateDashboardHTML() {
   const data = getDashboardData();
   const statusColor = data.status === 'RUNNING' ? '#4ade80' : (data.status === 'SESSION_ENDED' ? '#fbbf24' : '#ef4444');
 
-  const positionHTML = data.position ? `
-    <div class="card">
-      <h2>Current Position</h2>
-      <div class="position ${data.position.side.toLowerCase()}">
-        <div class="position-side">${data.position.side}</div>
-        <div class="position-details">
-          <div><span class="label">Entry:</span> ${data.position.entry}</div>
-          <div><span class="label">Stop Loss:</span> ${data.position.sl}</div>
-          <div><span class="label">Take Profit:</span> ${data.position.tp}</div>
-          <div><span class="label">Risk:</span> ${data.position.risk}</div>
-          <div><span class="label">Bars in trade:</span> ${data.position.barsInTrade}</div>
-        </div>
+  // Generate pair cards
+  let pairCardsHTML = '';
+  for (const pairCode of ACTIVE_PAIRS) {
+    const pd = data.pairData[pairCode];
+    const positionHTML = pd.position ? `
+      <div class="position ${pd.position.side.toLowerCase()}">
+        <span class="position-side">${pd.position.side}</span>
+        <span>@ ${pd.position.entry} | SL: ${pd.position.sl} | TP: ${pd.position.tp}</span>
       </div>
-    </div>
-  ` : `
-    <div class="card">
-      <h2>Current Position</h2>
-      <div class="no-position">No open position</div>
-    </div>
-  `;
+    ` : '<div class="no-position">No position</div>';
 
-  const tradesHTML = data.recentTrades.length > 0 ? data.recentTrades.map(t => {
-    const outcomeClass = t.outcome === 'TP' ? 'win' : (t.outcome === 'SL' ? 'loss' : 'timeout');
-    const sign = t.rawR >= 0 ? '+' : '';
-    return `
-      <div class="trade-row ${outcomeClass}">
-        <span class="trade-time">${new Date(t.exitTime).toLocaleTimeString('en-GB')}</span>
-        <span class="trade-side">${t.side}</span>
-        <span class="trade-outcome">${t.outcome}</span>
-        <span class="trade-r">${sign}${t.rawR.toFixed(2)}R</span>
+    const tradesHTML = pd.recentTrades.length > 0 ? pd.recentTrades.map(t => {
+      const outcomeClass = t.outcome === 'TP' ? 'win' : (t.outcome === 'SL' ? 'loss' : 'timeout');
+      const sign = t.rawR >= 0 ? '+' : '';
+      return `<span class="trade-pill ${outcomeClass}">${t.side} ${sign}${t.rawR.toFixed(2)}R</span>`;
+    }).join('') : '<span class="no-trades">No trades</span>';
+
+    pairCardsHTML += `
+      <div class="card pair-card">
+        <div class="pair-header">
+          <h2>${pd.displayName}</h2>
+          <span class="price">${pd.lastPrice}</span>
+        </div>
+        <div class="pair-stats">
+          <span>${pd.summary.totalTrades} trades</span>
+          <span>${pd.summary.winRate} WR</span>
+          <span class="${parseFloat(pd.summary.totalWeightedR) >= 0 ? 'positive' : 'negative'}">${parseFloat(pd.summary.totalWeightedR) >= 0 ? '+' : ''}${pd.summary.totalWeightedR}R</span>
+        </div>
+        ${positionHTML}
+        <div class="recent-trades">${tradesHTML}</div>
       </div>
     `;
-  }).join('') : '<div class="no-trades">No trades yet</div>';
+  }
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TradeBot Dashboard</title>
+  <title>TradeBot Dashboard - Multi-Pair</title>
   <meta http-equiv="refresh" content="10">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -888,7 +975,7 @@ function generateDashboardHTML() {
       padding: 20px;
       min-height: 100vh;
     }
-    .container { max-width: 800px; margin: 0 auto; }
+    .container { max-width: 900px; margin: 0 auto; }
     .header {
       display: flex;
       justify-content: space-between;
@@ -923,80 +1010,58 @@ function generateDashboardHTML() {
       padding: 20px;
       margin-bottom: 16px;
     }
-    .card.global-card {
-      background: linear-gradient(135deg, #1e293b 0%, #312e81 100%);
-      border: 1px solid #4f46e5;
-    }
     .card h2 {
       font-size: 14px;
       text-transform: uppercase;
       color: #94a3b8;
       margin-bottom: 12px;
     }
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 16px;
+    .card.global-card {
+      background: linear-gradient(135deg, #1e293b 0%, #312e81 100%);
+      border: 1px solid #4f46e5;
     }
-    .stat {
-      text-align: center;
-    }
-    .stat-value {
-      font-size: 28px;
-      font-weight: bold;
-      color: #f8fafc;
-    }
-    .stat-value.positive { color: #4ade80; }
-    .stat-value.negative { color: #ef4444; }
-    .stat-label {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-top: 4px;
-    }
+    .pair-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .pair-card { border: 1px solid #334155; }
+    .pair-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .pair-header h2 { margin: 0; font-size: 18px; color: #f8fafc; }
+    .price { font-size: 20px; font-weight: bold; color: #60a5fa; }
+    .pair-stats { display: flex; gap: 16px; margin-bottom: 12px; font-size: 14px; color: #94a3b8; }
+    .positive { color: #4ade80; }
+    .negative { color: #ef4444; }
     .position {
       display: flex;
       align-items: center;
-      gap: 20px;
-    }
-    .position-side {
-      font-size: 24px;
-      font-weight: bold;
-      padding: 12px 24px;
-      border-radius: 8px;
-    }
-    .position.long .position-side { background: #166534; color: #4ade80; }
-    .position.short .position-side { background: #991b1b; color: #fca5a5; }
-    .position-details { font-size: 14px; line-height: 1.8; }
-    .label { color: #94a3b8; }
-    .no-position {
-      color: #64748b;
-      font-style: italic;
-      padding: 20px;
-      text-align: center;
-    }
-    .trade-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 12px;
+      gap: 12px;
+      padding: 10px;
       border-radius: 6px;
-      margin-bottom: 6px;
-      background: #334155;
+      margin-bottom: 12px;
+      font-size: 13px;
     }
-    .trade-row.win { border-left: 3px solid #4ade80; }
-    .trade-row.loss { border-left: 3px solid #ef4444; }
-    .trade-row.timeout { border-left: 3px solid #fbbf24; }
-    .trade-time { color: #94a3b8; font-size: 13px; }
-    .trade-side { font-weight: 500; }
-    .trade-outcome { font-size: 13px; }
-    .trade-r { font-weight: bold; }
-    .trade-row.win .trade-r { color: #4ade80; }
-    .trade-row.loss .trade-r { color: #ef4444; }
-    .no-trades {
-      color: #64748b;
-      font-style: italic;
-      padding: 20px;
-      text-align: center;
+    .position.long { background: #166534; }
+    .position.short { background: #991b1b; }
+    .position-side { font-weight: bold; }
+    .no-position { color: #64748b; font-style: italic; font-size: 13px; margin-bottom: 12px; }
+    .recent-trades { display: flex; flex-wrap: wrap; gap: 6px; }
+    .trade-pill {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
     }
+    .trade-pill.win { background: #166534; color: #4ade80; }
+    .trade-pill.loss { background: #991b1b; color: #fca5a5; }
+    .trade-pill.timeout { background: #854d0e; color: #fbbf24; }
+    .no-trades { color: #64748b; font-style: italic; font-size: 12px; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 16px;
+    }
+    .stat { text-align: center; }
+    .stat-value { font-size: 24px; font-weight: bold; color: #f8fafc; }
+    .stat-value.positive { color: #4ade80; }
+    .stat-value.negative { color: #ef4444; }
+    .stat-label { font-size: 11px; color: #94a3b8; margin-top: 4px; }
     .info-bar {
       display: flex;
       justify-content: space-between;
@@ -1004,14 +1069,13 @@ function generateDashboardHTML() {
       color: #64748b;
       margin-top: 20px;
     }
-    .price { font-size: 18px; color: #f8fafc; font-weight: bold; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <div>
-        <div class="title">TradeBot Live</div>
+        <div class="title">TradeBot Multi-Pair</div>
         <div style="color: #64748b; font-size: 14px; margin-top: 4px;">${data.statusMessage}</div>
       </div>
       <div class="status">
@@ -1021,12 +1085,8 @@ function generateDashboardHTML() {
     </div>
 
     <div class="card">
-      <h2>Session Info</h2>
+      <h2>Session Info - ${data.currentDate}</h2>
       <div class="stats-grid">
-        <div class="stat">
-          <div class="stat-value">${data.currentDate}</div>
-          <div class="stat-label">Date</div>
-        </div>
         <div class="stat">
           <div class="stat-value">${data.currentTime}</div>
           <div class="stat-label">Zurich Time</div>
@@ -1036,36 +1096,18 @@ function generateDashboardHTML() {
           <div class="stat-label">Session Hours</div>
         </div>
         <div class="stat">
-          <div class="price">${data.lastPrice}</div>
-          <div class="stat-label">EUR/USD</div>
+          <div class="stat-value">${data.summary.totalTrades}</div>
+          <div class="stat-label">Today's Trades</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value ${parseFloat(data.summary.totalWeightedR) >= 0 ? 'positive' : 'negative'}">${parseFloat(data.summary.totalWeightedR) >= 0 ? '+' : ''}${data.summary.totalWeightedR}R</div>
+          <div class="stat-label">Today's P&L</div>
         </div>
       </div>
     </div>
 
-    <div class="card">
-      <h2>Today's Performance</h2>
-      <div class="stats-grid">
-        <div class="stat">
-          <div class="stat-value">${data.summary.totalTrades}</div>
-          <div class="stat-label">Total Trades</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">${data.summary.wins}</div>
-          <div class="stat-label">Wins</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">${data.summary.losses}</div>
-          <div class="stat-label">Losses</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">${data.summary.winRate}</div>
-          <div class="stat-label">Win Rate</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value ${parseFloat(data.summary.totalWeightedR) >= 0 ? 'positive' : 'negative'}">${parseFloat(data.summary.totalWeightedR) >= 0 ? '+' : ''}${data.summary.totalWeightedR}R</div>
-          <div class="stat-label">Total P&L</div>
-        </div>
-      </div>
+    <div class="pair-cards">
+      ${pairCardsHTML}
     </div>
 
     <div class="card global-card">
@@ -1091,27 +1133,12 @@ function generateDashboardHTML() {
           <div class="stat-value">${data.globalSummary.tradingDays}</div>
           <div class="stat-label">Trading Days</div>
         </div>
-        <div class="stat">
-          <div class="stat-value">${data.globalSummary.longWinRate}</div>
-          <div class="stat-label">Long WR (${data.globalSummary.longTrades})</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">${data.globalSummary.shortWinRate}</div>
-          <div class="stat-label">Short WR (${data.globalSummary.shortTrades})</div>
-        </div>
       </div>
-    </div>
-
-    ${positionHTML}
-
-    <div class="card">
-      <h2>Recent Trades</h2>
-      ${tradesHTML}
     </div>
 
     <div class="info-bar">
       <span>Auto-refreshes every 10 seconds</span>
-      <span>API: /status | /trades</span>
+      <span>Pairs: ${ACTIVE_PAIRS.join(', ')}</span>
     </div>
   </div>
 </body>
@@ -1123,10 +1150,14 @@ function generateDashboardHTML() {
 // ----------------------------
 async function main() {
   log('\n========================================');
-  log('   LIVE PAPER TRADER - Starting (24/7 mode)');
+  log('   LIVE PAPER TRADER - Multi-Pair Mode');
   log('========================================');
+  log(`Active pairs: ${ACTIVE_PAIRS.join(', ')}`);
   log(`Trading hours: ${SESSION_START_HOUR}:00 - ${SESSION_END_HOUR}:00 ${SESSION_TZ}`);
   log(`Current Zurich time: ${formatTime(new Date())}`);
+
+  // Initialize per-pair state
+  initPairState();
 
   // Load global trades history
   loadGlobalTrades();
@@ -1134,31 +1165,37 @@ async function main() {
   // Initialize current session date
   currentSessionDate = new Date().toISOString().split('T')[0];
 
-  // Start web dashboard (always running)
+  // Start web dashboard
   const dashboardServer = await startDashboard();
 
-  // 24/7 loop - dashboard always on, trading only during session
+  // 24/7 loop
   while (true) {
-    // Check if date changed (midnight) - only then reset daily stats
+    // Check for midnight reset
     const todayDate = new Date().toISOString().split('T')[0];
     if (todayDate !== currentSessionDate) {
       log(`New day detected (${todayDate}), resetting daily stats`);
-      tradeResults = [];
+      for (const pairCode of ACTIVE_PAIRS) {
+        pairState[pairCode].tradeResults = [];
+      }
       currentSessionDate = todayDate;
     }
 
-    // Reset session state for new trading session (but keep daily trades!)
+    // Reset session state
     sessionEnded = false;
-    bars5m = [];
+    for (const pairCode of ACTIVE_PAIRS) {
+      pairState[pairCode].bars5m = [];
+      pairState[pairCode].pendingBar = null;
+      pairState[pairCode].lastBarMinute = null;
+    }
 
-    // Wait for trading session to start
+    // Wait for session
     if (!isWithinSession()) {
       const zurich = getZurichTime();
       log(`Outside trading hours. Current hour: ${zurich.getHours()}`);
       statusMessage = `Waiting for next session (${SESSION_START_HOUR}:00)...`;
 
       while (!isWithinSession()) {
-        await sleep(60000);  // Check every minute
+        await sleep(60000);
       }
       log('Trading session starting!');
     }
@@ -1169,46 +1206,54 @@ async function main() {
       await connectToIBKR();
       await sleep(2000);
 
-      // Fetch historical data for indicators
-      statusMessage = 'Fetching historical data...';
-      const historicalBars = await fetchHistoricalBars();
-      bars5m = historicalBars;
-      log(`Loaded ${bars5m.length} historical bars`);
+      // Fetch historical data for all pairs
+      for (const pairCode of ACTIVE_PAIRS) {
+        statusMessage = `Fetching ${pairCode} historical data...`;
+        const historicalBars = await fetchHistoricalBars(pairCode);
+        pairState[pairCode].bars5m = historicalBars;
+        log(`[${pairCode}] Loaded ${historicalBars.length} historical bars`);
+        await sleep(1000);  // Small delay between requests
+      }
 
-      // Subscribe to real-time data
-      statusMessage = 'Subscribing to real-time data...';
-      subscribeToRealTimeBars();
+      // Subscribe to real-time data for all pairs
+      for (const pairCode of ACTIVE_PAIRS) {
+        statusMessage = `Subscribing to ${pairCode} real-time data...`;
+        subscribeToRealTimeBars(pairCode);
+        await sleep(500);
+      }
 
       sessionStartTime = new Date();
-      statusMessage = 'Trading active - monitoring for setups';
+      statusMessage = `Trading active - monitoring ${ACTIVE_PAIRS.join(', ')}`;
       log('Trading session active. Press Ctrl+C to stop.\n');
 
-      // Trading loop (runs during session hours)
+      // Trading loop
       while (true) {
-        await sleep(5000);  // Check every 5 seconds
+        await sleep(5000);
 
-        // Check if session should end (18:00)
+        // Check session end
         if (shouldStopSession() && !sessionEnded) {
           sessionEnded = true;
           log('Session end time reached (18:00) - No new trades will be opened');
 
-          if (currentPosition) {
-            log(`Open position detected: ${currentPosition.side} @ ${currentPosition.entry}`);
-            log('Waiting for trade to finish (TP/SL)...');
-            statusMessage = 'Session ended - waiting for open trade to close';
+          const openPositions = ACTIVE_PAIRS.filter(p => pairState[p].currentPosition);
+          if (openPositions.length > 0) {
+            log(`Open positions: ${openPositions.join(', ')}`);
+            log('Waiting for trades to finish (TP/SL)...');
+            statusMessage = 'Session ended - waiting for open trades to close';
           } else {
             statusMessage = 'Session ended - waiting for next session';
           }
         }
 
-        // Exit trading loop when session ended AND no open position
-        if (sessionEnded && !currentPosition) {
+        // Exit when session ended and no open positions
+        const hasOpenPositions = ACTIVE_PAIRS.some(p => pairState[p].currentPosition);
+        if (sessionEnded && !hasOpenPositions) {
           log('Session ended and no open positions.');
           break;
         }
       }
 
-      // End of session - save results and disconnect
+      // End of session
       saveResults();
       printFinalSummary();
 
@@ -1230,8 +1275,7 @@ async function main() {
         isConnected = false;
       }
 
-      // Wait before retrying
-      await sleep(300000);  // 5 minutes
+      await sleep(300000);
     }
   }
 }
@@ -1240,10 +1284,13 @@ async function main() {
 process.on('SIGINT', async () => {
   log('\nReceived SIGINT, shutting down gracefully...');
 
-  if (currentPosition) {
-    const lastBar = bars5m[bars5m.length - 1];
-    logTrade('Closing open position due to manual shutdown');
-    await closePosition('MANUAL_STOP', lastBar?.close || currentPosition.entry, lastBar);
+  for (const pairCode of ACTIVE_PAIRS) {
+    const state = pairState[pairCode];
+    if (state.currentPosition) {
+      const lastBar = state.bars5m[state.bars5m.length - 1];
+      logTrade(pairCode, 'Closing open position due to manual shutdown');
+      await closePosition(pairCode, 'MANUAL_STOP', lastBar?.close || state.currentPosition.entry, lastBar);
+    }
   }
 
   saveResults();
