@@ -2,16 +2,38 @@
 
 ## Performance (Validated Feb 21, 2026)
 
-| Dataset | Win Rate | Total R | Max Losing Streak |
-|---------|----------|---------|-------------------|
-| Recent (Nov'25-Feb'26) | 86.2% | +20.80R | 1 |
-| Old (Aug'25-Nov'25) | 70.0% | +21.81R | 2 |
-| **Combined (59 trades)** | **78.0%** | **+42.61R** | **2** |
+| Dataset | Win Rate | Total R | Trades | Max Loss Streak |
+|---------|----------|---------|--------|-----------------|
+| Recent (Nov'25-Feb'26) | 86.2% | +20.82R | 29 | 2 |
+| Old (Aug'25-Nov'25) | 70.0% | +21.80R | 30 | 3 |
+| **Combined** | **78.0%** | **+42.62R** | **59** | **3** |
+
+### Detailed Statistics
+
+**Long/Short Distribution:**
+- Recent: 69% Long / 31% Short (Long WR: 85%, Short WR: 89%)
+- Old: 67% Long / 33% Short (Long WR: 75%, Short WR: 60%)
+
+**Risk Distribution:**
+- Low (<0.4): 12 trades, 83% WR
+- Med (0.4-0.55): 43 trades, 79% WR
+- High (0.55+): 4 trades, 50% WR
+
+**Risk-Win Correlation:**
+- Avg risk on wins: 0.46
+- Avg risk on losses: 0.48
+- Correlation: Neutral (not yet optimized)
+
+**Streaks:**
+- Max Win Streak: 12 (recent), 6 (old)
+- Max Loss Streak: 2 (recent), 3 (old)
+
+**Skip/Wait:** 4 total scenarios triggered SKIP recommendation
 
 ### Comparison vs Iter4
 - +3.9% higher win rate (78.0% vs 74.1%)
-- +3.71R more profit (+9.5%)
-- Better risk calibration (sizing down on mixed signals)
+- +3.72R more profit (+9.6%)
+- Conservative sizing (most trades at 0.4-0.55 risk)
 
 Based on analysis of Iter4 losses, this iteration adds judgment-based improvements.
 
@@ -82,9 +104,7 @@ MODEL_VERSION=gpt5 node batch_trainer.js
 - `ai_client.js` - GPT-5.2 client (from Iter4)
 - `orchestrator.js` - Agent coordination (from Iter4)
 
-## Validation Required
-Run against both datasets to compare with Iter4:
-- Recent data (Nov'25-Feb'26)
-- Old data (Aug'25-Nov'25)
-
-Target: Maintain 74%+ win rate with improved R/risk calibration.
+## Known Limitations
+- Long bias (67-69% of trades are longs)
+- Risk-win correlation not optimized (losses have similar sizing to wins)
+- Conservative sizing caps most trades at 0.5 risk
