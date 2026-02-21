@@ -7,7 +7,7 @@ const { callStrategyTradeDecision, validateDecision, MAX_WAIT_BARS } = require("
 // ----------------------------
 // CONFIG
 // ----------------------------
-const DATA_PATH = "./eurusd_5m.json";
+const DATA_PATH = "./eurusd_5m_old.json";
 const RESULTS_PATH = "./trade_results.json";
 
 const SESSION_TZ = "Europe/Zurich";
@@ -22,7 +22,12 @@ const MIN_DAILY_BARS = 5;
 const SIM_FORWARD_5M_BARS = 300;
 const DEFAULT_SPREAD = 0.00008;
 
-const NUM_SCENARIOS = 100;
+const NUM_SCENARIOS = 30;
+
+// CPU-light mode: delay between trades (milliseconds)
+// Higher = less CPU, slower execution
+// 0 = no delay, 3000 = 3 sec, 5000 = 5 sec
+const DELAY_BETWEEN_TRADES = parseInt(process.env.TRADE_DELAY || "3000");
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -478,7 +483,10 @@ async function main() {
       });
     }
 
-    await new Promise(r => setTimeout(r, 500));
+    // CPU-light delay between trades
+    if (DELAY_BETWEEN_TRADES > 0) {
+      await new Promise(r => setTimeout(r, DELAY_BETWEEN_TRADES));
+    }
   }
 
   // Save results
