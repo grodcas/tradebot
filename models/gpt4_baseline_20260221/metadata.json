@@ -1,0 +1,44 @@
+{
+  "name": "gpt4_baseline",
+  "version": "baseline",
+  "date_created": "2026-02-21",
+  "base_model": "gpt-4o-mini",
+  "iteration": 0,
+  "description": "Original GPT-4 baseline model with generic confidence assessment and standard R:R focus.",
+  "test_results": {
+    "recent_data": {
+      "dataset": "eurusd_5m_recent.json",
+      "date_range": "Nov 2025 - Feb 2026",
+      "trades": 30,
+      "win_rate": 56.7,
+      "total_r": 7.38,
+      "max_losing_streak": 2
+    },
+    "old_data": {
+      "dataset": "eurusd_5m_old.json",
+      "date_range": "Aug 2025 - Nov 2025",
+      "trades": 30,
+      "win_rate": 50.0,
+      "total_r": 2.85,
+      "max_losing_streak": 3
+    },
+    "combined": {
+      "trades": 60,
+      "win_rate": 53.4,
+      "total_r": 10.23,
+      "max_losing_streak": 3
+    }
+  },
+  "key_features": [
+    "Generic 6-section confidence assessment",
+    "Standard 1.2-1.5 R:R target",
+    "Basic EMA/S/R analysis"
+  ],
+  "files": [
+    "direction_agent.js",
+    "confidence_agent.js",
+    "levels_agent.js",
+    "orchestrator.js"
+  ],
+  "notes": "Baseline for comparison. Superseded by GPT-5 models."
+}

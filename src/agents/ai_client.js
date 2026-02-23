@@ -103,6 +103,27 @@ async function completeGPT5({ systemPrompt, userPrompt, temperature, jsonMode })
     throw new Error("Empty GPT-5.2 response");
   }
 
+  // Extract JSON if there's extra text (GPT-5.2 sometimes adds commentary)
+  if (jsonMode) {
+    // Find the outermost balanced JSON object
+    let start = text.indexOf('{');
+    if (start === -1) return text;
+
+    let depth = 0;
+    let end = start;
+    for (let i = start; i < text.length; i++) {
+      if (text[i] === '{') depth++;
+      else if (text[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    return text.substring(start, end + 1);
+  }
+
   return text;
 }
 

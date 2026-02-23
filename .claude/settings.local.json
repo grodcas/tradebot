@@ -1,7 +1,29 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install:*)",
+      "Bash(where:*)",
+      "Bash(npm root:*)",
+      "Bash(\"C:\\\\Users\\\\gines\\\\AppData\\\\Roaming\\\\npm\\\\ngrok.cmd\" --version)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist:*)",
+      "Bash(cmd //c \"taskkill /F /IM ngrok.exe\")",
+      "Bash(git worktree:*)",
+      "Bash(grep:*)",
+      "Bash(MODEL_VERSION= node batch_runner.js:*)",
+      "Bash(tee:*)",
+      "Bash(MODEL_VERSION=gpt5 node:*)",
+      "Bash(MODEL_VERSION= node batch_trainer.js:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(export MODEL_VERSION=gpt5:*)",
+      "Bash(ls:*)",
+      "Bash(git push:*)",
+      "Bash(git tag:*)",
+      "Bash(wc:*)"
     ]
   }
 }

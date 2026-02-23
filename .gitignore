@@ -1,2 +1,21 @@
 node_modules/
 .env
+
+# Results (can be regenerated)
+results/*.json
+results/*.log
+
+# Archive (old files)
+archive/
+
+# Logs
+*.log
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -7,7 +7,8 @@
  * Usage: node live_trader.js
  */
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const fs = require('fs');
 const http = require('http');
 const { spawn } = require('child_process');
@@ -30,8 +31,8 @@ const SESSION_END_HOUR = 18;
 const HISTORY_BARS_NEEDED = 800;  // Bars needed for indicator calculation
 const BAR_SIZE_MINUTES = 5;
 
-const RESULTS_PATH = './trade_results.json';
-const LOG_PATH = './live_trader.log';
+const RESULTS_PATH = path.join(__dirname, '../results/live_trade_results.json');
+const LOG_PATH = path.join(__dirname, '../results/live_trader.log');
 
 const DASHBOARD_PORT = 3000;  // Web dashboard port
 

@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const fs = require("fs");
 const OpenAI = require("openai");
 const { computeIndicators } = require("./trade_indicators");
@@ -7,8 +7,8 @@ const { callStrategyTradeDecision, validateDecision, MAX_WAIT_BARS } = require("
 // ----------------------------
 // CONFIG
 // ----------------------------
-const DATA_PATH = "./eurusd_5m_old.json";
-const RESULTS_PATH = "./trade_results.json";
+const DATA_PATH = require('path').join(__dirname, "../data/eurusd_5m_old.json");
+const RESULTS_PATH = require('path').join(__dirname, "../results/trade_results.json");
 
 const SESSION_TZ = "Europe/Zurich";
 const SESSION_START_HOUR = 8;

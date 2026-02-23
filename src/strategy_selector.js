@@ -94,7 +94,12 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
     sessionHigh,
     sessionLow,
     currentPrice,
-    atr
+    atr,
+    // Additional context indicators for better confidence assessment
+    marketRegime: indicators.marketRegime,
+    structureState: indicators.structureState,
+    breakoutScore: indicators.breakoutScore,
+    sweepScore: indicators.sweepScore
   });
 
   // Format for compatibility with existing system

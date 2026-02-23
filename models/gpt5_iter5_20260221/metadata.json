@@ -1,0 +1,57 @@
+{
+  "name": "gpt5_iter5",
+  "version": "iteration_5",
+  "date_created": "2026-02-21",
+  "base_model": "gpt-5.2",
+  "iteration": 5,
+  "description": "GPT-5 Iteration 5 with structure coherence focus, trend quality assessment, and market decisiveness sensing.",
+  "test_results": {
+    "recent_data": {
+      "dataset": "eurusd_5m_recent.json",
+      "date_range": "Nov 2025 - Feb 2026",
+      "trades": 29,
+      "win_rate": 86.2,
+      "total_r": 20.82,
+      "max_losing_streak": 2
+    },
+    "old_data": {
+      "dataset": "eurusd_5m_old.json",
+      "date_range": "Aug 2025 - Nov 2025",
+      "trades": 30,
+      "win_rate": 70.0,
+      "total_r": 21.80,
+      "max_losing_streak": 3
+    },
+    "combined": {
+      "trades": 59,
+      "win_rate": 78.0,
+      "total_r": 42.62,
+      "max_losing_streak": 3
+    }
+  },
+  "key_features": [
+    "Structure coherence check (regime/structure match)",
+    "Trend QUALITY assessment (not just direction)",
+    "Market decisiveness sensing",
+    "Sizing recommendations (FULL/REDUCED/MINIMAL/SKIP)",
+    "Path clarity for targets",
+    "Market readability first approach"
+  ],
+  "files": [
+    "direction_agent.js",
+    "confidence_agent.js",
+    "levels_agent.js",
+    "orchestrator.js",
+    "ai_client.js"
+  ],
+  "comparison_vs_iter4": {
+    "win_rate_improvement": "+3.9%",
+    "r_improvement": "+3.72R (+9.6%)"
+  },
+  "known_limitations": [
+    "Long bias (67-69% of trades are longs)",
+    "Risk-win correlation not optimized",
+    "Conservative sizing caps most trades at 0.5 risk"
+  ],
+  "notes": "Latest and best performing model. Current production model."
+}

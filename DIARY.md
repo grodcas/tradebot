@@ -39,3 +39,42 @@
 - [ ] Fix risk taking of GPT5 Iter5 bot - improve risk-win correlation
 - [ ] Test Iter5 further on additional data
 - [ ] Print Iter5 prompts (create printable HTML like we did before)
+
+---
+
+## Feb 23, 2026
+
+### What We Did
+
+1. **Major Repository Reorganization**
+   - Created clean folder structure: `src/`, `data/`, `models/`, `results/`, `tools/`, `docs/`, `archive/`
+   - Moved all source code to `src/`
+   - Moved agents to `src/agents/`
+   - Renamed data files: `eurusd_5m.json` -> `eurusd_5m_recent.json`
+   - Archived old iterations and test results
+
+2. **Model Naming Convention**
+   - Format: `{base_model}_{iteration}_{YYYYMMDD}`
+   - Examples: `gpt4_baseline_20260221`, `gpt5_iter5_20260221`
+   - Each model has `metadata.json` with test results
+
+3. **Created Documentation**
+   - `README.md` - Main usage guide
+   - `docs/CONVENTIONS.md` - Naming conventions & standards
+   - Updated all model README files
+
+4. **Updated All Code Paths**
+   - Fixed imports in `batch_trainer.js`, `iteration_loop.js`, `live_trader.js`
+   - Updated tools to use new folder structure
+   - All paths now use `path.join(__dirname, ...)` for reliability
+
+5. **Tagged v1.0**
+   - Current best model: GPT-5 Iter5 (78% WR, +42.62R)
+
+---
+
+## Tasks for Tomorrow (Feb 24, 2026)
+
+- [ ] Fix risk taking of GPT5 Iter5 bot - improve risk-win correlation
+- [ ] Test Iter5 further on additional data
+- [ ] Print Iter5 prompts (create printable HTML)

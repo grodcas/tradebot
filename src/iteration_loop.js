@@ -1,16 +1,16 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const Anthropic = require('@anthropic-ai/sdk');
 const fs = require('fs');
 const { execSync } = require('child_process');
-const path = require('path');
 
 // ----------------------------
 // CONFIG
 // ----------------------------
 const MODEL = "claude-sonnet-4-20250514";
 const MAX_TOKENS = 8000;
-const NUM_SCENARIOS = 50;  // Trades per iteration
-const MAX_ITERATIONS = 50;  // Max improvement cycles (increased for long runs)
+const NUM_SCENARIOS = 30;  // Trades per iteration (reduced for faster iterations)
+const MAX_ITERATIONS = 20;  // Max improvement cycles (set for test run)
 const STUCK_THRESHOLD = 5;  // Iterations without improvement before mutation
 const MIN_IMPROVEMENT = 0.005;  // 0.5% improvement counts as progress
 
@@ -23,13 +23,13 @@ const COST_PER_ITERATION_EUR = COST_PER_BATCH_EUR + COST_PER_ANALYSIS_EUR;
 // Set your budget here (default €10 = ~5 hours)
 const BUDGET_EUR = parseFloat(process.env.ITERATION_BUDGET_EUR || "10");
 
-const RESULTS_PATH = './trade_results.json';
-const ITERATION_LOG_PATH = './iteration_history.json';
+const RESULTS_PATH = path.join(__dirname, '../results/trade_results.json');
+const ITERATION_LOG_PATH = path.join(__dirname, '../results/iteration_history.json');
 
 const AGENT_PATHS = {
-  direction: './agents/direction_agent.js',
-  confidence: './agents/confidence_agent.js',
-  levels: './agents/levels_agent.js'
+  direction: path.join(__dirname, 'agents/direction_agent.js'),
+  confidence: path.join(__dirname, 'agents/confidence_agent.js'),
+  levels: path.join(__dirname, 'agents/levels_agent.js')
 };
 
 // ----------------------------
@@ -244,22 +244,24 @@ ${failures.goodCalls.length} trades with risk < 0.5 that lost (this is OK)
 function runBatchTrainer(numScenarios) {
   console.log(`\nRunning batch trainer with ${numScenarios} scenarios...`);
 
+  const batchTrainerPath = path.join(__dirname, 'batch_trainer.js');
+
   // Update NUM_SCENARIOS in batch_trainer.js temporarily
-  let batchCode = fs.readFileSync('./batch_trainer.js', 'utf8');
+  let batchCode = fs.readFileSync(batchTrainerPath, 'utf8');
   const originalNumScenarios = batchCode.match(/const NUM_SCENARIOS = (\d+);/)?.[1];
   batchCode = batchCode.replace(/const NUM_SCENARIOS = \d+;/, `const NUM_SCENARIOS = ${numScenarios};`);
-  fs.writeFileSync('./batch_trainer.js', batchCode);
+  fs.writeFileSync(batchTrainerPath, batchCode);
 
   try {
-    execSync('node batch_trainer.js', {
+    execSync(`node "${batchTrainerPath}"`, {
       stdio: 'inherit',
-      timeout: 600000  // 10 min timeout
+      timeout: 1200000  // 20 min timeout
     });
   } finally {
     // Restore original
     if (originalNumScenarios) {
       batchCode = batchCode.replace(/const NUM_SCENARIOS = \d+;/, `const NUM_SCENARIOS = ${originalNumScenarios};`);
-      fs.writeFileSync('./batch_trainer.js', batchCode);
+      fs.writeFileSync(batchTrainerPath, batchCode);
     }
   }
 
@@ -455,7 +457,7 @@ async function performMutation(anthropic, history, currentMetrics, trades) {
   // Read current indicator file
   let indicatorCode = '';
   try {
-    indicatorCode = fs.readFileSync('./trade_indicators.js', 'utf8');
+    indicatorCode = fs.readFileSync(path.join(__dirname, 'trade_indicators.js'), 'utf8');
   } catch (e) {
     console.log('Could not read trade_indicators.js');
   }
@@ -596,7 +598,7 @@ async function applyMutation(mutation, anthropic) {
   if (mutation.implementation?.code_changes && mutation.mutation_type === 'NEW_INDICATOR') {
     console.log('\nAdding new indicator code...');
     // Append to trade_indicators.js
-    const indicatorPath = './trade_indicators.js';
+    const indicatorPath = path.join(__dirname, 'trade_indicators.js');
     let code = fs.readFileSync(indicatorPath, 'utf8');
 
     // Find the exports section and add before it
