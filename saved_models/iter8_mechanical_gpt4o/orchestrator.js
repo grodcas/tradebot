@@ -1,9 +1,9 @@
 /**
- * TRADE ORCHESTRATOR - Risk Adjusted
+ * TRADE ORCHESTRATOR
  *
  * Coordinates the specialist agents:
  * 1. Direction Agent → Determines market bias
- * 2. Confidence Agent → Assesses probability (NOW WITH BAD PATTERN DETECTION)
+ * 2. Confidence Agent → Assesses probability
  * 3. Levels Agent → Sets Entry, SL, TP
  *
  * Final decision combines all inputs.
@@ -27,13 +27,7 @@ async function orchestrateTrade({
   sessionHigh,
   sessionLow,
   currentPrice,
-  atr,
-  // NEW: Critical indicators for BAD pattern detection
-  structureState,
-  structureLabel,
-  marketRegime,
-  pullbackRatio,
-  breakoutScore
+  atr
 }) {
 
   const startTime = Date.now();
@@ -85,23 +79,12 @@ async function orchestrateTrade({
     swingLow,
     sessionHigh,
     sessionLow,
-    prices5m,
-    // NEW: Pass critical indicators for BAD pattern detection
-    structureState,
-    structureLabel,
-    marketRegime,
-    pullbackRatio,
-    breakoutScore
+    prices5m
   });
   agentOutputs.confidence = confidenceResult;
 
   console.log(`   [CONFIDENCE] Probability: ${(confidenceResult.probability * 100).toFixed(0)}%`);
   console.log(`   [CONFIDENCE] ${confidenceResult.for_proposed_direction?.assessment}: ${confidenceResult.for_proposed_direction?.recommendation?.slice(0, 60)}...`);
-
-  // Log BAD patterns if detected
-  if (confidenceResult.bad_patterns_detected && confidenceResult.bad_patterns_detected.length > 0) {
-    console.log(`   [CONFIDENCE] BAD PATTERNS: ${confidenceResult.bad_patterns_detected.join(', ')}`);
-  }
 
   // ========== STEP 3: LEVELS AGENT ==========
   // Only proceed if confidence is above threshold

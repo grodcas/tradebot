@@ -3,7 +3,7 @@
 // ----------------------------
 // Set TRADING_PAIR in .env or change DEFAULT_PAIR below
 
-const DEFAULT_PAIR = 'EURUSD';
+const DEFAULT_PAIR = 'GBPUSD';
 
 const PAIR_CONFIGS = {
   EURUSD: {
@@ -28,7 +28,8 @@ const PAIR_CONFIGS = {
     displayName: 'GBP/USD',
     dataFile: './gbpusd_5m.json',
     resultsFile: './trade_results_gbpusd.json',
-    logFile: './live_trader_gbpusd.log'
+    logFile: './live_trader_gbpusd.log',
+    tradingHours: { start: 9, end: 18 }  // 09:00-18:00 CET (London session focus)
   },
   USDJPY: {
     symbol: 'USD',
@@ -40,7 +41,8 @@ const PAIR_CONFIGS = {
     displayName: 'USD/JPY',
     dataFile: './usdjpy_5m.json',
     resultsFile: './trade_results_usdjpy.json',
-    logFile: './live_trader_usdjpy.log'
+    logFile: './live_trader_usdjpy.log',
+    tradingHours: { start: 11, end: 20 }  // 11:00-20:00 CET
   },
   AUDUSD: {
     symbol: 'AUD',

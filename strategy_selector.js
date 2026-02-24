@@ -82,6 +82,14 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
   const sessionLow = indicators.prevSessionLow;
   const atr = indicators.ATR_5m;
 
+  // Get structure and regime info (CRITICAL for risk assessment)
+  const marketRegime = indicators.marketRegime || 'UNKNOWN';
+  const structureState = indicators.structureState;  // 1=uptrend, -1=downtrend, 0=range
+  const structureLabel = indicators.structureLabel || 'UNKNOWN';
+  const breakoutScore = indicators.breakoutScore || 0;
+  const sweepScore = indicators.sweepScore || 0;
+  const pullbackRatio = indicators.pullbackRatio || 0;
+
   // Call the multi-agent orchestrator
   const result = await orchestrateTrade({
     prices5m,
@@ -94,7 +102,14 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
     sessionHigh,
     sessionLow,
     currentPrice,
-    atr
+    atr,
+    // Structure and regime info
+    marketRegime,
+    structureState,
+    structureLabel,
+    breakoutScore,
+    sweepScore,
+    pullbackRatio
   });
 
   // Format for compatibility with existing system

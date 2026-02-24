@@ -3,16 +3,20 @@ const fs = require("fs");
 const OpenAI = require("openai");
 const { computeIndicators } = require("./trade_indicators");
 const { callStrategyTradeDecision, validateDecision, MAX_WAIT_BARS } = require("./strategy_selector");
+const { getPairConfig } = require("./pair_config");
 
 // ----------------------------
 // CONFIG
 // ----------------------------
-const DATA_PATH = "./eurusd_5m.json";
-const RESULTS_PATH = "./trade_results.json";
+const pairConfig = getPairConfig();
+console.log(`Trading pair: ${pairConfig.displayName}`);
+
+const DATA_PATH = pairConfig.dataFile;
+const RESULTS_PATH = pairConfig.resultsFile;
 
 const SESSION_TZ = "Europe/Zurich";
-const SESSION_START_HOUR = 8;
-const SESSION_END_HOUR = 18;
+const SESSION_START_HOUR = pairConfig.tradingHours?.start || 8;
+const SESSION_END_HOUR = pairConfig.tradingHours?.end || 18;
 
 const WIN_5M_BARS = 15;
 const WIN_30M_BARS = 15;
@@ -20,9 +24,9 @@ const WIN_DAILY_BARS = 15;
 const MIN_DAILY_BARS = 5;
 
 const SIM_FORWARD_5M_BARS = 300;
-const DEFAULT_SPREAD = 0.00008;
+const DEFAULT_SPREAD = pairConfig.spread;
 
-const NUM_SCENARIOS = 100;
+const NUM_SCENARIOS = 100;  // 100-trade batch test
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -169,11 +173,56 @@ function getRandomAnchorIndices(bars5m, count) {
 // LLM CALLS
 // ----------------------------
 async function callTradeSummary({ context, decision, simResult, R, indicators, priceBarsAfterEntry }) {
-  const system = `
-You are a professional trading analyst reviewing completed trades.
-Your job is to analyze what happened and explain WHY the trade won or lost.
-Be specific and reference actual price levels. Output valid JSON only.
-`;
+  const system = `You are an expert trade analyst with deep understanding of market structure and price action.
+
+YOUR MARKET KNOWLEDGE:
+
+1. STRUCTURE STATE - The Foundation
+   - UPTREND (+1): Higher Highs + Higher Lows = Only LONG trades have edge
+   - DOWNTREND (-1): Lower Highs + Lower Lows = Only SHORT trades have edge
+   - RANGE (0): Mixed swings = Mean reversion at boundaries, NO trend trades
+   - Trading AGAINST structure is the #1 cause of losses
+
+2. PULLBACK QUALITY - Entry Timing
+   - 0.38-0.62 (38-62%): Ideal pullback zone for trend continuation
+   - < 0.30 (shallow): Chasing - price likely to retrace more before continuing
+   - > 0.70 (deep): Structure may be breaking - trend exhaustion risk
+
+3. SUPPORT & RESISTANCE
+   - In UPTREND: Support = buy zone, Resistance = profit target
+   - In DOWNTREND: Resistance = sell zone, Support = profit target
+   - In RANGE: Both are reversal zones - fade the extremes
+   - Breaking S/R with acceptance (multiple closes beyond) = real breakout
+   - Wick through S/R then close back = liquidity sweep (trade opposite direction)
+
+4. BREAKOUT vs SWEEP (Critical distinction)
+   - Breakout Score > 0.3: Bullish expansion, price accepted above resistance
+   - Breakout Score < -0.3: Bearish expansion, price accepted below support
+   - Sweep Score > 0.2: Bullish sweep - stopped out longs below support, then reversed UP
+   - Sweep Score < -0.2: Bearish sweep - stopped out shorts above resistance, then reversed DOWN
+   - Sweeps are REVERSAL signals, Breakouts are CONTINUATION signals
+
+5. MARKET REGIME
+   - TREND: Clear structure + EMA alignment = trade with trend only
+   - EXPANSION: High volatility breakout = momentum trades, wide stops needed
+   - RANGE: No clear direction = fade extremes or stay out
+
+6. COMMON FAILURE PATTERNS
+   - Counter-trend trade in strong trend (structure was against the trade)
+   - Chasing extended move (pullback ratio too shallow, no retracement)
+   - Trading middle of range (no edge zone - not at S/R)
+   - Stop too tight for volatility (< 1 ATR gets hit by noise)
+   - Mistaking sweep for breakout (entered continuation when it was reversal)
+   - Trading breakout that failed (no acceptance, price returned inside range)
+
+OUTPUT FORMAT (JSON only):
+{
+  "entry_quality": "Evaluate entry timing using pullback ratio and position relative to S/R",
+  "what_happened": "Describe price action: Did it trend, reverse, sweep, or chop?",
+  "why_outcome": "Root cause using market structure logic - was setup valid for the conditions?",
+  "lessons": "Specific rule: What indicator/condition should have prevented this or confirmed it?",
+  "rating": "GOOD | BAD | NEUTRAL"
+}`;
 
   const priceAfterEntry = priceBarsAfterEntry.map(b => ({
     time: b.time,
@@ -183,50 +232,57 @@ Be specific and reference actual price levels. Output valid JSON only.
     C: b.close.toFixed(5)
   }));
 
+  // Determine if trade was with or against structure
+  const withTrend = (decision.side === 'LONG' && indicators.structureState === 1) ||
+                    (decision.side === 'SHORT' && indicators.structureState === -1);
+  const counterTrend = (decision.side === 'LONG' && indicators.structureState === -1) ||
+                       (decision.side === 'SHORT' && indicators.structureState === 1);
+  const trendAlignment = withTrend ? "WITH TREND" : counterTrend ? "COUNTER-TREND" : "NO CLEAR TREND";
+
+  // Pullback quality assessment
+  const pullbackQuality = indicators.pullbackRatio < 0.30 ? "SHALLOW (chasing)" :
+                          indicators.pullbackRatio > 0.70 ? "DEEP (structure risk)" :
+                          indicators.pullbackRatio >= 0.38 && indicators.pullbackRatio <= 0.62 ? "IDEAL ZONE" : "ACCEPTABLE";
+
   const user = `
-MARKET CONDITIONS AT ENTRY:
-- Session: ${indicators.currentSession}
+TRADE REVIEW REQUEST
+
+**STRUCTURE AT ENTRY:**
+- Structure State: ${indicators.structureLabel} (${indicators.structureState})
+- Trade Direction: ${decision.side}
+- Alignment: ${trendAlignment}
 - Market Regime: ${indicators.marketRegime}
-- Structure State: ${indicators.structureState} (${indicators.structureLabel})
-- Breakout Score: ${indicators.breakoutScore}
-- Sweep Score: ${indicators.sweepScore}
-- Pullback Ratio: ${indicators.pullbackRatio}
-- Acceptance Time: ${indicators.acceptanceTime}
-- ATR_5m: ${indicators.ATR_5m}
-- Prev Session High: ${indicators.prevSessionHigh}
-- Prev Session Low: ${indicators.prevSessionLow}
 
-PRICE CONTEXT AT ENTRY (15 candles before):
-5M closes: [${context.prices_5m.map(p => p.toFixed(5)).join(', ')}]
-30M closes: [${context.prices_30m.map(p => p.toFixed(5)).join(', ')}]
+**ENTRY TIMING:**
+- Pullback Ratio: ${(indicators.pullbackRatio * 100).toFixed(0)}% → ${pullbackQuality}
+- Breakout Score: ${indicators.breakoutScore?.toFixed(2) || 'N/A'} (>0.3 bullish, <-0.3 bearish)
+- Sweep Score: ${indicators.sweepScore?.toFixed(2) || 'N/A'} (>0.2 bull sweep, <-0.2 bear sweep)
+- Acceptance Time: ${indicators.acceptanceTime?.toFixed(2) || 'N/A'} (>0.5 = confirmed beyond level)
 
-TRADE DECISION:
-- Side: ${decision.side}
-- Entry: ${decision.entry}
-- Stop Loss: ${decision.sl}
-- Take Profit: ${decision.tp}
-- Risk: ${decision.risk}
-- Original Reasoning: ${decision.reasoning}
+**KEY LEVELS:**
+- Entry: ${decision.entry?.toFixed(5)}
+- Stop Loss: ${decision.sl?.toFixed(5)} (${((Math.abs(decision.entry - decision.sl) / indicators.ATR_5m) || 0).toFixed(1)} ATR)
+- Take Profit: ${decision.tp?.toFixed(5)}
+- Prev Session High: ${indicators.prevSessionHigh?.toFixed(5) || 'N/A'}
+- Prev Session Low: ${indicators.prevSessionLow?.toFixed(5) || 'N/A'}
+- Support: ${indicators.support?.toFixed(5) || 'N/A'}
+- Resistance: ${indicators.resistance?.toFixed(5) || 'N/A'}
 
-PRICE ACTION AFTER ENTRY (${priceAfterEntry.length} bars until exit, only showing 15 next bars):
-${priceAfterEntry.slice(0, 15).map(b => `${b.time}: O=${b.O}`).join('\n')}
+**PRICE CONTEXT (5M closes before entry):**
+[${context.prices_5m.map(p => p.toFixed(5)).join(', ')}]
 
-OUTCOME:
-- Result: ${simResult.outcome} (TP=win, SL=loss, TIMEOUT=expired)
-- Exit Price: ${simResult.exitPrice}
+**WHAT HAPPENED AFTER ENTRY (first 10 bars):**
+${priceAfterEntry.slice(0, 10).map(b => `${b.time}: O=${b.O} H=${b.H} L=${b.L} C=${b.C}`).join('\n')}
+
+**OUTCOME:**
+- Result: ${simResult.outcome}
+- Exit Price: ${simResult.exitPrice?.toFixed(5)}
 - Bars to Exit: ${simResult.barsToExit}
-- PnL (R-multiple): ${R.toFixed(3)}
+- PnL: ${R.toFixed(2)}R
 
-Analyze this trade thoroughly. Output JSON:
-{
-  "entry_quality": "Was the entry well-timed given the conditions? Reference specific indicators.",
-  "what_happened": "Describe the price action after entry. What did price actually do?",
-  "why_outcome": "Root cause: Was it good/bad execution, unfavorable market conditions, or random noise?",
-  "lessons": "Specific actionable improvements for the strategy rules or execution.",
-  "rating": "GOOD | BAD | NEUTRAL",
-   DO NOT OUTPUT MORE THAN 1.5K chars
-}
-`;
+**ORIGINAL REASONING:** ${decision.reasoning?.slice(0, 200)}
+
+Analyze using your market structure knowledge. Be specific about what went right or wrong. Max 1.5K chars.`;
 
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
@@ -305,6 +361,8 @@ async function main() {
   let totalRawR = 0;
   let totalR = 0;
   let totalWaits = 0;
+  let totalRisk = 0;  // Track sum of all position sizes
+  let riskValues = [];  // Track individual risk values for distribution analysis
 
   for (let i = 0; i < anchors.length; i++) {
     const idx = anchors[i];
@@ -368,11 +426,12 @@ async function main() {
           await new Promise(r => setTimeout(r, 300));
         } else if (rawDecision.action === "WAIT" && mustTrade) {
           const closePrice = bars5m[entryIdx].close;
+          const defaultRange = 10 / pairConfig.pipMultiplier; // 10 pips in price terms
           decision = {
             side: "LONG",
             entry: closePrice,
-            tp: closePrice + 0.001,
-            sl: closePrice - 0.001,
+            tp: closePrice + defaultRange,
+            sl: closePrice - defaultRange,
             risk: 0,
             reasoning: rawDecision.reasoning || "Refused to trade - conditions not met",
             skippedByAI: true,
@@ -401,6 +460,8 @@ async function main() {
       } else {
         totalRawR += rawR;
         totalR += weightedR;
+        totalRisk += decision.risk;
+        riskValues.push(decision.risk);
         if (simResult.outcome === "TP") wins++;
         else if (simResult.outcome === "SL") losses++;
         else timeouts++;
@@ -478,7 +539,7 @@ async function main() {
       });
     }
 
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 2000));  // 2s sleep between trades to reduce CPU load
   }
 
   // Save results
@@ -496,7 +557,28 @@ async function main() {
   console.log(`Timeouts: ${timeouts}`);
   console.log(`Raw R (trade quality): ${totalRawR.toFixed(2)} (avg: ${executed ? (totalRawR/executed).toFixed(3) : 0})`);
   console.log(`Weighted R (actual PnL): ${totalR.toFixed(2)} (avg: ${executed ? (totalR/executed).toFixed(3) : 0})`);
-  console.log(`Avg waits per trade: ${(totalWaits/NUM_SCENARIOS).toFixed(1)}`);
+
+  // Normalized R comparison (fair comparison between raw and weighted)
+  const avgRisk = executed ? totalRisk / executed : 0;
+  const normalizedWeightedR = avgRisk > 0 ? totalR / avgRisk : 0;
+  console.log(`\n--- NORMALIZED COMPARISON ---`);
+  console.log(`Avg position size: ${avgRisk.toFixed(3)}`);
+  console.log(`Normalized Weighted R: ${normalizedWeightedR.toFixed(2)} (Weighted R ÷ Avg Risk)`);
+  console.log(`Raw R (for reference): ${totalRawR.toFixed(2)}`);
+
+  // Risk distribution analysis
+  if (riskValues.length > 0) {
+    const minRisk = Math.min(...riskValues);
+    const maxRisk = Math.max(...riskValues);
+    const riskStdDev = Math.sqrt(riskValues.reduce((sum, r) => sum + Math.pow(r - avgRisk, 2), 0) / riskValues.length);
+    const uniqueRisks = [...new Set(riskValues.map(r => r.toFixed(2)))].length;
+    console.log(`\n--- RISK DISTRIBUTION ---`);
+    console.log(`Range: ${minRisk.toFixed(2)} to ${maxRisk.toFixed(2)}`);
+    console.log(`Std Dev: ${riskStdDev.toFixed(3)}`);
+    console.log(`Unique values: ${uniqueRisks} (of ${riskValues.length} trades)`);
+  }
+
+  console.log(`\nAvg waits per trade: ${(totalWaits/NUM_SCENARIOS).toFixed(1)}`);
 }
 
 main().catch((e) => {

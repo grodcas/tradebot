@@ -1,9 +1,9 @@
 /**
- * TRADE ORCHESTRATOR - Risk Adjusted
+ * TRADE ORCHESTRATOR
  *
  * Coordinates the specialist agents:
  * 1. Direction Agent → Determines market bias
- * 2. Confidence Agent → Assesses probability (NOW WITH BAD PATTERN DETECTION)
+ * 2. Confidence Agent → Assesses probability
  * 3. Levels Agent → Sets Entry, SL, TP
  *
  * Final decision combines all inputs.
@@ -28,12 +28,13 @@ async function orchestrateTrade({
   sessionLow,
   currentPrice,
   atr,
-  // NEW: Critical indicators for BAD pattern detection
-  structureState,
-  structureLabel,
-  marketRegime,
-  pullbackRatio,
-  breakoutScore
+  // Structure and regime info (CRITICAL for risk assessment)
+  marketRegime = 'UNKNOWN',
+  structureState = 0,
+  structureLabel = 'UNKNOWN',
+  breakoutScore = 0,
+  sweepScore = 0,
+  pullbackRatio = 0
 }) {
 
   const startTime = Date.now();
@@ -51,7 +52,15 @@ async function orchestrateTrade({
     swingLow,
     sessionHigh,
     sessionLow,
-    currentPrice
+    currentPrice,
+    // Pass structure info so agent can verify
+    computedStructureState: structureState,
+    computedStructureLabel: structureLabel,
+    marketRegime,
+    pullbackRatio,
+    // Pass sweep/breakout for better analysis
+    breakoutScore,
+    sweepScore
   });
   agentOutputs.direction = directionResult;
 
@@ -61,16 +70,27 @@ async function orchestrateTrade({
   console.log(`   [DIRECTION] ${directionResult.primary_bias} (${directionResult.confidence})`);
   console.log(`   [DIRECTION] ${directionResult.trade_idea?.slice(0, 80)}...`);
 
-  // If direction is unclear, we might still trade but with lower confidence
-  if (!proposedDirection) {
-    console.log('   [DIRECTION] No clear direction - will assess both sides');
+  // If direction is unclear, use the agent's fallback direction based on structure
+  // This prevents always defaulting to LONG in downtrends (major failure mode)
+  let directionToAssess;
+  if (proposedDirection) {
+    directionToAssess = proposedDirection;
+  } else {
+    // Use the AI's fallback direction which considers structure
+    const fallback = directionResult.fallback_direction;
+    if (fallback === 'LONG' || fallback === 'SHORT') {
+      directionToAssess = fallback;
+      console.log(`   [DIRECTION] No clear direction - using structure-based fallback: ${fallback}`);
+    } else {
+      // Last resort: use structure state directly
+      directionToAssess = structureState === -1 ? 'SHORT' :
+                          structureState === 1 ? 'LONG' : 'LONG';
+      console.log(`   [DIRECTION] No clear direction - fallback from structure: ${directionToAssess}`);
+    }
   }
 
   // ========== STEP 2: CONFIDENCE AGENT ==========
   console.log('   [CONFIDENCE] Assessing setup quality...');
-
-  // If neutral, assess LONG (default slight bias)
-  const directionToAssess = proposedDirection || 'LONG';
 
   const confidenceResult = await assessConfidence({
     proposedDirection: directionToAssess,
@@ -86,36 +106,22 @@ async function orchestrateTrade({
     sessionHigh,
     sessionLow,
     prices5m,
-    // NEW: Pass critical indicators for BAD pattern detection
+    // CRITICAL: Pass structure info for risk assessment
+    marketRegime,
     structureState,
     structureLabel,
-    marketRegime,
-    pullbackRatio,
-    breakoutScore
+    breakoutScore,
+    sweepScore,
+    pullbackRatio
   });
   agentOutputs.confidence = confidenceResult;
 
   console.log(`   [CONFIDENCE] Probability: ${(confidenceResult.probability * 100).toFixed(0)}%`);
   console.log(`   [CONFIDENCE] ${confidenceResult.for_proposed_direction?.assessment}: ${confidenceResult.for_proposed_direction?.recommendation?.slice(0, 60)}...`);
 
-  // Log BAD patterns if detected
-  if (confidenceResult.bad_patterns_detected && confidenceResult.bad_patterns_detected.length > 0) {
-    console.log(`   [CONFIDENCE] BAD PATTERNS: ${confidenceResult.bad_patterns_detected.join(', ')}`);
-  }
-
   // ========== STEP 3: LEVELS AGENT ==========
-  // Only proceed if confidence is above threshold
-  const MIN_CONFIDENCE = 0.25;  // Don't trade below 25% probability
-
-  if (confidenceResult.probability < MIN_CONFIDENCE) {
-    console.log(`   [LEVELS] Skipping - confidence too low (${(confidenceResult.probability * 100).toFixed(0)}% < ${MIN_CONFIDENCE * 100}%)`);
-    return {
-      action: 'SKIP',
-      reason: `Confidence too low: ${(confidenceResult.probability * 100).toFixed(0)}%`,
-      agentOutputs,
-      timeMs: Date.now() - startTime
-    };
-  }
+  // NEW APPROACH: Take ALL trades, use confidence for position sizing
+  // No skipping - every trade gets executed with appropriate risk
 
   console.log('   [LEVELS] Determining entry, SL, TP...');
   const levelsResult = await determineLevels({
@@ -137,8 +143,10 @@ async function orchestrateTrade({
   console.log(`   [LEVELS] SL: ${levelsResult.stop_loss?.price?.toFixed(5)} | TP: ${levelsResult.take_profit?.price?.toFixed(5)} | RR: ${levelsResult.risk_reward?.toFixed(2)}`);
 
   // ========== FINAL DECISION ==========
-  // Convert confidence to position size (0-1 scale)
-  const positionSize = confidenceResult.probability;
+  // Convert confidence to position size using full range
+  // Confidence 0.0-1.0 maps to position size 0.10-1.0
+  // Low confidence = small position, high confidence = full position
+  const positionSize = 0.10 + (confidenceResult.probability * 0.90);
 
   // Validate levels
   const entry = levelsResult.entry?.price;
@@ -181,7 +189,7 @@ async function orchestrateTrade({
     entry,
     sl,
     tp,
-    risk: Math.min(0.7, Math.max(0.15, positionSize)),  // Clamp to 0.15-0.7
+    risk: positionSize,  // Full range 0.10-1.0 based on confidence
     riskReward: levelsResult.risk_reward,
     reasoning: {
       direction: directionResult.trade_idea,
