@@ -533,14 +533,14 @@ async function getOpenTrades() {
 // ============================================
 
 /**
- * Enter a trade with TP and SL
+ * Enter a trade with TP and SL (MARKET order)
  * Compatible with live_trader.js interface
  */
 async function enterTrade(pairCode, side, quantity, takeProfit, stopLoss) {
   const { base, quote } = parsePairCode(pairCode);
   const action = side === 'LONG' ? 'BUY' : 'SELL';
 
-  console.log(`[OANDA] Entering ${side} ${quantity} ${base}/${quote} TP=${takeProfit} SL=${stopLoss}`);
+  console.log(`[OANDA] Entering MARKET ${side} ${quantity} ${base}/${quote} TP=${takeProfit} SL=${stopLoss}`);
 
   const result = await marketEntryWithBracket(base, quote, action, quantity, takeProfit, stopLoss);
 
@@ -551,6 +551,98 @@ async function enterTrade(pairCode, side, quantity, takeProfit, stopLoss) {
   }
 
   return result;
+}
+
+/**
+ * Enter a trade with LIMIT order + TP and SL
+ * This is the primary function used by live_trader.js when USE_LIMIT_ORDERS=true
+ *
+ * @param {string} pairCode - e.g., "EURUSD", "USDJPY"
+ * @param {string} side - "LONG" or "SHORT"
+ * @param {number} quantity - Order size (in base currency units)
+ * @param {number} entryPrice - Limit entry price
+ * @param {number} takeProfit - Take profit price
+ * @param {number} stopLoss - Stop loss price
+ */
+async function enterTradeLimit(pairCode, side, quantity, entryPrice, takeProfit, stopLoss) {
+  const { base, quote } = parsePairCode(pairCode);
+  const instrument = `${base}_${quote}`;
+  const units = side === 'LONG' ? Math.abs(quantity) : -Math.abs(quantity);
+
+  // Determine decimal places based on instrument
+  const isJpy = instrument.includes('JPY');
+  const priceDecimals = isJpy ? 3 : 5;
+
+  console.log(`[OANDA] Placing LIMIT ${side} ${quantity} ${base}/${quote} @ ${entryPrice} | TP=${takeProfit} SL=${stopLoss}`);
+
+  const orderData = {
+    order: {
+      type: 'LIMIT',
+      instrument: instrument,
+      units: units.toString(),
+      price: entryPrice.toFixed(priceDecimals),
+      timeInForce: 'GTC',  // Good Till Cancelled
+      positionFill: 'DEFAULT',
+      takeProfitOnFill: {
+        price: takeProfit.toFixed(priceDecimals)
+      },
+      stopLossOnFill: {
+        price: stopLoss.toFixed(priceDecimals)
+      }
+    }
+  };
+
+  try {
+    const response = await oandaRequest(
+      `/v3/accounts/${OANDA_ACCOUNT_ID}/orders`,
+      'POST',
+      orderData
+    );
+
+    // Check if order was immediately filled (price already at level)
+    if (response.orderFillTransaction) {
+      const fill = response.orderFillTransaction;
+      console.log(`[OANDA] LIMIT order immediately filled at ${fill.price}`);
+      return {
+        success: true,
+        filled: true,
+        entryOrderId: fill.id,
+        entryPrice: parseFloat(fill.price),
+        tradeId: fill.tradeOpened?.tradeID,
+        units: parseInt(fill.units)
+      };
+    }
+
+    // Order is pending (normal case for limit orders)
+    if (response.orderCreateTransaction) {
+      const order = response.orderCreateTransaction;
+      console.log(`[OANDA] LIMIT order pending - Order ID: ${order.id}`);
+      return {
+        success: true,
+        filled: false,
+        pending: true,
+        entryOrderId: order.id,
+        entryPrice: parseFloat(order.price),
+        units: parseInt(order.units)
+      };
+    }
+
+    // Order was rejected
+    if (response.orderRejectTransaction) {
+      const reject = response.orderRejectTransaction;
+      console.error(`[OANDA] LIMIT order rejected: ${reject.rejectReason}`);
+      return {
+        success: false,
+        error: reject.rejectReason
+      };
+    }
+
+    return { success: false, error: 'Unknown order response' };
+
+  } catch (error) {
+    console.error(`[OANDA] LIMIT order error: ${error.message}`);
+    return { success: false, error: error.message };
+  }
 }
 
 /**
@@ -603,6 +695,7 @@ module.exports = {
 
   // High-level API (compatible with live_trader.js)
   enterTrade,
+  enterTradeLimit,
   exitTrade,
   getTradePosition,
   parsePairCode,

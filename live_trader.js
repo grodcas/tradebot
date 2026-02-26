@@ -1,9 +1,12 @@
 /**
- * Live Paper Trader for IBKR - Multi-Pair Version
+ * Live Paper Trader - Multi-Pair Version
  *
- * Trades EUR/USD and USD/JPY simultaneously.
+ * Trades EUR/USD, USD/JPY, and GBP/USD simultaneously.
  * Each pair runs sequentially (one trade at a time per pair).
  * Runs from 8:00-18:00 Zurich time.
+ *
+ * NOW WITH REAL ORDER EXECUTION via OANDA API!
+ * (Uses IBKR for market data, OANDA for execution)
  *
  * Usage: node live_trader.js
  */
@@ -15,18 +18,30 @@ const { spawn } = require('child_process');
 const { IBApi, EventName, BarSizeSetting, WhatToShow } = require('@stoqey/ib');
 const OpenAI = require('openai');
 const { computeIndicators } = require('./trade_indicators');
+const orderExecutor = require('./oanda_executor');
+
+// ----------------------------
+// REAL EXECUTION CONFIG
+// ----------------------------
+const REAL_EXECUTION = true;  // Set to false to simulate only
+const USE_LIMIT_ORDERS = true;  // true = limit orders (wait for price), false = market orders (immediate)
+const FIXED_POSITION_SIZE = 100000;  // 100K = $10/pip on EUR/USD
+const COMMISSION_PER_TRADE = 2.00;  // USD per side ($4 round trip)
+const MAX_PENDING_BARS = 12;  // Cancel pending limit order after this many bars (12 bars = 1 hour)
 
 // Pair-specific strategy selectors (each pair has its own trained model/prompts)
 const strategySelectors = {
   EURUSD: require('./strategy_selector_eurusd'),
   USDJPY: require('./strategy_selector_usdjpy'),
+  EURUSD_GPT5: require('./strategy_selector_gpt5'),
+  GBPUSD: require('./strategy_selector_gbpusd'),
 };
 
 // ----------------------------
 // CONFIG
 // ----------------------------
 const IBKR_HOST = '127.0.0.1';
-const IBKR_PORT = 4002;  // 4002 = IB Gateway Paper, 7497 = TWS Paper
+const IBKR_PORT = 7497;  // 7497 = TWS Paper, 4002 = IB Gateway Paper
 const CLIENT_ID = 100;
 
 const SESSION_TZ = 'Europe/Zurich';
@@ -67,11 +82,34 @@ const PAIRS = {
     displayName: 'USD/JPY',
     histReqId: 1002,
     rtReqId: 2002,
+  },
+  EURUSD_GPT5: {
+    symbol: 'EUR',
+    currency: 'USD',
+    secType: 'CASH',
+    exchange: 'IDEALPRO',
+    spread: 0.00008,
+    pipMultiplier: 10000,
+    displayName: 'EUR/USD (GPT5)',
+    histReqId: 1003,  // Different reqId to avoid conflicts
+    rtReqId: 2003,
+    sharesDataWith: 'EURUSD',  // Flag to indicate it shares market data
+  },
+  GBPUSD: {
+    symbol: 'GBP',
+    currency: 'USD',
+    secType: 'CASH',
+    exchange: 'IDEALPRO',
+    spread: 0.00010,
+    pipMultiplier: 10000,  // 1 pip = 0.0001
+    displayName: 'GBP/USD',
+    histReqId: 1004,
+    rtReqId: 2004,
   }
 };
 
 // Active pairs to trade
-const ACTIVE_PAIRS = ['EURUSD', 'USDJPY'];
+const ACTIVE_PAIRS = ['EURUSD', 'USDJPY', 'EURUSD_GPT5', 'GBPUSD'];
 
 let client = null;
 function getOpenAIClient() {
@@ -92,6 +130,7 @@ function initPairState() {
       config: PAIRS[pairCode],
       bars5m: [],
       currentPosition: null,
+      pendingOrder: null,  // For limit orders waiting to fill
       tradeResults: [],
       lastPrice: null,
       pendingBar: null,
@@ -346,6 +385,44 @@ function aggregateRealTimeBar(pairCode, timestamp, open, high, low, close) {
   }
 
   state.lastPrice = Number(close);
+
+  // Propagate to pairs that share data with this pair
+  for (const otherPairCode of ACTIVE_PAIRS) {
+    const otherConfig = PAIRS[otherPairCode];
+    if (otherConfig.sharesDataWith === pairCode) {
+      aggregateRealTimeBarForShared(otherPairCode, timestamp, open, high, low, close, barKey);
+    }
+  }
+}
+
+function aggregateRealTimeBarForShared(pairCode, timestamp, open, high, low, close, barKey) {
+  const state = pairState[pairCode];
+  const date = new Date(timestamp);
+
+  if (state.lastBarMinute !== barKey) {
+    if (state.pendingBar) {
+      finalizeBar(pairCode, state.pendingBar);
+    }
+
+    state.pendingBar = {
+      time: barKey,
+      open: Number(open),
+      high: Number(high),
+      low: Number(low),
+      close: Number(close),
+      _t: timestamp,
+      _d: date,
+    };
+    state.lastBarMinute = barKey;
+  } else if (state.pendingBar) {
+    state.pendingBar.high = Math.max(state.pendingBar.high, Number(high));
+    state.pendingBar.low = Math.min(state.pendingBar.low, Number(low));
+    state.pendingBar.close = Number(close);
+    state.pendingBar._t = timestamp;
+    state.pendingBar._d = date;
+  }
+
+  state.lastPrice = Number(close);
 }
 
 async function finalizeBar(pairCode, bar) {
@@ -358,11 +435,98 @@ async function finalizeBar(pairCode, bar) {
 
   log(`[${pairCode}] New bar: ${bar.time} | O:${bar.open.toFixed(5)} H:${bar.high.toFixed(5)} L:${bar.low.toFixed(5)} C:${bar.close.toFixed(5)}`);
 
+  // Check pending limit orders first
+  if (state.pendingOrder) {
+    await checkPendingOrderStatus(pairCode, bar);
+  }
+
+  // Check open positions
   if (state.currentPosition) {
     await checkPositionStatus(pairCode, bar);
-  } else if (!sessionEnded && isWithinSession()) {
+  } else if (!state.pendingOrder && !sessionEnded && isWithinSession()) {
+    // Only look for new trades if no pending order and no position
     await processBar(pairCode, bar);
   }
+}
+
+/**
+ * Check if a pending limit order has been filled
+ */
+async function checkPendingOrderStatus(pairCode, bar) {
+  const state = pairState[pairCode];
+  const pending = state.pendingOrder;
+  if (!pending) return;
+
+  pending.barsWaiting++;
+
+  // Check if price has touched our entry level (order likely filled)
+  const { side, entry, sl, tp } = pending;
+  let filled = false;
+
+  if (side === 'LONG') {
+    // For long, filled when price goes down to our entry level
+    if (bar.low <= entry) {
+      filled = true;
+    }
+  } else {
+    // For short, filled when price goes up to our entry level
+    if (bar.high >= entry) {
+      filled = true;
+    }
+  }
+
+  if (filled) {
+    logTrade(pairCode, `[REAL] LIMIT order FILLED at ${entry} (price touched level)`);
+
+    // Convert pending to active position
+    state.currentPosition = {
+      pairCode,
+      tradeNum: pending.tradeNum,
+      side: pending.side,
+      entry: pending.entry,  // Entry at our limit price!
+      sl: pending.sl,
+      tp: pending.tp,
+      risk: pending.risk,
+      reasoning: pending.reasoning,
+      entryTime: new Date().toISOString(),
+      entryBar: bar,
+      indicators: pending.indicators,
+      barsInTrade: 0,
+      maxFavorable: 0,
+      maxAdverse: 0,
+      realExecution: pending.realExecution,
+      positionSize: pending.positionSize,
+      realOrderIds: pending.realOrderIds,
+      commissionEntry: pending.realExecution ? COMMISSION_PER_TRADE : 0,
+    };
+
+    state.pendingOrder = null;
+    logTrade(pairCode, `ENTERED ${side} @ ${entry} | SL: ${sl} | TP: ${tp} | Size: ${pending.positionSize}`);
+    statusMessage = `[${pairCode}] In ${side} trade @ ${entry.toFixed(5)}`;
+    return;
+  }
+
+  // Check for timeout
+  if (pending.barsWaiting >= MAX_PENDING_BARS) {
+    logTrade(pairCode, `[REAL] LIMIT order TIMEOUT after ${pending.barsWaiting} bars - cancelling`);
+
+    // Cancel the pending orders in IBKR
+    if (pending.realOrderIds) {
+      try {
+        await orderExecutor.cancelOrder(pending.realOrderIds.entryOrderId);
+        logTrade(pairCode, `[REAL] Cancelled entry order ${pending.realOrderIds.entryOrderId}`);
+      } catch (err) {
+        logTrade(pairCode, `[REAL] Error cancelling order: ${err.message}`);
+      }
+    }
+
+    state.pendingOrder = null;
+    statusMessage = `[${pairCode}] Ready`;
+    return;
+  }
+
+  // Still waiting
+  logTrade(pairCode, `[PENDING] Waiting for fill at ${entry} (${pending.barsWaiting}/${MAX_PENDING_BARS} bars)`);
 }
 
 // ----------------------------
@@ -453,36 +617,132 @@ function aggregate30mBars(bars) {
 }
 
 // ----------------------------
-// TRADE EXECUTION (Paper)
+// TRADE EXECUTION (Real or Simulated)
 // ----------------------------
 async function executeTrade(pairCode, decision, entryBar, indicators) {
   const state = pairState[pairCode];
   state.tradeCounter++;
 
-  state.currentPosition = {
-    pairCode,
-    tradeNum: state.tradeCounter,
-    side: decision.side,
-    entry: decision.entry,
-    sl: decision.sl,
-    tp: decision.tp,
-    risk: decision.risk,
-    reasoning: decision.reasoning,
-    entryTime: new Date().toISOString(),
-    entryBar: entryBar,
-    indicators: {
-      currentSession: indicators.currentSession,
-      marketRegime: indicators.marketRegime,
-      structureState: indicators.structureState,
-      ATR_5m: indicators.ATR_5m,
-    },
-    barsInTrade: 0,
-    maxFavorable: 0,
-    maxAdverse: 0,
-  };
+  let realEntry = decision.entry;
+  let realOrderIds = null;
+  let isPending = false;
 
-  logTrade(pairCode, `ENTERED ${decision.side} @ ${decision.entry} | SL: ${decision.sl} | TP: ${decision.tp}`);
-  statusMessage = `[${pairCode}] In ${decision.side} trade @ ${decision.entry.toFixed(5)}`;
+  // Place real order if enabled
+  if (REAL_EXECUTION) {
+    try {
+      if (USE_LIMIT_ORDERS) {
+        // LIMIT ORDER - waits for price to reach entry level
+        logTrade(pairCode, `[REAL] Placing LIMIT ${decision.side} @ ${decision.entry} for ${FIXED_POSITION_SIZE} units...`);
+
+        const result = await orderExecutor.enterTradeLimit(
+          pairCode,
+          decision.side,
+          FIXED_POSITION_SIZE,
+          decision.entry,  // Limit entry price
+          decision.tp,
+          decision.sl
+        );
+
+        if (result.success) {
+          realOrderIds = {
+            entryOrderId: result.entryOrderId,
+            takeProfitOrderId: result.takeProfitOrderId,
+            stopLossOrderId: result.stopLossOrderId,
+          };
+          // With limit orders, the entry is pending until price hits the level
+          isPending = true;
+          logTrade(pairCode, `[REAL] LIMIT order placed - waiting for fill at ${decision.entry}`);
+        } else {
+          logTrade(pairCode, `[REAL] LIMIT order FAILED: ${result.error}`);
+          return;
+        }
+      } else {
+        // MARKET ORDER - immediate fill (old behavior)
+        logTrade(pairCode, `[REAL] Placing MARKET ${decision.side} for ${FIXED_POSITION_SIZE} units...`);
+
+        const result = await orderExecutor.enterTrade(
+          pairCode,
+          decision.side,
+          FIXED_POSITION_SIZE,
+          decision.tp,
+          decision.sl
+        );
+
+        if (result.success) {
+          realEntry = result.entryPrice;
+          realOrderIds = {
+            entryOrderId: result.entryOrderId,
+            takeProfitOrderId: result.takeProfitOrderId,
+            stopLossOrderId: result.stopLossOrderId,
+          };
+          logTrade(pairCode, `[REAL] MARKET order filled at ${realEntry}`);
+        } else {
+          logTrade(pairCode, `[REAL] MARKET order FAILED: ${result.error}`);
+          return;
+        }
+      }
+    } catch (err) {
+      logTrade(pairCode, `[REAL] Order execution error: ${err.message}`);
+      return;
+    }
+  }
+
+  if (isPending) {
+    // Store as pending order - will track until filled or cancelled
+    state.pendingOrder = {
+      pairCode,
+      tradeNum: state.tradeCounter,
+      side: decision.side,
+      entry: decision.entry,
+      sl: decision.sl,
+      tp: decision.tp,
+      risk: decision.risk,
+      reasoning: decision.reasoning,
+      orderTime: new Date().toISOString(),
+      entryBar: entryBar,
+      indicators: {
+        currentSession: indicators.currentSession,
+        marketRegime: indicators.marketRegime,
+        structureState: indicators.structureState,
+        ATR_5m: indicators.ATR_5m,
+      },
+      barsWaiting: 0,
+      realExecution: REAL_EXECUTION,
+      positionSize: FIXED_POSITION_SIZE,
+      realOrderIds: realOrderIds,
+    };
+    logTrade(pairCode, `PENDING ${decision.side} @ ${decision.entry} | SL: ${decision.sl} | TP: ${decision.tp} | Size: ${FIXED_POSITION_SIZE}`);
+    statusMessage = `[${pairCode}] Pending ${decision.side} @ ${decision.entry.toFixed(5)}`;
+  } else {
+    // Immediate fill (market order or simulation)
+    state.currentPosition = {
+      pairCode,
+      tradeNum: state.tradeCounter,
+      side: decision.side,
+      entry: realEntry,
+      sl: decision.sl,
+      tp: decision.tp,
+      risk: decision.risk,
+      reasoning: decision.reasoning,
+      entryTime: new Date().toISOString(),
+      entryBar: entryBar,
+      indicators: {
+        currentSession: indicators.currentSession,
+        marketRegime: indicators.marketRegime,
+        structureState: indicators.structureState,
+        ATR_5m: indicators.ATR_5m,
+      },
+      barsInTrade: 0,
+      maxFavorable: 0,
+      maxAdverse: 0,
+      realExecution: REAL_EXECUTION,
+      positionSize: FIXED_POSITION_SIZE,
+      realOrderIds: realOrderIds,
+      commissionEntry: REAL_EXECUTION ? COMMISSION_PER_TRADE : 0,
+    };
+    logTrade(pairCode, `ENTERED ${decision.side} @ ${realEntry} | SL: ${decision.sl} | TP: ${decision.tp} | Size: ${FIXED_POSITION_SIZE}`);
+    statusMessage = `[${pairCode}] In ${decision.side} trade @ ${realEntry.toFixed(5)}`;
+  }
 }
 
 async function checkPositionStatus(pairCode, bar) {
@@ -491,7 +751,7 @@ async function checkPositionStatus(pairCode, bar) {
 
   state.currentPosition.barsInTrade++;
 
-  const { side, entry, sl, tp } = state.currentPosition;
+  const { side, entry, sl, tp, realExecution } = state.currentPosition;
 
   if (side === 'LONG') {
     state.currentPosition.maxFavorable = Math.max(state.currentPosition.maxFavorable, bar.high - entry);
@@ -504,21 +764,65 @@ async function checkPositionStatus(pairCode, bar) {
   let outcome = null;
   let exitPrice = null;
 
-  if (side === 'LONG') {
-    if (bar.low <= sl) {
-      outcome = 'SL';
-      exitPrice = sl;
-    } else if (bar.high >= tp) {
-      outcome = 'TP';
-      exitPrice = tp;
+  // For real execution, check actual position status
+  if (REAL_EXECUTION && realExecution) {
+    try {
+      const positionInfo = await orderExecutor.getTradePosition(pairCode);
+      const positionSize = positionInfo.position || 0;
+
+      // If position is closed (by TP or SL order), determine which hit
+      if (positionSize === 0) {
+        // Position was closed by bracket order
+        if (side === 'LONG') {
+          if (bar.high >= tp) {
+            outcome = 'TP';
+            exitPrice = tp;
+          } else if (bar.low <= sl) {
+            outcome = 'SL';
+            exitPrice = sl;
+          } else {
+            // Closed but unclear why - use current price
+            outcome = 'TP';  // Assume TP if position gone
+            exitPrice = bar.close;
+          }
+        } else {
+          if (bar.low <= tp) {
+            outcome = 'TP';
+            exitPrice = tp;
+          } else if (bar.high >= sl) {
+            outcome = 'SL';
+            exitPrice = sl;
+          } else {
+            outcome = 'TP';
+            exitPrice = bar.close;
+          }
+        }
+        logTrade(pairCode, `[REAL] Position closed by bracket order - ${outcome}`);
+      }
+    } catch (err) {
+      log(`[${pairCode}] Error checking real position: ${err.message}`);
+      // Fall back to simulated check
     }
-  } else {
-    if (bar.high >= sl) {
-      outcome = 'SL';
-      exitPrice = sl;
-    } else if (bar.low <= tp) {
-      outcome = 'TP';
-      exitPrice = tp;
+  }
+
+  // Simulated check (or fallback)
+  if (!outcome) {
+    if (side === 'LONG') {
+      if (bar.low <= sl) {
+        outcome = 'SL';
+        exitPrice = sl;
+      } else if (bar.high >= tp) {
+        outcome = 'TP';
+        exitPrice = tp;
+      }
+    } else {
+      if (bar.high >= sl) {
+        outcome = 'SL';
+        exitPrice = sl;
+      } else if (bar.low <= tp) {
+        outcome = 'TP';
+        exitPrice = tp;
+      }
     }
   }
 
@@ -536,18 +840,52 @@ async function closePosition(pairCode, outcome, exitPrice, exitBar) {
   const state = pairState[pairCode];
   const pos = state.currentPosition;
 
+  let realExitPrice = exitPrice;
+
+  // Close real position if enabled
+  if (REAL_EXECUTION && pos.realExecution) {
+    try {
+      logTrade(pairCode, `[REAL] Closing position...`);
+
+      const result = await orderExecutor.exitTrade(pairCode);
+
+      if (result.success && result.avgPrice) {
+        realExitPrice = result.avgPrice;
+        logTrade(pairCode, `[REAL] Position closed at ${realExitPrice}`);
+      } else if (result.message === 'No position to close') {
+        // Position might have been closed by TP/SL already
+        logTrade(pairCode, `[REAL] Position already closed (likely by TP/SL order)`);
+      } else {
+        logTrade(pairCode, `[REAL] Close result: ${JSON.stringify(result)}`);
+      }
+    } catch (err) {
+      logTrade(pairCode, `[REAL] Close error: ${err.message}`);
+    }
+  }
+
   const riskPerUnit = Math.abs(pos.entry - pos.sl);
   const rawR = pos.side === 'LONG'
-    ? (exitPrice - pos.entry) / riskPerUnit
-    : (pos.entry - exitPrice) / riskPerUnit;
+    ? (realExitPrice - pos.entry) / riskPerUnit
+    : (pos.entry - realExitPrice) / riskPerUnit;
   const weightedR = rawR * pos.risk;
 
-  logTrade(pairCode, `CLOSED ${pos.side} | ${outcome} @ ${exitPrice} | R: ${rawR.toFixed(2)} | Weighted: ${weightedR.toFixed(2)}`);
+  // Calculate real P&L in USD
+  const pipMultiplier = PAIRS[pairCode.split('_')[0]]?.pipMultiplier || 10000;
+  const priceDiff = pos.side === 'LONG' ? (realExitPrice - pos.entry) : (pos.entry - realExitPrice);
+  const grossPnL = priceDiff * (pos.positionSize || FIXED_POSITION_SIZE);
+  const totalCommission = (pos.commissionEntry || 0) + COMMISSION_PER_TRADE;
+  const netPnL = grossPnL - totalCommission;
+
+  logTrade(pairCode, `CLOSED ${pos.side} | ${outcome} @ ${realExitPrice} | R: ${rawR.toFixed(2)} | Weighted: ${weightedR.toFixed(2)}`);
   logTrade(pairCode, `Bars in trade: ${pos.barsInTrade} | Max favorable: ${pos.maxFavorable.toFixed(5)} | Max adverse: ${pos.maxAdverse.toFixed(5)}`);
+
+  if (REAL_EXECUTION) {
+    logTrade(pairCode, `[REAL P&L] Gross: $${grossPnL.toFixed(2)} | Commission: $${totalCommission.toFixed(2)} | Net: $${netPnL.toFixed(2)}`);
+  }
 
   let summary = null;
   try {
-    summary = await getTradeAnalysis(pos, outcome, exitPrice, rawR);
+    summary = await getTradeAnalysis(pos, outcome, realExitPrice, rawR);
     logTrade(pairCode, `Analysis: ${summary.rating} - ${summary.why_outcome?.slice(0, 100)}...`);
   } catch (err) {
     log(`[${pairCode}] Error getting trade analysis: ${err.message}`);
@@ -563,7 +901,7 @@ async function closePosition(pairCode, outcome, exitPrice, exitBar) {
     sl: pos.sl,
     tp: pos.tp,
     risk: pos.risk,
-    exitPrice,
+    exitPrice: realExitPrice,
     outcome,
     rawR,
     weightedR,
@@ -573,6 +911,12 @@ async function closePosition(pairCode, outcome, exitPrice, exitBar) {
     indicators: pos.indicators,
     reasoning: pos.reasoning,
     summary,
+    // Real execution data
+    realExecution: pos.realExecution || false,
+    positionSize: pos.positionSize || FIXED_POSITION_SIZE,
+    grossPnL: REAL_EXECUTION ? grossPnL : null,
+    commission: REAL_EXECUTION ? totalCommission : null,
+    netPnL: REAL_EXECUTION ? netPnL : null,
   };
 
   state.tradeResults.push(tradeResult);
@@ -668,6 +1012,12 @@ function calculatePairSummary(pairCode) {
   const totalRawR = executed.reduce((sum, t) => sum + t.rawR, 0);
   const totalWeightedR = executed.reduce((sum, t) => sum + t.weightedR, 0);
 
+  // Real P&L tracking
+  const realTrades = executed.filter(t => t.realExecution);
+  const totalGrossPnL = realTrades.reduce((sum, t) => sum + (t.grossPnL || 0), 0);
+  const totalCommission = realTrades.reduce((sum, t) => sum + (t.commission || 0), 0);
+  const totalNetPnL = realTrades.reduce((sum, t) => sum + (t.netPnL || 0), 0);
+
   return {
     totalTrades: executed.length,
     wins,
@@ -678,6 +1028,11 @@ function calculatePairSummary(pairCode) {
     totalWeightedR: totalWeightedR.toFixed(2),
     avgRawR: executed.length ? (totalRawR / executed.length).toFixed(3) : '0',
     avgWeightedR: executed.length ? (totalWeightedR / executed.length).toFixed(3) : '0',
+    // Real P&L (if real execution enabled)
+    realTrades: realTrades.length,
+    grossPnL: totalGrossPnL.toFixed(2),
+    totalCommission: totalCommission.toFixed(2),
+    netPnL: totalNetPnL.toFixed(2),
   };
 }
 
@@ -695,6 +1050,12 @@ function calculateSummary() {
   const totalRawR = executed.reduce((sum, t) => sum + t.rawR, 0);
   const totalWeightedR = executed.reduce((sum, t) => sum + t.weightedR, 0);
 
+  // Real P&L tracking
+  const realTrades = executed.filter(t => t.realExecution);
+  const totalGrossPnL = realTrades.reduce((sum, t) => sum + (t.grossPnL || 0), 0);
+  const totalCommission = realTrades.reduce((sum, t) => sum + (t.commission || 0), 0);
+  const totalNetPnL = realTrades.reduce((sum, t) => sum + (t.netPnL || 0), 0);
+
   return {
     totalTrades: executed.length,
     wins,
@@ -705,6 +1066,12 @@ function calculateSummary() {
     totalWeightedR: totalWeightedR.toFixed(2),
     avgRawR: executed.length ? (totalRawR / executed.length).toFixed(3) : '0',
     avgWeightedR: executed.length ? (totalWeightedR / executed.length).toFixed(3) : '0',
+    // Real P&L (if real execution enabled)
+    realExecution: REAL_EXECUTION,
+    realTrades: realTrades.length,
+    grossPnL: totalGrossPnL.toFixed(2),
+    totalCommission: totalCommission.toFixed(2),
+    netPnL: totalNetPnL.toFixed(2),
   };
 }
 
@@ -1215,15 +1582,27 @@ async function main() {
 
       // Fetch historical data for all pairs
       for (const pairCode of ACTIVE_PAIRS) {
-        statusMessage = `Fetching ${pairCode} historical data...`;
-        const historicalBars = await fetchHistoricalBars(pairCode);
-        pairState[pairCode].bars5m = historicalBars;
-        log(`[${pairCode}] Loaded ${historicalBars.length} historical bars`);
-        await sleep(1000);  // Small delay between requests
+        const config = PAIRS[pairCode];
+        // If this pair shares data with another, copy from that pair
+        if (config.sharesDataWith && pairState[config.sharesDataWith]?.bars5m?.length > 0) {
+          pairState[pairCode].bars5m = [...pairState[config.sharesDataWith].bars5m];
+          log(`[${pairCode}] Sharing data from ${config.sharesDataWith} (${pairState[pairCode].bars5m.length} bars)`);
+        } else {
+          statusMessage = `Fetching ${pairCode} historical data...`;
+          const historicalBars = await fetchHistoricalBars(pairCode);
+          pairState[pairCode].bars5m = historicalBars;
+          log(`[${pairCode}] Loaded ${historicalBars.length} historical bars`);
+          await sleep(1000);  // Small delay between requests
+        }
       }
 
-      // Subscribe to real-time data for all pairs
+      // Subscribe to real-time data for all pairs (skip pairs that share data)
       for (const pairCode of ACTIVE_PAIRS) {
+        const config = PAIRS[pairCode];
+        if (config.sharesDataWith) {
+          log(`[${pairCode}] Sharing real-time data from ${config.sharesDataWith}`);
+          continue;  // Don't subscribe separately, will get data from shared pair
+        }
         statusMessage = `Subscribing to ${pairCode} real-time data...`;
         subscribeToRealTimeBars(pairCode);
         await sleep(500);
