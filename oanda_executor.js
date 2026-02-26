@@ -56,14 +56,14 @@ async function oandaRequest(endpoint, method = 'GET', body = null) {
  * e.g., "EURUSD" -> "EUR_USD"
  */
 function toOandaInstrument(pairCode) {
-  // Handle suffixes like "_GPT5"
-  if (pairCode.includes('_')) {
-    pairCode = pairCode.split('_')[0];
+  // Already in OANDA format (e.g., "EUR_USD")
+  if (pairCode.includes('_') && pairCode.length === 7) {
+    return pairCode;
   }
 
-  // Already in OANDA format
+  // Handle suffixes like "EURUSD_GPT5" -> "EURUSD"
   if (pairCode.includes('_')) {
-    return pairCode;
+    pairCode = pairCode.split('_')[0];
   }
 
   // Convert EURUSD -> EUR_USD
@@ -529,6 +529,144 @@ async function getOpenTrades() {
 }
 
 // ============================================
+// MARKET DATA API
+// ============================================
+
+/**
+ * Get historical candles for an instrument
+ * @param {string} instrument - e.g., "EUR_USD" or "EURUSD"
+ * @param {string} granularity - M1, M5, M15, M30, H1, H4, D, W, M
+ * @param {number} count - Number of candles to retrieve (max 5000)
+ * @returns {Promise<object>} - { success, candles: [{time, open, high, low, close}, ...] }
+ */
+async function getHistoricalCandles(instrument, granularity = 'M5', count = 500) {
+  try {
+    const oandaInstrument = toOandaInstrument(instrument);
+    const response = await oandaRequest(
+      `/v3/instruments/${oandaInstrument}/candles?granularity=${granularity}&count=${count}&price=M`
+    );
+
+    const candles = response.candles
+      .filter(c => c.complete)  // Only completed candles
+      .map(c => ({
+        time: c.time,
+        _t: parseInt(c.time) * 1000,  // Unix timestamp in ms
+        _d: new Date(parseInt(c.time) * 1000),
+        open: parseFloat(c.mid.o),
+        high: parseFloat(c.mid.h),
+        low: parseFloat(c.mid.l),
+        close: parseFloat(c.mid.c),
+        volume: parseInt(c.volume || 0)
+      }));
+
+    return {
+      success: true,
+      instrument: response.instrument,
+      granularity: response.granularity,
+      candles
+    };
+
+  } catch (error) {
+    return { success: false, error: error.message, candles: [] };
+  }
+}
+
+/**
+ * Get streaming endpoint URL and headers for price streaming
+ * @param {string[]} instruments - Array of instruments to stream
+ * @returns {object} - { url, headers }
+ */
+function getStreamingConfig(instruments) {
+  const streamEndpoints = {
+    practice: 'https://stream-fxpractice.oanda.com',
+    live: 'https://stream-fxtrade.oanda.com'
+  };
+
+  const streamUrl = streamEndpoints[OANDA_ENVIRONMENT];
+  const instrumentList = instruments.map(i => toOandaInstrument(i)).join(',');
+
+  return {
+    url: `${streamUrl}/v3/accounts/${OANDA_ACCOUNT_ID}/pricing/stream?instruments=${instrumentList}`,
+    headers: {
+      'Authorization': `Bearer ${OANDA_API_TOKEN}`
+    }
+  };
+}
+
+/**
+ * Start streaming prices for instruments
+ * Returns an async generator that yields price updates
+ * @param {string[]} instruments - Array of instruments
+ * @param {function} onPrice - Callback for each price update
+ * @param {function} onError - Callback for errors
+ * @returns {Promise<object>} - { stop: function } to stop streaming
+ */
+async function startPriceStream(instruments, onPrice, onError) {
+  const config = getStreamingConfig(instruments);
+  let controller = new AbortController();
+  let running = true;
+
+  const streamLoop = async () => {
+    while (running) {
+      try {
+        const response = await fetch(config.url, {
+          headers: config.headers,
+          signal: controller.signal
+        });
+
+        if (!response.ok) {
+          throw new Error(`Stream connection failed: ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (running) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          const lines = decoder.decode(value).trim().split('\n');
+          for (const line of lines) {
+            if (!line) continue;
+            try {
+              const data = JSON.parse(line);
+              if (data.type === 'PRICE') {
+                onPrice({
+                  instrument: data.instrument,
+                  time: data.time,
+                  bid: parseFloat(data.bids?.[0]?.price || 0),
+                  ask: parseFloat(data.asks?.[0]?.price || 0),
+                  mid: (parseFloat(data.bids?.[0]?.price || 0) + parseFloat(data.asks?.[0]?.price || 0)) / 2
+                });
+              }
+            } catch (e) {
+              // Heartbeat or parse error - ignore
+            }
+          }
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          break;  // Normal stop
+        }
+        if (onError) onError(error);
+        // Wait before reconnecting
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+  };
+
+  // Start streaming in background
+  streamLoop();
+
+  return {
+    stop: () => {
+      running = false;
+      controller.abort();
+    }
+  };
+}
+
+// ============================================
 // HIGH-LEVEL API (compatible with live_trader)
 // ============================================
 
@@ -692,6 +830,11 @@ module.exports = {
   getAccountSummary,
   getPrice,
   getOpenTrades,
+
+  // Market Data API
+  getHistoricalCandles,
+  getStreamingConfig,
+  startPriceStream,
 
   // High-level API (compatible with live_trader.js)
   enterTrade,

@@ -1,12 +1,11 @@
 /**
- * Live Paper Trader - Multi-Pair Version
+ * Live Trader - Multi-Pair Version (FULL OANDA)
  *
  * Trades EUR/USD, USD/JPY, and GBP/USD simultaneously.
  * Each pair runs sequentially (one trade at a time per pair).
  * Runs from 8:00-18:00 Zurich time.
  *
- * NOW WITH REAL ORDER EXECUTION via OANDA API!
- * (Uses IBKR for market data, OANDA for execution)
+ * FULLY POWERED BY OANDA API (market data + execution)
  *
  * Usage: node live_trader.js
  */
@@ -15,10 +14,9 @@ require('dotenv').config();
 const fs = require('fs');
 const http = require('http');
 const { spawn } = require('child_process');
-const { IBApi, EventName, BarSizeSetting, WhatToShow } = require('@stoqey/ib');
 const OpenAI = require('openai');
 const { computeIndicators } = require('./trade_indicators');
-const orderExecutor = require('./oanda_executor');
+const oanda = require('./oanda_executor');
 
 // ----------------------------
 // REAL EXECUTION CONFIG
@@ -40,13 +38,9 @@ const strategySelectors = {
 // ----------------------------
 // CONFIG
 // ----------------------------
-const IBKR_HOST = '127.0.0.1';
-const IBKR_PORT = 7497;  // 7497 = TWS Paper, 4002 = IB Gateway Paper
-const CLIENT_ID = 100;
-
 const SESSION_TZ = 'Europe/Zurich';
-const SESSION_START_HOUR = 8;
-const SESSION_END_HOUR = 18;
+const SESSION_START_HOUR = 20;  // TEMP: Changed for testing (normally 8)
+const SESSION_END_HOUR = 23;   // TEMP: Changed for testing (normally 18)
 
 const HISTORY_BARS_NEEDED = 800;
 const BAR_SIZE_MINUTES = 5;
@@ -58,53 +52,33 @@ const LOG_PATH = './live_trader.log';
 const DASHBOARD_PORT = 3000;
 
 // ----------------------------
-// PAIR CONFIGURATIONS
+// PAIR CONFIGURATIONS (OANDA format)
 // ----------------------------
 const PAIRS = {
   EURUSD: {
-    symbol: 'EUR',
-    currency: 'USD',
-    secType: 'CASH',
-    exchange: 'IDEALPRO',
+    oandaInstrument: 'EUR_USD',
     spread: 0.00008,
     pipMultiplier: 10000,  // 1 pip = 0.0001
     displayName: 'EUR/USD',
-    histReqId: 1001,
-    rtReqId: 2001,
   },
   USDJPY: {
-    symbol: 'USD',
-    currency: 'JPY',
-    secType: 'CASH',
-    exchange: 'IDEALPRO',
+    oandaInstrument: 'USD_JPY',
     spread: 0.008,
     pipMultiplier: 100,  // 1 pip = 0.01 for JPY pairs
     displayName: 'USD/JPY',
-    histReqId: 1002,
-    rtReqId: 2002,
   },
   EURUSD_GPT5: {
-    symbol: 'EUR',
-    currency: 'USD',
-    secType: 'CASH',
-    exchange: 'IDEALPRO',
+    oandaInstrument: 'EUR_USD',
     spread: 0.00008,
     pipMultiplier: 10000,
     displayName: 'EUR/USD (GPT5)',
-    histReqId: 1003,  // Different reqId to avoid conflicts
-    rtReqId: 2003,
-    sharesDataWith: 'EURUSD',  // Flag to indicate it shares market data
+    sharesDataWith: 'EURUSD',  // Shares market data with EURUSD
   },
   GBPUSD: {
-    symbol: 'GBP',
-    currency: 'USD',
-    secType: 'CASH',
-    exchange: 'IDEALPRO',
+    oandaInstrument: 'GBP_USD',
     spread: 0.00010,
     pipMultiplier: 10000,  // 1 pip = 0.0001
     displayName: 'GBP/USD',
-    histReqId: 1004,
-    rtReqId: 2004,
   }
 };
 
@@ -143,7 +117,7 @@ function initPairState() {
 // ----------------------------
 // GLOBALS
 // ----------------------------
-let ib = null;
+let priceStream = null;  // OANDA price stream handle
 let globalTrades = [];
 let isConnected = false;
 let sessionEnded = false;
@@ -194,235 +168,120 @@ function sleep(ms) {
 }
 
 // ----------------------------
-// IBKR CONTRACT BUILDER
+// OANDA INSTRUMENT HELPER
 // ----------------------------
-function getContract(pairCode) {
+function getOandaInstrument(pairCode) {
   const config = PAIRS[pairCode];
-  return {
-    symbol: config.symbol,
-    secType: config.secType,
-    currency: config.currency,
-    exchange: config.exchange,
-  };
+  return config.oandaInstrument;
 }
 
 // ----------------------------
-// IBKR CONNECTION
+// OANDA CONNECTION
 // ----------------------------
-function connectToIBKR() {
-  return new Promise((resolve, reject) => {
-    ib = new IBApi({
-      clientId: CLIENT_ID,
-      host: IBKR_HOST,
-      port: IBKR_PORT,
-    });
+async function connectToOanda() {
+  log('Connecting to OANDA API...');
 
-    const timeout = setTimeout(() => {
-      reject(new Error('Connection timeout - is IB Gateway running?'));
-    }, 10000);
-
-    ib.on(EventName.connected, () => {
-      clearTimeout(timeout);
+  try {
+    const summary = await oanda.getAccountSummary();
+    if (summary.success) {
       isConnected = true;
-      log('Connected to IBKR Gateway');
-      resolve();
-    });
-
-    ib.on(EventName.disconnected, () => {
-      isConnected = false;
-      log('Disconnected from IBKR');
-    });
-
-    ib.on(EventName.error, (err, code, reqId) => {
-      if (err.message?.includes('connection is OK')) return;
-      log(`IBKR Error [${code}] reqId=${reqId}: ${err.message}`);
-    });
-
-    log('Connecting to IBKR Gateway...');
-    ib.connect();
-  });
+      log(`Connected to OANDA - Account: ${summary.accountId}`);
+      log(`Balance: ${summary.balance.toFixed(2)} ${summary.currency}`);
+      return true;
+    } else {
+      throw new Error(summary.error);
+    }
+  } catch (error) {
+    log(`OANDA connection error: ${error.message}`);
+    throw error;
+  }
 }
 
 // ----------------------------
-// FETCH HISTORICAL DATA
+// FETCH HISTORICAL DATA (OANDA)
 // ----------------------------
-function fetchHistoricalBars(pairCode) {
-  return new Promise((resolve, reject) => {
-    const config = PAIRS[pairCode];
-    const reqId = config.histReqId;
-    const contract = getContract(pairCode);
-
-    log(`[${pairCode}] Fetching ${HISTORY_BARS_NEEDED} historical 5m bars...`);
-
-    const collectedBars = [];
-    const endDateTime = '';
-    const durationStr = '5 D';
-    const barSize = '5 mins';
-
-    const onHistoricalData = (id, time, open, high, low, close, volume, count, wap) => {
-      if (id !== reqId) return;
-
-      if (time.startsWith('finished')) {
-        ib.off(EventName.historicalData, onHistoricalData);
-
-        const parsed = collectedBars
-          .map(b => ({
-            ...b,
-            _t: parseBarTime(b.time),
-            _d: new Date(parseBarTime(b.time)),
-          }))
-          .filter(b => b._t)
-          .sort((a, b) => a._t - b._t);
-
-        log(`[${pairCode}] Received ${parsed.length} historical bars`);
-        resolve(parsed);
-        return;
-      }
-
-      collectedBars.push({
-        time,
-        open: Number(open),
-        high: Number(high),
-        low: Number(low),
-        close: Number(close),
-      });
-    };
-
-    ib.on(EventName.historicalData, onHistoricalData);
-
-    ib.reqHistoricalData(
-      reqId,
-      contract,
-      endDateTime,
-      durationStr,
-      barSize,
-      WhatToShow.MIDPOINT,
-      1,
-      1,
-      false
-    );
-
-    setTimeout(() => {
-      ib.off(EventName.historicalData, onHistoricalData);
-      if (collectedBars.length > 0) {
-        resolve(collectedBars);
-      } else {
-        reject(new Error(`[${pairCode}] Historical data timeout`));
-      }
-    }, 30000);
-  });
-}
-
-function parseBarTime(timeStr) {
-  if (!timeStr || typeof timeStr !== 'string') return null;
-
-  const parts = timeStr.split(' ');
-  if (parts.length < 2) return null;
-
-  const datePart = parts[0];
-  const timePart = parts[1];
-
-  const year = parseInt(datePart.slice(0, 4));
-  const month = parseInt(datePart.slice(4, 6)) - 1;
-  const day = parseInt(datePart.slice(6, 8));
-  const [hour, minute, second] = timePart.split(':').map(Number);
-
-  return new Date(Date.UTC(year, month, day, hour, minute, second || 0)).getTime();
-}
-
-// ----------------------------
-// REAL-TIME BAR SUBSCRIPTION
-// ----------------------------
-function subscribeToRealTimeBars(pairCode) {
+async function fetchHistoricalBars(pairCode) {
   const config = PAIRS[pairCode];
-  const reqId = config.rtReqId;
-  const contract = getContract(pairCode);
+  const instrument = config.oandaInstrument;
 
-  log(`[${pairCode}] Subscribing to real-time 5-second bars...`);
+  log(`[${pairCode}] Fetching ${HISTORY_BARS_NEEDED} historical 5m bars from OANDA...`);
 
-  ib.on(EventName.realtimeBar, (id, time, open, high, low, close, volume, wap, count) => {
-    if (id !== reqId) return;
-    const barTime = time * 1000;
-    aggregateRealTimeBar(pairCode, barTime, open, high, low, close);
-  });
+  const result = await oanda.getHistoricalCandles(instrument, 'M5', HISTORY_BARS_NEEDED);
 
-  ib.reqRealTimeBars(
-    reqId,
-    contract,
-    5,
-    WhatToShow.MIDPOINT,
-    false
+  if (!result.success) {
+    throw new Error(`[${pairCode}] Failed to fetch historical data: ${result.error}`);
+  }
+
+  log(`[${pairCode}] Received ${result.candles.length} historical bars`);
+  return result.candles;
+}
+
+// ----------------------------
+// REAL-TIME PRICE STREAMING (OANDA)
+// ----------------------------
+async function startPriceStreaming() {
+  // Get unique instruments (avoid duplicates from shared pairs)
+  const instruments = [...new Set(
+    ACTIVE_PAIRS
+      .filter(p => !PAIRS[p].sharesDataWith)
+      .map(p => PAIRS[p].oandaInstrument)
+  )];
+
+  log(`Starting OANDA price stream for: ${instruments.join(', ')}`);
+
+  priceStream = await oanda.startPriceStream(
+    instruments,
+    (price) => {
+      // Find which pair(s) this price update is for
+      for (const pairCode of ACTIVE_PAIRS) {
+        const config = PAIRS[pairCode];
+        if (config.oandaInstrument === price.instrument ||
+            (config.sharesDataWith && PAIRS[config.sharesDataWith].oandaInstrument === price.instrument)) {
+          handlePriceUpdate(pairCode, price);
+        }
+      }
+    },
+    (error) => {
+      log(`Price stream error: ${error.message}`);
+    }
   );
 }
 
-function aggregateRealTimeBar(pairCode, timestamp, open, high, low, close) {
+function handlePriceUpdate(pairCode, price) {
   const state = pairState[pairCode];
+  const timestamp = Date.now();
   const date = new Date(timestamp);
   const minute = Math.floor(date.getMinutes() / BAR_SIZE_MINUTES) * BAR_SIZE_MINUTES;
   const barKey = `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, '0')}${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
 
+  const midPrice = price.mid;
+
   if (state.lastBarMinute !== barKey) {
+    // New bar period - finalize previous bar
     if (state.pendingBar) {
       finalizeBar(pairCode, state.pendingBar);
     }
 
     state.pendingBar = {
       time: barKey,
-      open: Number(open),
-      high: Number(high),
-      low: Number(low),
-      close: Number(close),
+      open: midPrice,
+      high: midPrice,
+      low: midPrice,
+      close: midPrice,
       _t: timestamp,
       _d: date,
     };
     state.lastBarMinute = barKey;
   } else if (state.pendingBar) {
-    state.pendingBar.high = Math.max(state.pendingBar.high, Number(high));
-    state.pendingBar.low = Math.min(state.pendingBar.low, Number(low));
-    state.pendingBar.close = Number(close);
+    // Update current bar
+    state.pendingBar.high = Math.max(state.pendingBar.high, midPrice);
+    state.pendingBar.low = Math.min(state.pendingBar.low, midPrice);
+    state.pendingBar.close = midPrice;
     state.pendingBar._t = timestamp;
     state.pendingBar._d = date;
   }
 
-  state.lastPrice = Number(close);
-
-  // Propagate to pairs that share data with this pair
-  for (const otherPairCode of ACTIVE_PAIRS) {
-    const otherConfig = PAIRS[otherPairCode];
-    if (otherConfig.sharesDataWith === pairCode) {
-      aggregateRealTimeBarForShared(otherPairCode, timestamp, open, high, low, close, barKey);
-    }
-  }
-}
-
-function aggregateRealTimeBarForShared(pairCode, timestamp, open, high, low, close, barKey) {
-  const state = pairState[pairCode];
-  const date = new Date(timestamp);
-
-  if (state.lastBarMinute !== barKey) {
-    if (state.pendingBar) {
-      finalizeBar(pairCode, state.pendingBar);
-    }
-
-    state.pendingBar = {
-      time: barKey,
-      open: Number(open),
-      high: Number(high),
-      low: Number(low),
-      close: Number(close),
-      _t: timestamp,
-      _d: date,
-    };
-    state.lastBarMinute = barKey;
-  } else if (state.pendingBar) {
-    state.pendingBar.high = Math.max(state.pendingBar.high, Number(high));
-    state.pendingBar.low = Math.min(state.pendingBar.low, Number(low));
-    state.pendingBar.close = Number(close);
-    state.pendingBar._t = timestamp;
-    state.pendingBar._d = date;
-  }
-
-  state.lastPrice = Number(close);
+  state.lastPrice = midPrice;
 }
 
 async function finalizeBar(pairCode, bar) {
@@ -510,10 +369,10 @@ async function checkPendingOrderStatus(pairCode, bar) {
   if (pending.barsWaiting >= MAX_PENDING_BARS) {
     logTrade(pairCode, `[REAL] LIMIT order TIMEOUT after ${pending.barsWaiting} bars - cancelling`);
 
-    // Cancel the pending orders in IBKR
+    // Cancel the pending orders in OANDA
     if (pending.realOrderIds) {
       try {
-        await orderExecutor.cancelOrder(pending.realOrderIds.entryOrderId);
+        await oanda.cancelOrder(pending.realOrderIds.entryOrderId);
         logTrade(pairCode, `[REAL] Cancelled entry order ${pending.realOrderIds.entryOrderId}`);
       } catch (err) {
         logTrade(pairCode, `[REAL] Error cancelling order: ${err.message}`);
@@ -634,7 +493,7 @@ async function executeTrade(pairCode, decision, entryBar, indicators) {
         // LIMIT ORDER - waits for price to reach entry level
         logTrade(pairCode, `[REAL] Placing LIMIT ${decision.side} @ ${decision.entry} for ${FIXED_POSITION_SIZE} units...`);
 
-        const result = await orderExecutor.enterTradeLimit(
+        const result = await oanda.enterTradeLimit(
           pairCode,
           decision.side,
           FIXED_POSITION_SIZE,
@@ -660,7 +519,7 @@ async function executeTrade(pairCode, decision, entryBar, indicators) {
         // MARKET ORDER - immediate fill (old behavior)
         logTrade(pairCode, `[REAL] Placing MARKET ${decision.side} for ${FIXED_POSITION_SIZE} units...`);
 
-        const result = await orderExecutor.enterTrade(
+        const result = await oanda.enterTrade(
           pairCode,
           decision.side,
           FIXED_POSITION_SIZE,
@@ -767,7 +626,7 @@ async function checkPositionStatus(pairCode, bar) {
   // For real execution, check actual position status
   if (REAL_EXECUTION && realExecution) {
     try {
-      const positionInfo = await orderExecutor.getTradePosition(pairCode);
+      const positionInfo = await oanda.getTradePosition(pairCode);
       const positionSize = positionInfo.position || 0;
 
       // If position is closed (by TP or SL order), determine which hit
@@ -847,7 +706,7 @@ async function closePosition(pairCode, outcome, exitPrice, exitBar) {
     try {
       logTrade(pairCode, `[REAL] Closing position...`);
 
-      const result = await orderExecutor.exitTrade(pairCode);
+      const result = await oanda.exitTrade(pairCode);
 
       if (result.success && result.avgPrice) {
         realExitPrice = result.avgPrice;
@@ -1575,10 +1434,9 @@ async function main() {
     }
 
     try {
-      // Connect to IBKR
-      statusMessage = 'Connecting to IBKR...';
-      await connectToIBKR();
-      await sleep(2000);
+      // Connect to OANDA
+      statusMessage = 'Connecting to OANDA...';
+      await connectToOanda();
 
       // Fetch historical data for all pairs
       for (const pairCode of ACTIVE_PAIRS) {
@@ -1596,17 +1454,9 @@ async function main() {
         }
       }
 
-      // Subscribe to real-time data for all pairs (skip pairs that share data)
-      for (const pairCode of ACTIVE_PAIRS) {
-        const config = PAIRS[pairCode];
-        if (config.sharesDataWith) {
-          log(`[${pairCode}] Sharing real-time data from ${config.sharesDataWith}`);
-          continue;  // Don't subscribe separately, will get data from shared pair
-        }
-        statusMessage = `Subscribing to ${pairCode} real-time data...`;
-        subscribeToRealTimeBars(pairCode);
-        await sleep(500);
-      }
+      // Start OANDA price streaming for all pairs
+      statusMessage = 'Starting price stream...';
+      await startPriceStreaming();
 
       sessionStartTime = new Date();
       statusMessage = `Trading active - monitoring ${ACTIVE_PAIRS.join(', ')}`;
@@ -1643,10 +1493,11 @@ async function main() {
       saveResults();
       printFinalSummary();
 
-      if (ib && isConnected) {
-        ib.disconnect();
-        isConnected = false;
+      if (priceStream) {
+        priceStream.stop();
+        priceStream = null;
       }
+      isConnected = false;
 
       statusMessage = `Session complete. Waiting for next session (${SESSION_START_HOUR}:00)...`;
       log('Waiting for next trading session...\n');
@@ -1656,10 +1507,11 @@ async function main() {
       console.error(err);
       statusMessage = `Error: ${err.message}. Retrying in 5 minutes...`;
 
-      if (ib && isConnected) {
-        ib.disconnect();
-        isConnected = false;
+      if (priceStream) {
+        priceStream.stop();
+        priceStream = null;
       }
+      isConnected = false;
 
       await sleep(300000);
     }
@@ -1682,8 +1534,8 @@ process.on('SIGINT', async () => {
   saveResults();
   printFinalSummary();
 
-  if (ib && isConnected) {
-    ib.disconnect();
+  if (priceStream) {
+    priceStream.stop();
   }
 
   process.exit(0);

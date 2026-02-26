@@ -1,0 +1,654 @@
+Synchronous APICopy Location
+With the release of TWS API 10.40, Interactive Brokers has introduced the Synchronous API Wrapper class. This class provides a synchronous API structure, combining the functionality of EClient and EWrapper into a beginner-friendly interface.
+
+The current release is still in a Beta state, slowly rolling out only a portion of what is available in the larger Trader Workstation API configuration. The interface is exclusively available through the Python programming language.
+
+The content shown here is an example of what the Sync Wrapper structure looks like. A larger example of all current functionality is available in the 10.40 release of the TWS API under {TWS API}/samples/Python/Testbed/sync_test.py .
+
+ 
+
+Request sample
+# Import our Sync Wrapper and Contract objects
+from ibapi.sync_wrapper_alt import *
+from datetime import datetime
+# Instantiate the reference for our sync class
+app = TWSSyncWrapper(timeout=30)
+# make a connection to Trader Workstation
+# In this case, we're connecting on Localhost with port 7496 and Client ID 0.
+if not app.connect_and_start(host="127.0.0.1", port=7496, client_id=8675309):
+    print("Failed to connect to TWS")
+    exit(1)
+else:
+    print("Connected to TWS")
+ 
+# Create a contract class reference.
+# In our case, we'll be testing with AAPL.
+contract = Contract()
+contract.symbol = "AAPL"
+contract.secType = "STK"
+contract.exchange = "SMART"
+contract.primaryExchange = "ISLAND"
+contract.currency = "USD"
+'''
+Contract details requests will return all contracts the match the details
+of our contract object in a list. Because a list is returned, we are 
+taking the first (or 0 index) contract returned. 
+'''
+aapl_contract = app.get_contract_details(contract)[0].contract
+print(aapl_contract)
+market_data = app.get_market_data_snapshot(aapl_contract)
+order = Order()
+order.action = "BUY"
+order.orderType = "LMT"
+order.totalQuantity = 100
+order.lmtPrice = 258
+order_status = app.place_order_sync(contract, order)
+oid = order_status["orderId"]
+print(app.get_open_orders()[oid]['orderState'].status)
+print(app.cancel_order_sync(oid, OrderCancel()))
+app.disconnect_and_stop()
+exit()
+Response Sample
+ERROR -1 1761170335710 2104 Market data farm connection is OK:usbond
+ERROR -1 1761170335711 2104 Market data farm connection is OK:usfarm.nj
+ERROR -1 1761170335712 2104 Market data farm connection is OK:eufarm
+ERROR -1 1761170335712 2104 Market data farm connection is OK:usfarm
+ERROR -1 1761170335712 2106 HMDS data farm connection is OK:ushmds
+ERROR -1 1761170335713 2158 Sec-def data farm connection is OK:secdefil
+Connected to TWS
+ConId: 265598, Symbol: AAPL, SecType: STK, LastTradeDateOrContractMonth: , Strike: 0, Right: , Multiplier: , Exchange: SMART, PrimaryExchange: ISLAND, Currency: USD, LocalSymbol: AAPL, TradingClass: NMS, IncludeExpired: False, SecIdType: , SecId: , Description: , IssuerId: Combo:
+{'price': {1: {'price': 258.5, 'attrib': 2076793531408: CanAutoExecute: 1, PastLimit: 0, PreOpen: 0}, 2: {'price': 258.65, 'attrib': 2076793531536: CanAutoExecute: 1, PastLimit: 0, PreOpen: 0}, 4: {'price': 258.62, 'attrib': 2076793531600: CanAutoExecute: 0, PastLimit: 0, PreOpen: 0}, 6: {'price': 262.85, 'attrib': 2076793531856: CanAutoExecute: 0, PastLimit: 0, PreOpen: 0}, 7: {'price': 255.43, 'attrib': 2076793531920: CanAutoExecute: 0, PastLimit: 0, PreOpen: 0}, 9: {'price': 262.77, 'attrib': 2076793531984: CanAutoExecute: 0, PastLimit: 0, PreOpen: 0}, 14: {'price': 262.74, 'attrib': 2076793532048: CanAutoExecute: 0, PastLimit: 0, PreOpen: 0}}, 'size': {0: Decimal('1'), 3: Decimal('5'), 5: Decimal('3'), 8: Decimal('449348')}}
+PreSubmitted
+{'orderId': 358, 'status': 'PreSubmitted', 'filled': Decimal('0'), 'remaining': Decimal('100'), 'avgFillPrice': 0.0, 'permId': 1054257323, 'parentId': 0, 'lastFillPrice': 0.0, 'clientId': 8675309, 'whyHeld': '', 'mktCapPrice': 0.0}
+TWSSyncWrapper ClassCopy Location
+The TWSSyncWrapper class is produced from the ibapi/sync_wrapper file. Clients looking to utilize the class may seek to replace their typical imports for ibapi/client and ibapi/wrapper with an import for “from ibapi.sync_wrapper import TWSSyncWrapper”.
+
+The TWSSyncWrapper class accepts a single argument, timeout. This will provide a default timeout integer in seconds for all connected functions to work with. If no timeout is specified, a default value of 30 seconds is passed instead.
+
+Each function supports a timeout argument for unique endpoint timeout behavior.
+
+Python
+Connect & Start ConnectionCopy Location
+After creating the class object reference with sync wrapper, connect_and_start() must be used to connect the Python program with the active Trader Workstation implementation. Identical to EClient’s connect() function, connect_and_start() supports arguments for host, port, and client_id.
+
+connect_and_start(
+host: String. Determine the connecting host IP for the API to connect to. Connections on the same computer should use “localhost” or “127.0.0.1”.
+
+port: Integer. Determine the connecting port number configured in the Global Configuration in the “Socket Port” field.
+
+Defaults: {TWS Live: 7496; TWS Paper: 7497; IBG Live: 4001; IBG Paper: 4002′}
+
+client_id: Integer. Determine the connecting client ID. TWS Supports up to 32 simultaneous API connections.
+
+Users should connect with a client_id of 0 for optimal order management functionality.
+
+)
+Python
+Response Object
+While it is not necessary to handle the response from connect_and_start(), the function will return the result of EClient.isConnected() to help with connection validation.
+
+The function call will return a single Boolean value, True or False, in reference to the connection status at the time of reference.
+
+Developers may look to implement code such as this that will gracefully handle the connection procedure should it fail to connect rather than proceeding with the rest of the code implementation.
+
+Python
+Disconnect & Stop ConnectionCopy Location
+Once a connection is no longer needed, developers should disconnect the session. This will terminate all ongoing requests through the class’s client_id. Connections through any other client ID or port will be unaffected.
+
+disconnect_and_stop()
+Python
+The function call does not return after calling. As a result, None is automatically passed in the event the function is referenced.
+
+Current TimeCopy Location
+Whenever a user would need to verify the current time used within Trader Workstation or to verify the connection with the application, users may call the get_current_time() function.
+
+get_current_time(
+timeout: Integer. Timeout before the request disconnects. Function-specific timeout default of 1 second.
+
+)
+
+Python
+Response Object
+get_current_time() will return the current timestamp as an integer representing an epoch timestamp.
+
+1760478515
+ 
+
+Next Valid IDCopy Location
+Requests should utilize an unique identifier after each request is submitted.
+
+The same order identifier cannot be reused except to modify an existing order.
+
+get_next_valid_id(
+timeout: Integer. Uses default timeout value passed to TWSSyncClass.
+
+)
+Python
+Response Object
+Requests to the get_next_valid_id() function will return the next valid order ID, which may be used in order submission.
+
+123456789
+ 
+
+Account SummaryCopy Location
+The get_account_summary() function returns all relevant account details identical to Trader Workstation’s “Account” window. Users may query to receive all available data or a narrow window based on the Account Summary Tag.
+
+get_account_summary(
+tags: String. Account summary key value to receive data for. See Account Summary Tags for details.
+
+group: String. Indicates a Financial Advisor’s allocation group to reference account details for. Non-advisor account structures should always pass “All”.
+
+Default value passed, “All”.
+
+timeout: Integer. Timeout before the request disconnects. Function-specific timeout default of 5 second.
+
+)
+ 
+
+Python
+Total size of the request may vary depending on number of accounts held in the account, and the number of tags requested.
+
+Response Object
+{AccountId}: Dictionary. Contains all tag value pairs for the designated accountId.
+
+{
+
+{Tag}: Dictionary. Contains the value of the affiliated tag along with the relevant currency.
+
+value: String. Contains the alphanumeric value affiliated with the designated tag.
+
+currency: String. Returns the currency used to denote the value. May return an empty string if returning value does not contain a price.
+
+}
+
+{'U1234567': {'AccountType': {'value': 'LLC', 'currency': ''}, 'Cushion': {'value': '0.993764', 'currency': ''}, 'DayTradesRemaining': {'value': '-1', 'currency': ''}, 'LookAheadNextChange': {'value': '1760558400', 'currency': ''}, 'AccruedCash': {'value': '262079.00', 'currency': 'USD'}, 'AvailableFunds': {'value': '219944453.18', 'currency': 'USD'}, 'BuyingPower': {'value': '1466299088.69', 'currency': 'USD'}, 'EquityWithLoanValue': {'value': '221042710.95', 'currency': 'USD'}, 'ExcessLiquidity': {'value': '220044618.70', 'currency': 'USD'}, 'FullAvailableFunds': {'value': '219944453.18', 'currency': 'USD'}, 'FullExcessLiquidity': {'value': '220044618.70', 'currency': 'USD'}, 'FullInitMarginReq': {'value': '1101020.27', 'currency': 'USD'}, 'FullMaintMarginReq': {'value': '1000859.00', 'currency': 'USD'}, 'GrossPositionValue': {'value': '2982965.22', 'currency': 'USD'}, 'InitMarginReq': {'value': '1101020.27', 'currency': 'USD'}, 'LookAheadAvailableFunds': {'value': '219944453.18', 'currency': 'USD'}, 'LookAheadExcessLiquidity': {'value': '220044618.70', 'currency': 'USD'}, 'LookAheadInitMarginReq': {'value': '1101020.27', 'currency': 'USD'}, 'LookAheadMaintMarginReq': {'value': '1000859.00', 'currency': 'USD'}, 'MaintMarginReq': {'value': '1000859.00', 'currency': 'USD'}, 'NetLiquidation': {'value': '221425500.56', 'currency': 'USD'}, 'PreviousDayEquityWithLoanValue': {'value': '205659145.23', 'currency': 'USD'}, 'TotalCashValue': {'value': '218181198.71', 'currency': 'USD'}}
+ 
+
+Contract DetailsCopy Location
+Interactive Brokers trading is centered around Contract Objects. This is used when submitting requests for market data, retrieving position information, and placing orders. The Synchronous Wrapper utilizes the same Contract Object as the standard TWS API.
+
+Passing as much known information through a Contract Details will return all contracts that match the requesting information. At a minimum, the Contract ID, or Symbol and Security Type must be passed for contract discovery.
+
+get_contract_details(
+contract: Contract Object. Contract details you are searching for.
+
+timeout: Integer. Timeout before the request disconnects. Function-specific timeout default of 5 second.
+
+)
+Python
+Response Object
+The get_contract_details() function will return a list of Contract objects.
+Unless a relatively narrow scope is provided during the initial contract details request, multiple contract objects may be returned within the list. Please be aware that directly printing this information may result in the memory address being displayed.
+
+[3039334541648: ConId: 265598, Symbol: AAPL, SecType: STK, LastTradeDateOrContractMonth: , Strike: 0, Right: , Multiplier: , Exchange: SMART, PrimaryExchange: ISLAND, Currency: USD, LocalSymbol: AAPL, TradingClass: NMS, IncludeExpired: False, SecIdType: , SecId: , Description: , IssuerId: Combo:,NMS,0.01,ACTIVETIM,AD,ADDONT,ADJUST,ALERT,ALGO,ALLOC,AON,AVGCOST,BASKET,BENCHPX,CASHQTY,COND,CONDORDER,DARKONLY,DARKPOLL,DAY,DEACT,DEACTDIS,DEACTEOD,DIS,DUR,GAT,GTC,GTD,GTT,HID,IBKRATS,ICE,IMB,IOC,LIT,LMT,LOC,MIDPX,MIT,MKT,MOC,MTL,NGCOMB,NODARK,NONALGO,OCA,OPG,OPGREROUT,PEGBENCH,PEGMID,POSTATS,POSTONLY,PREOPGRTH,PRICECHK,REL,REL2MID,RELPCTOFS,RPI,RTH,SCALE,SCALEODD,SCALERST,SIZECHK,SMARTSTG,SNAPMID,SNAPMKT,SNAPREL,STP,STPLMT,SWEEP,TRAIL,TRAILLIT,TRAILLMT,TRAILMIT,WHATIF,SMART,AMEX,NYSE,CBOE,PHLX,ISE,CHX,ARCA,ISLAND,DRCTEDGE,BEX,BATS,EDGEA,BYX,IEX,EDGX,FOXRIVER,PEARL,NYSENAT,LTSE,MEMX,IBEOS,OVERNIGHT,TPLUS0,PSX,T24X,1,0,APPLE INC,,Technology,Computers,Computers,US/Eastern,20251015:0400-20251015:2000;20251016:0400-20251016:2000;20251017:0400-20251017:2000;20251018:CLOSED;20251019:CLOSED;20251020:0400-20251020:2000,20251015:0930-20251015:1600;20251016:0930-20251016:1600;20251017:0930-20251017:1600;20251018:CLOSED;20251019:CLOSED;20251020:0930-20251020:1600,,0,,,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,26,1,[3039334542544: ISIN=US0378331005;],,COMMON,,,,,,False,False,0,False,,,,,False,,0.0001,0.0001,100,None,,,, 3039334543504: ConId: 273982664,...]
+ 
+
+Live Market DataCopy Location
+Users may request market data using get_market_data_snapshot() to retrieve available market data.
+The request currently supports tickPrice, tickSize, tickString, tickGeneric, tickNews, and tickOptionCompution data.
+
+get_market_data_snapshot(
+contract: Contract Object. Contract to retrieve market data for.
+
+generic_tick_list: String. String containing comma-separate values to determine addition data to retrieve.
+
+Default: Automatically sends an empty string, returning only the basic data such as Last, Bid, and Ask. See Available Tick Types for more details.
+
+snapshot: Boolean. Determine if a single snapshot should be returned or if data should be continuously updated until the timeout threshold has been reached.
+
+Default: Set to True, returning a snapshot of data as soon as possible.
+
+timeout: Integer. Uses default timeout value passed to TWSSyncClass.
+
+)
+Python
+Data returned by get_market_data_snapshot() is delivered as a json dictionary object, separating data into “price” and “size” tags. Values are then returned as the affiliated tick types alongside any price or attribute data.
+
+Response Object
+{
+
+{TickType}: Integer, Float String. The value of the tag. Can include price values (Float), Size values (Decimal), or direct information (string).
+
+}
+
+{'BID': 276.17, 'BID_SIZE': Decimal('900'), 'ASK': 276.2, 'ASK_SIZE': Decimal('300'), 'LAST_TIMESTAMP': '1764009996', 'LAST': 276.18, 'LAST_SIZE': Decimal('100'), 'VOLUME': Decimal('271511')}
+ 
+
+Historical Market DataCopy Location
+get_historical_data(
+contract: Contract Object. Contract to retrieve market data for.
+
+end_date_time: String. The request’s end date and time. This should be formatted as “YYYYMMDD HH:mm:ss TMZ”. You may also pass an empty string to indicate the current moment
+Please be aware that endDateTime must be left as an empty string when requesting continuous futures contracts or certain whatToShow values like ADJUSTED_LAST.
+
+duration_str: String. The total timespan the bars should cover. See Duration for details.
+
+bar_size_setting: String. The time span covered by each bar. See Bar Sizes for details.
+
+what_to_show: String. Determines what kind of data should be returned. See whatToShow for more details.
+
+use_rth: Boolean. Define if data should only be returned from the regular trading session or if extended trading hours should be included.
+
+Default: True is passed by default, only returning data from the regular trading sesions.
+
+format_date: Integer. Determine the return structure of the date. Supports (1) to return a datetime formatting string or 2 to return a epoch Unix timestamp.
+
+Default: Set to 1, returning a datetime string.
+
+timeout: Integer. A default value of 30 is supplied.
+
+)
+Python
+Response Object
+Requesting historical bars will return return a list containing all Bar objects for the duration. Please be aware that directly printing this information may result in the memory address being displayed.
+
+ 
+
+[2524872613328: Date: 20251013, Open: 249.31, High: 249.69, Low: 245.56, Close: 247.66, Volume: 187465.43, WAP: 247.952, BarCount: 105768, 2524872614864: Date: 20251014, Open: 246.6, High: 248.85, Low: 244.7, Close: 247.77, Volume: 176034.99, WAP: 247.21, BarCount: 100507, 2524872615120: Date: 20251015, Open: 249.49, High: 251.82, Low: 247.47, Close: 249.34, Volume: 172136.46, WAP: 249.754, BarCount: 96331, 2524872615248: Date: 20251016, Open: 248.28, High: 249.04, Low: 245.13, Close: 247.45, Volume: 235179.94, WAP: 247.351, BarCount: 132811, 2524872615376: Date: 20251017, Open: 248.08, High: 253.38, Low: 247.27, Close: 252.29, Volume: 260673.48, WAP: 250.408, BarCount: 125863]
+ 
+
+Place OrderCopy Location
+place_order_sync(
+contract: Contract Object. Contract to trade.
+
+order: Order Object. Order parameters to be traded.
+
+timeout: Integer. Uses default timeout value passed to TWSSyncClass. Please be aware the timeout is only relevant for the response details. The order will submit in accordance with the order object’s details.
+
+)
+Python
+Upon placing an order, a dictionary containing all of the order status’s information will be returned. As the response is static, refer to the get_open_orders function more more details on the current order status.
+
+Response Object
+{
+orderId: Integer. The identifier for the order. Relevant for order tracking, modification, and cancellation.
+status: String. The current status of the order. See Order Status for more details.
+filled: Decimal. The total quantity of executed shares for the order.
+remaining: Decimal. The total quantity of shares that have yet to execute for the order.
+avgFillPrice: Float. The average execution price across fills.
+permId: Integer. The permanent identifier for the order. This is calculated based on orderId and client ID for internal order tracking.
+parentId: Integer. The orderId for the parent of this contract. Will return 0 unless trading a bracket or OCA order.
+lastFillPrice: Float. The price of the most recent execution for the order.
+clientId: Integer. The identifier for which client ID the order was placed through. Orders can only be cancelled or modified by their on the clientId they are bound to.
+whyHeld: String. In the event an order is held instead of being transmitted, the reason will be documented here.
+mktCapPrice: Float. If an order is capped due to it exceeding the market price and the price is automatically modified, the modified price will be returned. Otherwise 0.0 is displayed.
+}
+ 
+
+{'orderId': 347, 'status': 'PreSubmitted', 'filled': Decimal('0'), 'remaining': Decimal('100'), 'avgFillPrice': 0.0, 'permId': 979867961, 'parentId': 0, 'lastFillPrice': 0.0, 'clientId': 8675309, 'whyHeld': '', 'mktCapPrice': 0.0}
+ 
+
+Cancel OrderCopy Location
+cancel_order_sync(
+order_id: Integer. Identifier for the order to cancel. Retrieved from the original Order Placement or get_open_orders().
+
+order: OrderCancel Object. Order cancellation parameters.
+
+timeout: Integer. A default value of 3 seconds is supplied.
+
+)
+Python
+Upon cancellingan order, a dictionary containing all of the order status’s information will be returned. As the response is static, refer to the get_open_orders function more more details on the current order status.
+
+Response Object
+{
+
+orderId: Integer. The identifier for the order. Relevant for order tracking, modification, and cancellation.
+
+status: String. The current status of the order. See Order Status for more details.
+
+filled: Decimal. The total quantity of executed shares for the order.
+
+remaining: Decimal. The total quantity of shares that have yet to execute for the order.
+
+avgFillPrice: Float. The average execution price across fills.
+
+permId: Integer. The permanent identifier for the order. This is calculated based on orderId and client ID for internal order tracking.
+
+parentId: Integer. The orderId for the parent of this contract. Will return 0 unless trading a bracket or OCA order.
+
+lastFillPrice: Float. The price of the most recent execution for the order.
+
+clientId: Integer. The identifier for which client ID the order was placed through. Orders can only be cancelled or modified by their on the clientId they are bound to.
+
+whyHeld: String. In the event an order is held instead of being transmitted, the reason will be documented here.
+
+mktCapPrice: Float. If an order is capped due to it exceeding the market price and the price is automatically modified, the modified price will be returned. Otherwise 0.0 is displayed.
+
+}
+
+{'orderId': 347, 'status': 'PendingCancel', 'filled': Decimal('0'), 'remaining': Decimal('100'), 'avgFillPrice': 0.0, 'permId': 1395073938, 'parentId': 0, 'lastFillPrice': 0.0, 'clientId': 8675309, 'whyHeld': '', 'mktCapPrice': 0.0}
+ 
+
+Open OrdersCopy Location
+get_open_orders(
+timeout: Integer. A default value of 3 seconds is supplied.
+
+)
+Python
+All orders from the current day’s trading session are returned in a dictionary, using the orderId as the key to discover the specific order.
+
+Response Object
+{
+{Order ID}: Dictionary. Returns the Contract, Order, and OrderState objects of the affiliated orderId.
+{
+orderId: Integer. The identifier for the order. Relevant for order tracking, modification, and cancellation.
+
+contract: Contract Object. Contract to trade.
+
+order: Order Object. Parameters for the given order to execute.
+
+orderState: OrderState Object. Current state of the order. Contains margin impact and status details.
+
+}
+ 
+
+{351: {'orderId': 351, 'contract': 2172957720272: ConId: 265598, Symbol: AAPL, SecType: STK, LastTradeDateOrContractMonth: , Strike: 0, Right: , Multiplier: , Exchange: SMART, PrimaryExchange: , Currency: USD, LocalSymbol: AAPL, TradingClass: NMS, IncludeExpired: False, SecIdType: , SecId: , Description: , IssuerId: Combo:, 'order': 2172957719120: 351,8675309,979867965: LMT BUY 100@800 GTC, 'orderState': }}
+ 
+
+ExecutionsCopy Location
+Request all executions following the Execution Filter’s restrictions.
+
+get_executions(
+exec_filter: ExecutionFilter Object. Parameters to restrict the Execution data to be returned.
+
+timeout: Integer. A default value of 10 seconds is supplied.
+
+)
+Python
+All executions passed in the context of the ExecutionFilter are returned in a list.
+
+Response Object
+[{
+
+contract: Contract Object. Contract to trade.
+
+execution: Execution Object. Execution details regarding the recent trade.
+
+}]
+ 
+
+[{'contract': 1530250139984: ConId: 265598, Symbol: AAPL, SecType: STK, LastTradeDateOrContractMonth: , Strike: 0, Right: , Multiplier: , Exchange: IEX, PrimaryExchange: , Currency: USD, LocalSymbol: AAPL, TradingClass: NMS, IncludeExpired: False, SecIdType: , SecId: , Description: , IssuerId: Combo:, 'execution': 1530250140432: ExecId: 0000e0d5.68fa9014.01.01, Time: 20251022 14:56:24 US/Eastern, Account: U1234567, Exchange: IEX, Side: BOT, Shares: 100, Price: 256.62, PermId: 1395073936, ClientId: 8675309, OrderId: 355, Liquidation: 0, CumQty: 100, AvgPrice: 256.62, OrderRef: , EvRule: , EvMultiplier: 0, ModelCode: , LastLiquidity: 2, PendingPriceRevision: False, Submitter: csdem9545, OptExerciseOrLapseType: None}]
+ 
+
+PositionsCopy Location
+Request positions for all accounts available to the user.
+
+get_positions(
+timeout: Integer. A default value of 10 seconds is supplied.
+
+)
+Python
+All orders from the current day’s trading session are returned in a dictionary, using the orderId as the key to discover the specific order.
+
+Response Object
+{
+{Account ID}: List. List of all contracts
+[{
+
+contract: Contract Object. Contract to trade.
+
+position: Decimal. The total number of shares held in the account.
+
+avgCost: Float. The average price across executions for the position.
+
+}]
+ 
+
+{'U1234567': [{'contract': 2333839861008: ConId: 340216238, Symbol: COIL, SecType: FUT, LastTradeDateOrContractMonth: 20251031, Strike: 0, Right: , Multiplier: 1000, Exchange: IPE, PrimaryExchange: , Currency: , LocalSymbol: COILZ5, TradingClass: COIL, IncludeExpired: False, SecIdType: , SecId: , Description: , IssuerId: Combo:, 'position': Decimal('4'), 'avgCost': 61359.9}]}
+ 
+
+PortfolioCopy Location
+Request portfolio details for the selected account or accounts available to the user.
+
+get_portfolio(
+account_code: String. The accountID to pull portfolio information for. If an empty string is passed, all accounts are requested.
+
+timeout: Integer. A default value of 10 seconds is supplied.
+
+)
+Python
+Response Object
+{
+{Account ID}: List. List of all contracts
+[{
+
+contract: Contract Object. Contract to trade.
+
+position: Decimal. The total number of shares held in the account.
+
+marketPrice: Float. The current market price of the instrument.
+
+marketValue: Float. The current value of the total position.
+
+averageCost: Float. The average price across executions for the position.
+
+unrealizedPNL: Float. The unrealized profit and loss for the instrument.
+
+realizedPNL: Float. The realized profit and loss for the instrument.
+
+accountName: String. The account identifier that holds the given position.
+
+}]
+ 
+
+[{'contract': 1957652380880: ConId: 265598, Symbol: AAPL, SecType: STK, LastTradeDateOrContractMonth: , Strike: 0, Right: , Multiplier: , Exchange: ISLAND, PrimaryExchange: , Currency: USD, LocalSymbol: AAPL, TradingClass: NMS, IncludeExpired: False, SecIdType: , SecId: , Description: , IssuerId: Combo:, 'position': Decimal('202635'), 'marketPrice': 258.57998655, 'marketValue': 52397355.58, 'averageCost': 263.3360764, 'unrealizedPNL': -963750.26, 'realizedPNL': 0.0, 'accountName': 'DU5240685'}]
+ 
+
+Account & Portfolio DataCopy Location
+The IBApi.EClient.reqAccountSummary method creates a subscription for the account data displayed in the TWS Account Summary window. It is commonly used with multiple-account structures. Introducing broker (IBroker) accounts with more than 50 subaccounts or configured for on-demand account lookup cannot use reqAccountSummary with group=”All”. A profile name can be accepted in place of group. See Unification of Groups and Profiles.
+
+The TWS offers a comprehensive overview of your account and portfolio through its Account and Portfolio windows. This information can be obtained via the TWS API through three different kind of requests/operations.
+
+Account SummaryCopy Location
+The initial invocation of reqAccountSummary will result in a list of all requested values being returned, and then every three minutes those values which have changed will be returned. The update frequency of 3 minutes is the same as the TWS Account Window and cannot be changed.
+
+Requesting Account SummaryCopy Location
+Requests a specific account’s summary. This method will subscribe to the account summary as presented in the TWS’ Account Summary tab. Customers can specify the data received by using a specific tags value. See the Account Summary Tags section for available options.
+
+Alternatively, many languages offer the import of AccountSummaryTags with a method to retrieve all tag values.
+
+EClient.reqAccountSummary (
+reqId: int. The unique request identifier.
+
+group: String. set to “All” to return account summary data for all accounts, or set to a specific Advisor Account Group name that has already been created in TWS Global Configuration.
+
+tags: String. A comma separated list with the desired tags
+
+)
+
+Important: only two active summary subscriptions are allowed at a time!
+
+Python
+Java
+C++
+C#
+VB.NET
+client.reqAccountSummary(9001, "All", "AccountType,NetLiquidation,TotalCashValue,SettledCash,AccruedCash,BuyingPower,EquityWithLoanValue,PreviousEquityWithLoanValue,GrossPositionValue,ReqTEquity,ReqTMargin,SMA,InitMarginReq,MaintMarginReq,AvailableFunds,ExcessLiquidity,Cushion,FullInitMarginReq,FullMaintMarginReq,FullAvailableFunds,FullExcessLiquidity,LookAheadNextChange,LookAheadInitMarginReq ,LookAheadMaintMarginReq,LookAheadAvailableFunds,LookAheadExcessLiquidity,HighestSeverity,DayTradesRemaining,Leverage");
+ 
+
+Account Summary TagsCopy Location
+AccountType	Identifies the IB account structure
+NetLiquidation	The basis for determining the price of the assets in your account. Total cash value + stock value + options value + bond value
+TotalCashValue	Total cash balance recognized at the time of trade + futures PNL
+SettledCash	Cash recognized at the time of settlement – purchases at the time of trade – commissions – taxes – fees
+AccruedCash	Total accrued cash value of stock, commodities and securities
+BuyingPower	Buying power serves as a measurement of the dollar value of securities that one may purchase in a securities account without depositing additional funds
+EquityWithLoanValue	Forms the basis for determining whether a client has the necessary assets to either initiate or maintain security positions. Cash + stocks + bonds + mutual funds
+PreviousEquityWithLoanValue	Marginable Equity with Loan value as of 16:00 ET the previous day
+GrossPositionValue	The sum of the absolute value of all stock and equity option positions
+RegTEquity	Regulation T equity for universal account
+RegTMargin	Regulation T margin for universal account
+SMA	Special Memorandum Account: Line of credit created when the market value of securities in a Regulation T account increase in value
+InitMarginReq	Initial Margin requirement of whole portfolio
+MaintMarginReq	Maintenance Margin requirement of whole portfolio
+AvailableFunds	This value tells what you have available for trading
+ExcessLiquidity	This value shows your margin cushion, before liquidation
+Cushion	Excess liquidity as a percentage of net liquidation value
+FullInitMarginReq	Initial Margin of whole portfolio with no discounts or intraday credits
+FullMaintMarginReq	Maintenance Margin of whole portfolio with no discounts or intraday credits
+FullAvailableFunds	Available funds of whole portfolio with no discounts or intraday credits
+FullExcessLiquidity	Excess liquidity of whole portfolio with no discounts or intraday credits
+LookAheadNextChange	Time when look-ahead values take effect
+LookAheadInitMarginReq	Initial Margin requirement of whole portfolio as of next period’s margin change
+LookAheadMaintMarginReq	Maintenance Margin requirement of whole portfolio as of next period’s margin change
+LookAheadAvailableFunds	This value reflects your available funds at the next margin change
+LookAheadExcessLiquidity	This value reflects your excess liquidity at the next margin change
+HighestSeverity	A measure of how close the account is to liquidation
+DayTradesRemaining	The Number of Open/Close trades a user could put on before Pattern Day Trading is detected. A value of “-1” means that the user can put on unlimited day trades.
+Leverage	GrossPositionValue / NetLiquidation
+$LEDGER	Single flag to relay all cash balance tags*, only in base currency.
+$LEDGER:CURRENCY	Single flag to relay all cash balance tags*, only in the specified currency.
+$LEDGER:ALL	Single flag to relay all cash balance tags* in all currencies.
+Receiving Account SummaryCopy Location
+EWrapper.accountSummary (
+reqId: int. the request’s unique identifier.
+
+account: String. the account id
+
+tag: String. the account’s attribute being received.
+
+value: String. the account’s attribute’s value.
+
+currency: String. the currency on which the value is expressed.
+
+)
+
+Receives the account information. This method will receive the account information just as it appears in the TWS’ Account Summary Window.
+
+Python
+Java
+C++
+C#
+VB.NET
+@Override
+public void accountSummary(int reqId, String account, String tag, String value, String currency) {
+    System.out.println(EWrapperMsgGenerator.accountSummary(reqId, account, tag, value, currency));
+}
+ 
+
+EWrapper.accountSummaryEnd(
+reqId: String. The request’s identifier.
+
+)
+
+Notifies when all the accounts’ information has ben received. Requires TWS 967+ to receive accountSummaryEnd in linked account structures.
+
+Python
+Java
+C++
+C#
+VB.NET
+@Override
+public void accountSummaryEnd(int reqId) {
+    System.out.println("Account Summary End. Req Id: " + EWrapperMsgGenerator.accountSummaryEnd(reqId));
+}
+Cancel Account SummaryCopy Location
+Once the subscription to account summary is no longer needed, it can be cancelled via the IBApi::EClient::cancelAccountSummary method:
+
+EClient.cancelAccountSummary (
+reqId: int. The identifier of the previously performed account request
+
+)
+
+Python
+C++
+Account UpdatesCopy Location
+The IBApi.EClient.reqAccountUpdates function creates a subscription to the TWS through which account and portfolio information is delivered. This information is the exact same as the one displayed within the TWS’ Account Window. Just as with the TWS’ Account Window, unless there is a position change this information is updated at a fixed interval of three minutes.
+
+Unrealized and Realized P&L is sent to the API function IBApi.EWrapper.updateAccountValue function after a subscription request is made with IBApi.EClient.reqAccountUpdates. This information corresponds to the data in the TWS Account Window, and has a different source of information, a different update frequency, and different reset schedule than PnL data in the TWS Portfolio Window and associated API functions (below). In particular, the unrealized P&L information shown in the TWS Account Window which is sent to EWrapper.updatePortfolio will update either (1) when a trade for that particular instrument occurs or (2) every 3 minutes. The realized P&L data in the TWS Account Window is reset to 0 once per day.
+
+It is important to keep in mind that the P&L data shown in the Account Window and Portfolio Window will sometimes differ because there is a different source of information and a different reset schedule.
+
+See Profit & Loss for alternative PnL data
+
+Requesting Account UpdatesCopy Location
+Subscribes to a specific account’s information and portfolio. Through this method, a single account’s subscription can be started/stopped. As a result from the subscription, the account’s information, portfolio and last update time will be received at EWrapper.updateAccountValue, EWrapper.updatePortfolio, EWrapper.updateAccountTime respectively. All account values and positions will be returned initially, and then there will only be updates when there is a change in a position, or to an account value every 3 minutes if it has changed. Only one account can be subscribed at a time. A second subscription request for another account when the previous one is still active will cause the first one to be canceled in favor of the second one.
+
+EClient.reqAccountUpdates (
+subscribe: bool. Set to true to start the subscription and to false to stop it.
+
+acctCode: String. The account id (i.e. U123456) for which the information is requested.
+
+)
+
+Python
+Java
+C++
+C#
+VB.NET
+client.reqAccountUpdates(true, "U1234567");
+ 
+
+Receiving Account UpdatesCopy Location
+Resulting account and portfolio information will be delivered via the IBApi.EWrapper.updateAccountValue, IBApi.EWrapper.updatePortfolio, IBApi.EWrapper.updateAccountTime and IBApi.EWrapper.accountDownloadEnd
+
+EWrapper.updateAccountValue (
+key: String. The value being updated.
+
+value: String. up-to-date value
+
+currency: String. The currency on which the value is expressed.
+
+accountName: String. The account identifier.
+)
+
+Receives the subscribed account’s information. Only one account can be subscribed at a time. After the initial callback to updateAccountValue, callbacks only occur for values which have changed. This occurs at the time of a position change, or every 3 minutes at most. This frequency cannot be adjusted.
+
+Note: An important key passed back in EWrapper.updateAccountValue after a call to EClient.reqAccountUpdates is a boolean value ‘accountReady’. If an accountReady value of false is returned that means that the IB server is in the process of resetting at that moment, i.e. the account is ‘not ready’. When this occurs subsequent key values returned to EWrapper.updateAccountValue in the current update can be out of date or incorrect.
+
+Python
+Java
+C++
+C#
+VB.NET
+@Override
+public void updateAccountValue(String key, String value, String currency, String accountName) {
+    System.out.println(EWrapperMsgGenerator.updateAccountValue( key, value, currency, accountName));
+}
+ 
+
+EWrapper.updatePortfolio (
+contract: Contract. The Contract for which a position is held.
+
+position: Decimal. The number of positions held.
+
+marketPrice: Double. The instrument’s unitary price
+
+marketValue: Double. Total market value of the instrument.
+
+averageCost: Double. Average cost of the overall position.
+
+unrealizedPNL: Double. Daily unrealized profit and loss on the position.
+
+realizedPNL: Double. Daily realized profit and loss on the position.
+
+accountName: String. Account ID for the update.
+
+)
+
+Receives the subscribed account’s portfolio. This function will receive only the portfolio of the subscribed account. After the initial callback to updatePortfolio, callbacks only occur for positions which have changed.
+
+Python
+Java
+C++
+C#
+VB.NET
+@Override
+public void updatePortfolio(Contract contract, Decimal position, double marketPrice, double marketValue, double averageCost, double unrealizedPNL, double realizedPNL, String accountName) {
+    System.out.println(EWrapperMsgGenerator.updatePortfolio( contract, position, marketPrice, marketValue, averageCost, unrealizedPNL, realizedPNL, accountName));
+}
+ 
+
+EWrapper.updateAccountTime (
+timestamp: String. the last update system time.
+
+)
+
+Receives the last time on which the account was updated.
+
+Python
+Java
+C++
+C#
+VB.NET
