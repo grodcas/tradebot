@@ -23,8 +23,8 @@ const oanda = require('./oanda_executor');
 // ----------------------------
 const REAL_EXECUTION = true;  // Set to false to simulate only
 const USE_LIMIT_ORDERS = true;  // true = limit orders (wait for price), false = market orders (immediate)
-const FIXED_POSITION_SIZE = 100000;  // 100K = $10/pip on EUR/USD
-const COMMISSION_PER_TRADE = 2.00;  // USD per side ($4 round trip)
+const FIXED_POSITION_SIZE = 1000;  // 1K = $0.10/pip on EUR/USD (~$2 per 20 pip TP)
+const COMMISSION_PER_TRADE = 0;  // OANDA = spread only, no commission
 const MAX_PENDING_BARS = 12;  // Cancel pending limit order after this many bars (12 bars = 1 hour)
 
 // Pair-specific strategy selectors (each pair has its own trained model/prompts)
@@ -39,8 +39,9 @@ const strategySelectors = {
 // CONFIG
 // ----------------------------
 const SESSION_TZ = 'Europe/Zurich';
-const SESSION_START_HOUR = 20;  // TEMP: Changed for testing (normally 8)
-const SESSION_END_HOUR = 23;   // TEMP: Changed for testing (normally 18)
+// Default trading hours (used for global session checks)
+const SESSION_START_HOUR = 8;
+const SESSION_END_HOUR = 18;
 
 const HISTORY_BARS_NEEDED = 800;
 const BAR_SIZE_MINUTES = 5;
@@ -60,12 +61,14 @@ const PAIRS = {
     spread: 0.00008,
     pipMultiplier: 10000,  // 1 pip = 0.0001
     displayName: 'EUR/USD',
+    tradingHours: { start: 8, end: 18 },  // 8:00-18:00 Zurich
   },
   USDJPY: {
     oandaInstrument: 'USD_JPY',
     spread: 0.008,
     pipMultiplier: 100,  // 1 pip = 0.01 for JPY pairs
     displayName: 'USD/JPY',
+    tradingHours: { start: 11, end: 20 },  // 11:00-20:00 Zurich (Asia/Tokyo overlap)
   },
   EURUSD_GPT5: {
     oandaInstrument: 'EUR_USD',
@@ -73,12 +76,14 @@ const PAIRS = {
     pipMultiplier: 10000,
     displayName: 'EUR/USD (GPT5)',
     sharesDataWith: 'EURUSD',  // Shares market data with EURUSD
+    tradingHours: { start: 8, end: 18 },  // Same as EURUSD
   },
   GBPUSD: {
     oandaInstrument: 'GBP_USD',
     spread: 0.00010,
     pipMultiplier: 10000,  // 1 pip = 0.0001
     displayName: 'GBP/USD',
+    tradingHours: { start: 9, end: 18 },  // 9:00-18:00 Zurich (London session focus)
   }
 };
 
@@ -146,17 +151,53 @@ function getZurichTime() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: SESSION_TZ }));
 }
 
+// Global session check (any pair could be trading)
 function isWithinSession() {
   const zurich = getZurichTime();
   const hour = zurich.getHours();
   const day = zurich.getDay();
-  return day >= 1 && day <= 5 && hour >= SESSION_START_HOUR && hour < SESSION_END_HOUR;
+  if (day < 1 || day > 5) return false;
+
+  // Check if ANY active pair is within its trading hours
+  return ACTIVE_PAIRS.some(pairCode => {
+    const config = PAIRS[pairCode];
+    const hours = config.tradingHours || { start: SESSION_START_HOUR, end: SESSION_END_HOUR };
+    return hour >= hours.start && hour < hours.end;
+  });
 }
 
+// Per-pair session check
+function isWithinPairSession(pairCode) {
+  const zurich = getZurichTime();
+  const hour = zurich.getHours();
+  const day = zurich.getDay();
+  if (day < 1 || day > 5) return false;
+
+  const config = PAIRS[pairCode];
+  const hours = config.tradingHours || { start: SESSION_START_HOUR, end: SESSION_END_HOUR };
+  return hour >= hours.start && hour < hours.end;
+}
+
+// Global session stop check
 function shouldStopSession() {
   const zurich = getZurichTime();
   const hour = zurich.getHours();
-  return hour >= SESSION_END_HOUR;
+
+  // All pairs have ended their trading hours
+  return ACTIVE_PAIRS.every(pairCode => {
+    const config = PAIRS[pairCode];
+    const hours = config.tradingHours || { start: SESSION_START_HOUR, end: SESSION_END_HOUR };
+    return hour >= hours.end;
+  });
+}
+
+// Per-pair session stop check
+function shouldStopPairSession(pairCode) {
+  const zurich = getZurichTime();
+  const hour = zurich.getHours();
+  const config = PAIRS[pairCode];
+  const hours = config.tradingHours || { start: SESSION_START_HOUR, end: SESSION_END_HOUR };
+  return hour >= hours.end;
 }
 
 function formatTime(date) {
@@ -302,14 +343,14 @@ async function finalizeBar(pairCode, bar) {
   // Check open positions
   if (state.currentPosition) {
     await checkPositionStatus(pairCode, bar);
-  } else if (!state.pendingOrder && !sessionEnded && isWithinSession()) {
-    // Only look for new trades if no pending order and no position
+  } else if (!state.pendingOrder && isWithinPairSession(pairCode)) {
+    // Only look for new trades if no pending order, no position, and within this pair's trading hours
     await processBar(pairCode, bar);
   }
 }
 
 /**
- * Check if a pending limit order has been filled
+ * Check if a pending limit order has been filled by querying OANDA
  */
 async function checkPendingOrderStatus(pairCode, bar) {
   const state = pairState[pairCode];
@@ -318,31 +359,55 @@ async function checkPendingOrderStatus(pairCode, bar) {
 
   pending.barsWaiting++;
 
-  // Check if price has touched our entry level (order likely filled)
   const { side, entry, sl, tp } = pending;
   let filled = false;
+  let actualEntryPrice = entry;
+  let tradeId = null;
 
-  if (side === 'LONG') {
-    // For long, filled when price goes down to our entry level
-    if (bar.low <= entry) {
-      filled = true;
+  // For REAL execution, query OANDA for actual order/position status
+  if (REAL_EXECUTION && pending.realExecution && pending.realOrderIds) {
+    try {
+      const instrument = getOandaInstrument(pairCode);
+      const tradesResult = await oanda.getOpenTradesForInstrument(instrument);
+
+      if (tradesResult.success && tradesResult.trades.length > 0) {
+        // We have an open trade - order was filled
+        const trade = tradesResult.trades[0];
+        filled = true;
+        actualEntryPrice = trade.price;
+        tradeId = trade.id;
+        logTrade(pairCode, `[REAL] LIMIT order FILLED - Trade ID: ${tradeId} @ ${actualEntryPrice}`);
+      }
+    } catch (err) {
+      logTrade(pairCode, `[REAL] Error checking order status: ${err.message}`);
+      // Fall back to price-based check
     }
-  } else {
-    // For short, filled when price goes up to our entry level
-    if (bar.high >= entry) {
-      filled = true;
+  }
+
+  // Fallback: Check if price has touched our entry level (for simulation or if OANDA check failed)
+  if (!filled) {
+    if (side === 'LONG') {
+      if (bar.low <= entry) {
+        filled = true;
+      }
+    } else {
+      if (bar.high >= entry) {
+        filled = true;
+      }
     }
   }
 
   if (filled) {
-    logTrade(pairCode, `[REAL] LIMIT order FILLED at ${entry} (price touched level)`);
+    if (!tradeId) {
+      logTrade(pairCode, `[REAL] LIMIT order FILLED at ${actualEntryPrice} (price touched level)`);
+    }
 
     // Convert pending to active position
     state.currentPosition = {
       pairCode,
       tradeNum: pending.tradeNum,
       side: pending.side,
-      entry: pending.entry,  // Entry at our limit price!
+      entry: actualEntryPrice,  // Use actual fill price from OANDA
       sl: pending.sl,
       tp: pending.tp,
       risk: pending.risk,
@@ -356,12 +421,13 @@ async function checkPendingOrderStatus(pairCode, bar) {
       realExecution: pending.realExecution,
       positionSize: pending.positionSize,
       realOrderIds: pending.realOrderIds,
+      tradeId: tradeId,  // Store OANDA trade ID for tracking
       commissionEntry: pending.realExecution ? COMMISSION_PER_TRADE : 0,
     };
 
     state.pendingOrder = null;
-    logTrade(pairCode, `ENTERED ${side} @ ${entry} | SL: ${sl} | TP: ${tp} | Size: ${pending.positionSize}`);
-    statusMessage = `[${pairCode}] In ${side} trade @ ${entry.toFixed(5)}`;
+    logTrade(pairCode, `ENTERED ${side} @ ${actualEntryPrice} | SL: ${sl} | TP: ${tp} | Size: ${pending.positionSize}`);
+    statusMessage = `[${pairCode}] In ${side} trade @ ${actualEntryPrice.toFixed(5)}`;
     return;
   }
 
@@ -507,10 +573,19 @@ async function executeTrade(pairCode, decision, entryBar, indicators) {
             entryOrderId: result.entryOrderId,
             takeProfitOrderId: result.takeProfitOrderId,
             stopLossOrderId: result.stopLossOrderId,
+            tradeId: result.tradeId || null,  // Store trade ID if immediately filled
           };
-          // With limit orders, the entry is pending until price hits the level
-          isPending = true;
-          logTrade(pairCode, `[REAL] LIMIT order placed - waiting for fill at ${decision.entry}`);
+
+          if (result.filled) {
+            // Order was immediately filled (price already at level)
+            isPending = false;
+            realEntry = result.entryPrice;
+            logTrade(pairCode, `[REAL] LIMIT order immediately FILLED at ${realEntry} - Trade ID: ${result.tradeId}`);
+          } else {
+            // With limit orders, the entry is pending until price hits the level
+            isPending = true;
+            logTrade(pairCode, `[REAL] LIMIT order placed - waiting for fill at ${decision.entry}`);
+          }
         } else {
           logTrade(pairCode, `[REAL] LIMIT order FAILED: ${result.error}`);
           return;
@@ -573,7 +648,7 @@ async function executeTrade(pairCode, decision, entryBar, indicators) {
     logTrade(pairCode, `PENDING ${decision.side} @ ${decision.entry} | SL: ${decision.sl} | TP: ${decision.tp} | Size: ${FIXED_POSITION_SIZE}`);
     statusMessage = `[${pairCode}] Pending ${decision.side} @ ${decision.entry.toFixed(5)}`;
   } else {
-    // Immediate fill (market order or simulation)
+    // Immediate fill (market order, limit order immediately filled, or simulation)
     state.currentPosition = {
       pairCode,
       tradeNum: state.tradeCounter,
@@ -597,6 +672,7 @@ async function executeTrade(pairCode, decision, entryBar, indicators) {
       realExecution: REAL_EXECUTION,
       positionSize: FIXED_POSITION_SIZE,
       realOrderIds: realOrderIds,
+      tradeId: realOrderIds?.tradeId || null,  // Store OANDA trade ID for tracking
       commissionEntry: REAL_EXECUTION ? COMMISSION_PER_TRADE : 0,
     };
     logTrade(pairCode, `ENTERED ${decision.side} @ ${realEntry} | SL: ${decision.sl} | TP: ${decision.tp} | Size: ${FIXED_POSITION_SIZE}`);
@@ -610,7 +686,7 @@ async function checkPositionStatus(pairCode, bar) {
 
   state.currentPosition.barsInTrade++;
 
-  const { side, entry, sl, tp, realExecution } = state.currentPosition;
+  const { side, entry, sl, tp, realExecution, tradeId } = state.currentPosition;
 
   if (side === 'LONG') {
     state.currentPosition.maxFavorable = Math.max(state.currentPosition.maxFavorable, bar.high - entry);
@@ -622,41 +698,54 @@ async function checkPositionStatus(pairCode, bar) {
 
   let outcome = null;
   let exitPrice = null;
+  let realPL = null;
 
-  // For real execution, check actual position status
+  // For real execution, check actual position status from OANDA
   if (REAL_EXECUTION && realExecution) {
     try {
       const positionInfo = await oanda.getTradePosition(pairCode);
       const positionSize = positionInfo.position || 0;
 
-      // If position is closed (by TP or SL order), determine which hit
+      // If position is closed, query OANDA for actual close details
       if (positionSize === 0) {
-        // Position was closed by bracket order
-        if (side === 'LONG') {
-          if (bar.high >= tp) {
-            outcome = 'TP';
-            exitPrice = tp;
-          } else if (bar.low <= sl) {
-            outcome = 'SL';
-            exitPrice = sl;
+        // Try to get close info from trade ID if we have it
+        if (tradeId) {
+          const closeInfo = await oanda.getTradeCloseInfo(tradeId);
+
+          if (closeInfo.success && closeInfo.closed) {
+            // Use REAL data from OANDA
+            if (closeInfo.closeReason === 'TP' || closeInfo.closeReason === 'TAKE_PROFIT_ORDER') {
+              outcome = 'TP';
+            } else if (closeInfo.closeReason === 'SL' || closeInfo.closeReason === 'STOP_LOSS_ORDER') {
+              outcome = 'SL';
+            } else if (closeInfo.closeReason === 'MANUAL' || closeInfo.closeReason === 'MARKET_ORDER_TRADE_CLOSE') {
+              outcome = 'MANUAL';
+            } else {
+              outcome = closeInfo.closeReason || 'CLOSED';
+            }
+
+            exitPrice = closeInfo.closePrice;
+            realPL = closeInfo.realizedPL;
+
+            logTrade(pairCode, `[REAL] Trade closed by OANDA - Reason: ${outcome} | Exit: ${exitPrice} | P&L: ${realPL.toFixed(2)}`);
           } else {
-            // Closed but unclear why - use current price
-            outcome = 'TP';  // Assume TP if position gone
+            // Couldn't get close info, fall back to position-based detection
+            logTrade(pairCode, `[REAL] Position closed but couldn't get close details`);
+            outcome = 'CLOSED';
             exitPrice = bar.close;
           }
         } else {
-          if (bar.low <= tp) {
-            outcome = 'TP';
-            exitPrice = tp;
-          } else if (bar.high >= sl) {
-            outcome = 'SL';
-            exitPrice = sl;
-          } else {
-            outcome = 'TP';
+          // No trade ID, try to get info from open trades query
+          const instrument = getOandaInstrument(pairCode);
+          const tradesResult = await oanda.getOpenTradesForInstrument(instrument);
+
+          if (tradesResult.success && tradesResult.trades.length === 0) {
+            // Position is definitely closed
+            logTrade(pairCode, `[REAL] Position closed (no trade ID to query details)`);
+            outcome = 'CLOSED';
             exitPrice = bar.close;
           }
         }
-        logTrade(pairCode, `[REAL] Position closed by bracket order - ${outcome}`);
       }
     } catch (err) {
       log(`[${pairCode}] Error checking real position: ${err.message}`);
@@ -664,7 +753,7 @@ async function checkPositionStatus(pairCode, bar) {
     }
   }
 
-  // Simulated check (or fallback)
+  // Simulated check (or fallback if real execution check didn't determine outcome)
   if (!outcome) {
     if (side === 'LONG') {
       if (bar.low <= sl) {
@@ -691,31 +780,48 @@ async function checkPositionStatus(pairCode, bar) {
   }
 
   if (outcome) {
-    await closePosition(pairCode, outcome, exitPrice, bar);
+    await closePosition(pairCode, outcome, exitPrice, bar, realPL);
   }
 }
 
-async function closePosition(pairCode, outcome, exitPrice, exitBar) {
+async function closePosition(pairCode, outcome, exitPrice, exitBar, oandaRealPL = null) {
   const state = pairState[pairCode];
   const pos = state.currentPosition;
 
   let realExitPrice = exitPrice;
+  let realizedPLFromOanda = oandaRealPL;
 
-  // Close real position if enabled
+  // Close real position if enabled (or try to get close info if already closed)
   if (REAL_EXECUTION && pos.realExecution) {
     try {
-      logTrade(pairCode, `[REAL] Closing position...`);
+      // First check if position is still open
+      const positionInfo = await oanda.getTradePosition(pairCode);
 
-      const result = await oanda.exitTrade(pairCode);
+      if (positionInfo.position !== 0) {
+        // Position still open - close it manually
+        logTrade(pairCode, `[REAL] Closing position...`);
+        const result = await oanda.exitTrade(pairCode);
 
-      if (result.success && result.avgPrice) {
-        realExitPrice = result.avgPrice;
-        logTrade(pairCode, `[REAL] Position closed at ${realExitPrice}`);
-      } else if (result.message === 'No position to close') {
-        // Position might have been closed by TP/SL already
-        logTrade(pairCode, `[REAL] Position already closed (likely by TP/SL order)`);
+        if (result.success) {
+          if (result.avgPrice) {
+            realExitPrice = result.avgPrice;
+          }
+          if (result.realizedPL !== undefined) {
+            realizedPLFromOanda = result.realizedPL;
+          }
+          logTrade(pairCode, `[REAL] Position closed at ${realExitPrice}`);
+        }
       } else {
-        logTrade(pairCode, `[REAL] Close result: ${JSON.stringify(result)}`);
+        // Position already closed (by TP/SL) - try to get actual close info
+        if (pos.tradeId && realizedPLFromOanda === null) {
+          const closeInfo = await oanda.getTradeCloseInfo(pos.tradeId);
+          if (closeInfo.success && closeInfo.closed) {
+            realExitPrice = closeInfo.closePrice || realExitPrice;
+            realizedPLFromOanda = closeInfo.realizedPL;
+            logTrade(pairCode, `[REAL] Retrieved close info from OANDA - Exit: ${realExitPrice} | P&L: ${realizedPLFromOanda?.toFixed(2)}`);
+          }
+        }
+        logTrade(pairCode, `[REAL] Position already closed (by TP/SL order)`);
       }
     } catch (err) {
       logTrade(pairCode, `[REAL] Close error: ${err.message}`);
@@ -728,18 +834,28 @@ async function closePosition(pairCode, outcome, exitPrice, exitBar) {
     : (pos.entry - realExitPrice) / riskPerUnit;
   const weightedR = rawR * pos.risk;
 
-  // Calculate real P&L in USD
-  const pipMultiplier = PAIRS[pairCode.split('_')[0]]?.pipMultiplier || 10000;
-  const priceDiff = pos.side === 'LONG' ? (realExitPrice - pos.entry) : (pos.entry - realExitPrice);
-  const grossPnL = priceDiff * (pos.positionSize || FIXED_POSITION_SIZE);
-  const totalCommission = (pos.commissionEntry || 0) + COMMISSION_PER_TRADE;
-  const netPnL = grossPnL - totalCommission;
+  // Use real P&L from OANDA if available, otherwise calculate
+  let grossPnL, netPnL, totalCommission;
+
+  if (realizedPLFromOanda !== null && realizedPLFromOanda !== undefined) {
+    // Use OANDA's actual P&L (already includes spread cost)
+    grossPnL = realizedPLFromOanda;
+    totalCommission = 0;  // OANDA's P&L already accounts for costs
+    netPnL = realizedPLFromOanda;
+    logTrade(pairCode, `[REAL P&L from OANDA] ${netPnL >= 0 ? '+' : ''}${netPnL.toFixed(2)} (account currency)`);
+  } else {
+    // Calculate estimated P&L
+    const priceDiff = pos.side === 'LONG' ? (realExitPrice - pos.entry) : (pos.entry - realExitPrice);
+    grossPnL = priceDiff * (pos.positionSize || FIXED_POSITION_SIZE);
+    totalCommission = (pos.commissionEntry || 0) + COMMISSION_PER_TRADE;
+    netPnL = grossPnL - totalCommission;
+  }
 
   logTrade(pairCode, `CLOSED ${pos.side} | ${outcome} @ ${realExitPrice} | R: ${rawR.toFixed(2)} | Weighted: ${weightedR.toFixed(2)}`);
   logTrade(pairCode, `Bars in trade: ${pos.barsInTrade} | Max favorable: ${pos.maxFavorable.toFixed(5)} | Max adverse: ${pos.maxAdverse.toFixed(5)}`);
 
-  if (REAL_EXECUTION) {
-    logTrade(pairCode, `[REAL P&L] Gross: $${grossPnL.toFixed(2)} | Commission: $${totalCommission.toFixed(2)} | Net: $${netPnL.toFixed(2)}`);
+  if (REAL_EXECUTION && realizedPLFromOanda === null) {
+    logTrade(pairCode, `[ESTIMATED P&L] Gross: $${grossPnL.toFixed(2)} | Commission: $${totalCommission.toFixed(2)} | Net: $${netPnL.toFixed(2)}`);
   }
 
   let summary = null;
@@ -772,10 +888,12 @@ async function closePosition(pairCode, outcome, exitPrice, exitBar) {
     summary,
     // Real execution data
     realExecution: pos.realExecution || false,
+    tradeId: pos.tradeId || null,
     positionSize: pos.positionSize || FIXED_POSITION_SIZE,
     grossPnL: REAL_EXECUTION ? grossPnL : null,
     commission: REAL_EXECUTION ? totalCommission : null,
     netPnL: REAL_EXECUTION ? netPnL : null,
+    pnlSource: realizedPLFromOanda !== null ? 'OANDA' : 'ESTIMATED',
   };
 
   state.tradeResults.push(tradeResult);
@@ -1037,10 +1155,61 @@ function printFinalSummary() {
 }
 
 // ----------------------------
+// OANDA LIVE DATA (for dashboard validation)
+// ----------------------------
+async function fetchOandaLiveData() {
+  const data = {
+    timestamp: new Date().toISOString(),
+    source: 'OANDA API (REAL)',
+    account: null,
+    openTrades: [],
+    pendingOrders: [],
+  };
+
+  try {
+    // Get real account summary from OANDA
+    const accountSummary = await oanda.getAccountSummary();
+    if (accountSummary.success) {
+      data.account = {
+        id: accountSummary.accountId,
+        currency: accountSummary.currency,
+        balance: accountSummary.balance,
+        nav: accountSummary.nav,
+        unrealizedPL: accountSummary.unrealizedPL,
+        marginUsed: accountSummary.marginUsed,
+        marginAvailable: accountSummary.marginAvailable,
+        openTradeCount: accountSummary.openTradeCount,
+        openPositionCount: accountSummary.openPositionCount,
+      };
+    }
+
+    // Get real open trades from OANDA
+    const openTrades = await oanda.getOpenTrades();
+    if (openTrades.success) {
+      data.openTrades = openTrades.trades.map(t => ({
+        id: t.id,
+        instrument: t.instrument,
+        units: t.units,
+        side: t.units > 0 ? 'LONG' : 'SHORT',
+        entryPrice: t.price,
+        currentUnrealizedPL: t.unrealizedPL,
+        takeProfitPrice: t.takeProfitPrice,
+        stopLossPrice: t.stopLossPrice,
+      }));
+    }
+
+  } catch (err) {
+    data.error = err.message;
+  }
+
+  return data;
+}
+
+// ----------------------------
 // WEB DASHBOARD
 // ----------------------------
 async function startDashboard() {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     const url = req.url.split('?')[0];
 
     if (url === '/status') {
@@ -1053,6 +1222,15 @@ async function startDashboard() {
         allTrades.push(...pairState[pairCode].tradeResults);
       }
       res.end(JSON.stringify(allTrades));
+    } else if (url === '/oanda-live') {
+      // Fetch REAL data from OANDA API for validation
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      try {
+        const oandaData = await fetchOandaLiveData();
+        res.end(JSON.stringify(oandaData));
+      } catch (err) {
+        res.end(JSON.stringify({ error: err.message }));
+      }
     } else {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(generateDashboardHTML());
@@ -1302,6 +1480,45 @@ function generateDashboardHTML() {
       color: #64748b;
       margin-top: 20px;
     }
+    .oanda-card {
+      background: linear-gradient(135deg, #1e293b 0%, #064e3b 100%);
+      border: 1px solid #10b981;
+    }
+    .oanda-badge {
+      background: #10b981;
+      color: #000;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+    .oanda-trades {
+      margin-top: 12px;
+    }
+    .oanda-trade {
+      background: #0f172a;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .oanda-trade .instrument {
+      font-weight: bold;
+      color: #60a5fa;
+    }
+    .oanda-trade .details {
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .oanda-trade .pnl {
+      font-weight: bold;
+      margin-top: 4px;
+    }
+    .loading {
+      color: #64748b;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -1369,11 +1586,75 @@ function generateDashboardHTML() {
       </div>
     </div>
 
+    <div class="card oanda-card">
+      <h2>OANDA Live Data <span class="oanda-badge">REAL API</span></h2>
+      <div id="oanda-data" class="loading">Loading OANDA data...</div>
+    </div>
+
     <div class="info-bar">
       <span>Auto-refreshes every 10 seconds</span>
       <span>Pairs: ${ACTIVE_PAIRS.join(', ')}</span>
     </div>
   </div>
+
+  <script>
+    async function fetchOandaData() {
+      try {
+        const res = await fetch('/oanda-live');
+        const data = await res.json();
+
+        if (data.error) {
+          document.getElementById('oanda-data').innerHTML = '<span class="negative">Error: ' + data.error + '</span>';
+          return;
+        }
+
+        let html = '';
+
+        // Account info
+        if (data.account) {
+          const plClass = data.account.unrealizedPL >= 0 ? 'positive' : 'negative';
+          const plSign = data.account.unrealizedPL >= 0 ? '+' : '';
+          html += '<div class="stats-grid" style="margin-bottom: 16px;">';
+          html += '<div class="stat"><div class="stat-value">' + data.account.balance.toFixed(2) + '</div><div class="stat-label">Balance (' + data.account.currency + ')</div></div>';
+          html += '<div class="stat"><div class="stat-value">' + data.account.nav.toFixed(2) + '</div><div class="stat-label">NAV</div></div>';
+          html += '<div class="stat"><div class="stat-value ' + plClass + '">' + plSign + data.account.unrealizedPL.toFixed(2) + '</div><div class="stat-label">Unrealized P&L</div></div>';
+          html += '<div class="stat"><div class="stat-value">' + data.account.openTradeCount + '</div><div class="stat-label">Open Trades</div></div>';
+          html += '</div>';
+        }
+
+        // Open trades
+        if (data.openTrades && data.openTrades.length > 0) {
+          html += '<div class="oanda-trades"><strong style="color: #94a3b8;">Open Positions (from OANDA):</strong>';
+          data.openTrades.forEach(t => {
+            const plClass = t.currentUnrealizedPL >= 0 ? 'positive' : 'negative';
+            const plSign = t.currentUnrealizedPL >= 0 ? '+' : '';
+            const sideClass = t.side === 'LONG' ? 'positive' : 'negative';
+            html += '<div class="oanda-trade">';
+            html += '<span class="instrument">' + t.instrument + '</span> ';
+            html += '<span class="' + sideClass + '">' + t.side + '</span> ';
+            html += '<span style="color: #64748b;">ID: ' + t.id + '</span>';
+            html += '<div class="details">Entry: ' + t.entryPrice + ' | Units: ' + Math.abs(t.units).toLocaleString() + '</div>';
+            html += '<div class="details">TP: ' + (t.takeProfitPrice || 'N/A') + ' | SL: ' + (t.stopLossPrice || 'N/A') + '</div>';
+            html += '<div class="pnl ' + plClass + '">Unrealized P&L: ' + plSign + t.currentUnrealizedPL.toFixed(2) + '</div>';
+            html += '</div>';
+          });
+          html += '</div>';
+        } else {
+          html += '<div style="color: #64748b; font-style: italic; margin-top: 12px;">No open positions in OANDA</div>';
+        }
+
+        html += '<div style="color: #64748b; font-size: 11px; margin-top: 12px;">Last updated: ' + new Date(data.timestamp).toLocaleTimeString() + '</div>';
+
+        document.getElementById('oanda-data').innerHTML = html;
+      } catch (err) {
+        document.getElementById('oanda-data').innerHTML = '<span class="negative">Failed to fetch OANDA data</span>';
+      }
+    }
+
+    // Fetch on load and every 10 seconds
+    fetchOandaData();
+    setInterval(fetchOandaData, 10000);
+  </script>
 </body>
 </html>`;
 }
@@ -1466,14 +1747,14 @@ async function main() {
       while (true) {
         await sleep(5000);
 
-        // Check session end
+        // Check session end (when ALL pairs have ended their trading hours)
         if (shouldStopSession() && !sessionEnded) {
           sessionEnded = true;
-          log('Session end time reached (18:00) - No new trades will be opened');
+          log('All trading sessions ended - No new trades will be opened');
 
-          const openPositions = ACTIVE_PAIRS.filter(p => pairState[p].currentPosition);
+          const openPositions = ACTIVE_PAIRS.filter(p => pairState[p].currentPosition || pairState[p].pendingOrder);
           if (openPositions.length > 0) {
-            log(`Open positions: ${openPositions.join(', ')}`);
+            log(`Open positions/orders: ${openPositions.join(', ')}`);
             log('Waiting for trades to finish (TP/SL)...');
             statusMessage = 'Session ended - waiting for open trades to close';
           } else {
@@ -1499,7 +1780,9 @@ async function main() {
       }
       isConnected = false;
 
-      statusMessage = `Session complete. Waiting for next session (${SESSION_START_HOUR}:00)...`;
+      // Find earliest start hour among active pairs
+      const earliestStart = Math.min(...ACTIVE_PAIRS.map(p => PAIRS[p].tradingHours?.start || SESSION_START_HOUR));
+      statusMessage = `Session complete. Waiting for next session (${earliestStart}:00)...`;
       log('Waiting for next trading session...\n');
 
     } catch (err) {
