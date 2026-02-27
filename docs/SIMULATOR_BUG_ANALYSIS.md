@@ -1,15 +1,111 @@
-# Simulator Bug Analysis
+# Simulator Bug Analysis - Deep Dive
 
 **Date**: 2026-02-27
 **Status**: Identified - Not Fixed
 **Severity**: High
-**File**: `src/batch_trainer.js` (lines 258-288)
+**Files**: `src/batch_trainer.js`, `src/live_trader.js`
+
+---
+
+## The Paradox
+
+| Environment | Win Rate | Profitability |
+|-------------|----------|---------------|
+| Simulator (batch_trainer.js) | 50-60% | Unknown |
+| Live IBKR (real bracket orders) | 75-90% | **LOSING MONEY** |
+
+This is counterintuitive. If the simulator had bugs that "cheated" in its favor, it should show HIGHER win rates, not lower.
 
 ---
 
 ## Summary
 
 The `simulateTrade` function has critical bugs that cause backtested results to be **overly optimistic** compared to live trading. Limit orders are assumed to fill instantly, and spread is calculated but never applied.
+
+---
+
+---
+
+## ROOT CAUSE ANALYSIS
+
+### Why Simulator WR is LOWER than Live
+
+**Bug: Same-Bar TP/SL Conflict Always Goes to SL**
+
+In `batch_trainer.js` lines 274, 280:
+```javascript
+if (hitSL && hitTP) return { outcome: "SL", ... };
+```
+
+And identically in `live_trader.js` lines 465-481:
+```javascript
+if (bar.low <= sl) {
+  outcome = 'SL';  // Checked FIRST
+} else if (bar.high >= tp) {
+  outcome = 'TP';  // Only if SL not hit
+}
+```
+
+**Impact:**
+- When BOTH levels are touched in the same 5-min bar, simulator counts it as LOSS
+- In reality with IBKR bracket orders, whichever level is hit FIRST wins
+- This could easily be 50/50 in real trading
+- This HURTS simulator win rate compared to live
+
+**Example:**
+- 5-min bar range: Low=1.1795, High=1.1825
+- Position: LONG, SL=1.1800, TP=1.1820
+- Both levels touched in same bar
+- Simulator: LOSS (SL checked first)
+- Live IBKR: Could be WIN if TP was hit first in real-time
+
+---
+
+### Why Live IBKR is LOSING MONEY Despite High WR
+
+**Issue: Market Entry with Limit-Based TP/SL**
+
+The AI sets Entry/TP/SL assuming a LIMIT entry at a specific price.
+When you enter at MARKET instead:
+
+1. **Entry is often WORSE than AI's intended price**
+2. **Risk to SL becomes LARGER (more pips)**
+3. **Reward to TP becomes SMALLER (fewer pips)**
+4. **R:R degrades significantly**
+
+**Example:**
+```
+AI Decision:     Entry=1.1800 (LIMIT), SL=1.1780, TP=1.1830
+                 Risk=20 pips, Reward=30 pips, R:R=1.50
+
+Market Entry:    Filled at 1.1810 (10 pips worse)
+                 Risk=30 pips (to same SL), Reward=20 pips (to same TP)
+                 R:R = 0.67 (WORSE THAN 1:1!)
+```
+
+**Math with degraded R:R:**
+- 80% WR × 0.67R wins = +0.536R
+- 20% × 1.0R losses = -0.20R
+- Expected = +0.336R per trade
+
+Still profitable... BUT add spread costs:
+- 0.8 pips spread on entry
+- 0.8 pips spread on exit
+- Adds ~1.6 pips to every trade's cost
+- On a 20-pip risk trade, that's 8% drag
+
+**The Real Killer: AI Setting R:R < 1.0**
+
+Observed in live trading today:
+```
+[EURUSD] MARKET filled at 1.18178 | Adjusted TP: 1.18248 SL: 1.17918 (R:R 0.27)
+```
+
+With R:R = 0.27:
+- 80% WR × 0.27R = +0.216R wins
+- 20% × 1.0R = -0.20R losses
+- Expected = +0.016R per trade (breakeven)
+- Add spread = NEGATIVE expectancy
 
 ---
 
@@ -194,3 +290,55 @@ Add metrics for:
 - Live trading with OANDA shows the real behavior (orders sit pending)
 - The trained AI models may have learned from flawed feedback
 - Consider re-training after fixing simulator
+
+---
+
+## COMPLETE FINDINGS SUMMARY
+
+### Why Simulator Shows 50-60% WR (Lower Than Expected)
+
+1. **Same-bar conflict bias**: When both TP and SL hit in same bar, ALWAYS counts as SL
+2. This actually HURTS simulator performance
+3. Real bracket orders would win some of these conflicts
+
+### Why Live IBKR Shows 75-90% WR
+
+1. Real OCO bracket orders properly resolve same-bar conflicts
+2. Whichever level is hit first in real-time wins
+3. Explains ~15-30% WR improvement over simulator
+
+### Why Live IBKR LOSES MONEY Despite High WR
+
+1. **Market entry degrades R:R**: AI's TP/SL are designed for specific entry, not market entry
+2. **AI sometimes sets R:R < 1.0**: Seen today with 0.27 R:R trade
+3. **Spread costs compound**: Entry + exit spread adds ~8% drag on small trades
+4. **Position sizing doesn't help**: Weighted R doesn't change the underlying math
+
+### The Core Problem
+
+The simulator and live trading measure SUCCESS differently:
+
+| Simulator | Live Reality |
+|-----------|--------------|
+| Enters at AI's limit price | Enters at market (worse) |
+| Same-bar = SL | Same-bar = whoever first |
+| No spread cost | ~0.8 pip each direction |
+| R calculation uses AI's entry | R should use actual entry |
+
+### Recommendations
+
+1. **Fix same-bar conflict**: Randomize or check bar internals (use tick data if available)
+2. **Simulate market entry**: Enter at bar.close + spread, not at AI's limit price
+3. **Recalculate TP/SL for market entry**: Maintain R:R ratio from actual entry (DONE in TRADEBOT_live)
+4. **Add minimum R:R filter**: Reject trades with R:R < 1.0
+5. **Track fill rate**: Not all limit orders fill - this should be simulated
+
+### Code Locations
+
+| Issue | File | Lines |
+|-------|------|-------|
+| Same-bar bias (simulator) | batch_trainer.js | 274, 280 |
+| Same-bar bias (live paper) | live_trader.js | 465-481 |
+| No limit fill simulation | batch_trainer.js | 265-267 |
+| Spread calculated but unused | batch_trainer.js | 261-263 |
+| R:R validation missing | orchestrator.js | None (should add) |
