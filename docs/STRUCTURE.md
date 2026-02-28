@@ -282,6 +282,7 @@ cp models/gpt5_iter5_20260221/*.js src/agents/
 | [SIMULATOR_BUG_ANALYSIS.md](SIMULATOR_BUG_ANALYSIS.md) | Critical bugs in backtester |
 | [LIVE_SESSION_ANALYSIS_20260218.md](LIVE_SESSION_ANALYSIS_20260218.md) | Feb 18 live trading session |
 | [BENCHMARK_OLD_TRADES.md](BENCHMARK_OLD_TRADES.md) | Old data performance |
+| [GPT-5 Iter5 OANDA Test (Feb 28)](reports/gpt5_iter5_oanda_20260228_report.md) | 30 scenarios on OANDA recent data |
 
 ---
 
