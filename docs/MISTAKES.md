@@ -151,6 +151,55 @@ Track costs PER OPERATION, not just total. Identify expensive operations early.
 
 ---
 
+## Iter6: Position-Based Range Fading Failed
+
+**Date**: Feb 28, 2026
+**Severity**: High
+**Status**: Understood, Reverting
+
+### Problem
+Iter6 changed direction logic to "fade the edges" - LONG at support (0-30%), SHORT at resistance (70-100%). Win rate dropped from 42% to 15%.
+
+### Why It Was Hard
+- Analysis showed SHORT at support = losses (correct observation)
+- Logical fix: "fade edges instead of follow EMA"
+- But this assumed markets were ranging when they were trending
+
+### Root Cause
+**Position-based fading fights trends.** The analysis was correct that shorting at support loses, but the solution was wrong:
+
+| Scenario | Iter5 | Iter6 | Correct |
+|----------|-------|-------|---------|
+| Strong uptrend, price at "resistance" | SHORT (follow EMA) | SHORT (fade resistance) | LONG (follow trend) |
+| Range, price at resistance | SHORT (follow EMA) | SHORT (fade resistance) | SHORT (correct) |
+
+The fix only worked in ranges. In trends, fading the "edges" means fighting the trend.
+
+### Data That Proved It
+```
+Iter5: 42.3% WR, -2.40R (followed EMA)
+Iter6: 14.8% WR, -3.25R (faded edges)
+```
+Iter6 trades: "Direction is valid as it aligns with resistance zone" → SL hit repeatedly.
+
+### The Real Pattern (from win/loss analysis)
+```
+SHORT Win Rate: 29% (too many shorts)
+LONG Win Rate: 67%
+```
+The problem wasn't "shorting at support" - it was **too many shorts period**. The market was bullish.
+
+### Solution
+**Trend detection BEFORE position fading:**
+1. IF |EMA slope| > 0.15 → Strong trend → Follow EMA direction
+2. IF |EMA slope| < 0.10 → Weak/range → Apply position fading
+3. NEVER fade in direction opposite to strong trend
+
+### Lesson Learned
+**Don't apply range logic to trending markets.** Position-based rules (fade edges) only work when the market is actually ranging. Always check trend strength FIRST.
+
+---
+
 ## Template
 
 Use this format for new entries:

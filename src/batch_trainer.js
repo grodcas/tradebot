@@ -285,36 +285,67 @@ Analyze this trade thoroughly. Output JSON:
 // ----------------------------
 // SIMULATION
 // ----------------------------
+/**
+ * Simulate trade with MARKET ORDER entry (like live trading)
+ * - Enters at next bar's open (market price), NOT AI's suggested entry
+ * - Adjusts SL/TP to maintain the same R:R ratio from actual entry
+ */
 function simulateTrade({ bars5m, entryIndex, decision, spread = DEFAULT_SPREAD, forwardBars = SIM_FORWARD_5M_BARS }) {
-  const { side, entry, tp, sl } = decision;
-
-  const entryAsk = entry + spread / 2;
-  const entryBid = entry - spread / 2;
-  const actualEntry = side === "LONG" ? entryAsk : entryBid;
+  const { side, entry: aiEntry, tp: aiTp, sl: aiSl } = decision;
 
   const start = entryIndex + 1;
   const end = Math.min(bars5m.length, start + forwardBars);
 
+  if (start >= bars5m.length) {
+    return { outcome: "TIMEOUT", exitPrice: aiEntry, exitIndex: entryIndex, barsToExit: 0, actualEntry: aiEntry, adjustedTp: aiTp, adjustedSl: aiSl };
+  }
+
+  // MARKET ORDER: Enter at next bar's open (simulates immediate market fill)
+  const nextBar = bars5m[start];
+  const marketPrice = nextBar.open;
+
+  // Apply spread to get actual fill price
+  const actualEntry = side === "LONG" ? marketPrice + spread / 2 : marketPrice - spread / 2;
+
+  // Calculate original R:R from AI decision (same as live_trader.js)
+  const originalRisk = Math.abs(aiEntry - aiSl);
+  const originalReward = Math.abs(aiTp - aiEntry);
+
+  // Adjust SL/TP based on actual entry, maintaining same distances (preserves R:R)
+  let adjustedSl, adjustedTp;
+  if (side === "LONG") {
+    adjustedSl = actualEntry - originalRisk;
+    adjustedTp = actualEntry + originalReward;
+  } else {
+    adjustedSl = actualEntry + originalRisk;
+    adjustedTp = actualEntry - originalReward;
+  }
+
+  // Round to 5 decimal places
+  adjustedSl = Math.round(adjustedSl * 100000) / 100000;
+  adjustedTp = Math.round(adjustedTp * 100000) / 100000;
+
+  // Simulate forward using adjusted levels
   for (let i = start; i < end; i++) {
     const b = bars5m[i];
 
     if (side === "LONG") {
-      const hitSL = b.low <= sl;
-      const hitTP = b.high >= tp;
-      if (hitSL && hitTP) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsToExit: i - entryIndex };
-      if (hitSL) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsToExit: i - entryIndex };
-      if (hitTP) return { outcome: "TP", exitPrice: tp, exitIndex: i, barsToExit: i - entryIndex };
+      const hitSL = b.low <= adjustedSl;
+      const hitTP = b.high >= adjustedTp;
+      if (hitSL && hitTP) return { outcome: "SL", exitPrice: adjustedSl, exitIndex: i, barsToExit: i - entryIndex, actualEntry, adjustedTp, adjustedSl };
+      if (hitSL) return { outcome: "SL", exitPrice: adjustedSl, exitIndex: i, barsToExit: i - entryIndex, actualEntry, adjustedTp, adjustedSl };
+      if (hitTP) return { outcome: "TP", exitPrice: adjustedTp, exitIndex: i, barsToExit: i - entryIndex, actualEntry, adjustedTp, adjustedSl };
     } else {
-      const hitSL = b.high >= sl;
-      const hitTP = b.low <= tp;
-      if (hitSL && hitTP) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsToExit: i - entryIndex };
-      if (hitSL) return { outcome: "SL", exitPrice: sl, exitIndex: i, barsToExit: i - entryIndex };
-      if (hitTP) return { outcome: "TP", exitPrice: tp, exitIndex: i, barsToExit: i - entryIndex };
+      const hitSL = b.high >= adjustedSl;
+      const hitTP = b.low <= adjustedTp;
+      if (hitSL && hitTP) return { outcome: "SL", exitPrice: adjustedSl, exitIndex: i, barsToExit: i - entryIndex, actualEntry, adjustedTp, adjustedSl };
+      if (hitSL) return { outcome: "SL", exitPrice: adjustedSl, exitIndex: i, barsToExit: i - entryIndex, actualEntry, adjustedTp, adjustedSl };
+      if (hitTP) return { outcome: "TP", exitPrice: adjustedTp, exitIndex: i, barsToExit: i - entryIndex, actualEntry, adjustedTp, adjustedSl };
     }
   }
 
   const last = bars5m[end - 1];
-  return { outcome: "TIMEOUT", exitPrice: last.close, exitIndex: end - 1, barsToExit: end - 1 - entryIndex };
+  return { outcome: "TIMEOUT", exitPrice: last.close, exitIndex: end - 1, barsToExit: end - 1 - entryIndex, actualEntry, adjustedTp, adjustedSl };
 }
 
 function pnlInR({ side, entry, sl, exitPrice }) {
@@ -423,9 +454,15 @@ async function main() {
         }
       }
 
-      // Simulate from the actual entry point
+      // Simulate from the actual entry point (MARKET ORDER - enters at next bar open)
       const simResult = simulateTrade({ bars5m, entryIndex: entryIdx, decision });
-      const rawR = pnlInR({ side: decision.side, entry: decision.entry, sl: decision.sl, exitPrice: simResult.exitPrice });
+
+      // Use ACTUAL entry and ADJUSTED SL for R calculation (like live trading)
+      const actualEntry = simResult.actualEntry || decision.entry;
+      const adjustedSl = simResult.adjustedSl || decision.sl;
+      const adjustedTp = simResult.adjustedTp || decision.tp;
+
+      const rawR = pnlInR({ side: decision.side, entry: actualEntry, sl: adjustedSl, exitPrice: simResult.exitPrice });
       const weightedR = rawR * decision.risk;
 
       // Track stats
@@ -456,9 +493,14 @@ async function main() {
 
       const waitInfo = decision.waitCount > 0 ? ` (waited ${decision.waitCount * 5}min)` : "";
       const tpR = decision.side === "LONG"
-        ? (decision.tp - decision.entry) / Math.abs(decision.entry - decision.sl)
-        : (decision.entry - decision.tp) / Math.abs(decision.sl - decision.entry);
-      console.log(`   ${decision.side} | TP target: ${tpR.toFixed(2)}R | Result: ${rawR.toFixed(2)}R x ${decision.risk.toFixed(1)} = ${weightedR.toFixed(2)} | ${simResult.outcome}${waitInfo}`);
+        ? (adjustedTp - actualEntry) / Math.abs(actualEntry - adjustedSl)
+        : (actualEntry - adjustedTp) / Math.abs(adjustedSl - actualEntry);
+
+      // Show slippage info (difference between AI entry and actual market entry)
+      const slippage = actualEntry - decision.entry;
+      const slippageInfo = Math.abs(slippage) > 0.00001 ? ` | Slip: ${slippage > 0 ? '+' : ''}${(slippage * 10000).toFixed(1)}pips` : "";
+
+      console.log(`   ${decision.side} @ ${actualEntry.toFixed(5)}${slippageInfo} | TP: ${tpR.toFixed(2)}R | Result: ${rawR.toFixed(2)}R x ${decision.risk.toFixed(1)} = ${weightedR.toFixed(2)} | ${simResult.outcome}${waitInfo}`);
       console.log(`   Reasoning: ${decision.reasoning?.slice(0, 150)}...`);
 
       if (summary && !summary.error) {
@@ -492,11 +534,17 @@ async function main() {
         },
         decision: {
           side: decision.side,
-          entry: decision.entry,
-          tp: decision.tp,
-          sl: decision.sl,
+          aiEntry: decision.entry,  // AI's suggested entry
+          aiTp: decision.tp,        // AI's suggested TP
+          aiSl: decision.sl,        // AI's suggested SL
           risk: decision.risk,
           reasoning: decision.reasoning,
+        },
+        execution: {
+          actualEntry: actualEntry,   // Market fill price
+          adjustedTp: adjustedTp,     // TP adjusted from market entry
+          adjustedSl: adjustedSl,     // SL adjusted from market entry
+          slippage: actualEntry - decision.entry,  // Slippage in price
         },
         simResult,
         rawR,

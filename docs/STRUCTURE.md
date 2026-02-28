@@ -237,7 +237,32 @@ TRADEBOT/
 |-------|----------|---------|--------|------|------|
 | GPT-4 Baseline | 53.4% | +10.23R | 60 | Feb 21 | [README](../models/gpt4_baseline_20260221/README.md) |
 | GPT-5 Iter4 | 74.1% | +38.90R | 58 | Feb 21 | [README](../models/gpt5_iter4_20260221/README.md) |
-| **GPT-5 Iter5** | **78.0%** | **+42.62R** | **59** | Feb 21 | [README](../models/gpt5_iter5_20260221/README.md) |
+| GPT-5 Iter5 | 78.0% | +42.62R | 59 | Feb 21 | [README](../models/gpt5_iter5_20260221/README.md) |
+| **GPT-5 Market Order** | **TESTING** | - | - | Feb 28 | [README](../models/gpt5_market_order_20260228/README.md) |
+
+### Iteration Tracking
+
+Each model folder contains an `iterations/` subfolder with detailed logs:
+
+```
+models/gpt5_market_order_20260228/
+├── README.md              # Model overview
+├── metadata.json          # Version info, iteration history
+├── *.js                   # Agent files
+└── iterations/            # Iteration history
+    ├── iter5_market_baseline.md   # 42% WR - baseline
+    ├── iter6_position_fading.md   # 15% WR - FAILED (fought trends)
+    └── iter7_trend_first.md       # PENDING
+```
+
+**Each iteration log includes:**
+- Changes made (what was tried)
+- Test results (WR, R, trades)
+- Why it worked or failed
+- Lessons learned
+- Link to next iteration
+
+This prevents repeating the same mistakes across iterations.
 
 ---
 

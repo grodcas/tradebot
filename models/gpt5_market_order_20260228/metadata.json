@@ -1,0 +1,60 @@
+{
+  "name": "gpt5_market_order",
+  "version": "iter8_revert",
+  "date_created": "2026-02-28",
+  "base_model": "gpt-5.2",
+  "description": "GPT-5 Iter5 direction logic + market order aware levels. Best performing configuration.",
+  "iteration_history": [
+    {
+      "iteration": 5,
+      "name": "market_baseline",
+      "win_rate": 42.3,
+      "weighted_r": -2.40,
+      "status": "baseline",
+      "key_change": "Market order awareness, wider stops"
+    },
+    {
+      "iteration": 6,
+      "name": "position_fading",
+      "win_rate": 14.8,
+      "weighted_r": -3.25,
+      "status": "failed",
+      "key_change": "Position-based fading (fought trends)"
+    },
+    {
+      "iteration": 7,
+      "name": "trend_first",
+      "win_rate": 28.6,
+      "weighted_r": -0.91,
+      "status": "partial_improvement",
+      "key_change": "Trend detection before position logic"
+    },
+    {
+      "iteration": 8,
+      "name": "revert_to_iter5",
+      "win_rate": null,
+      "weighted_r": null,
+      "status": "active",
+      "key_change": "Reverted direction/confidence to Iter5, kept market order levels"
+    }
+  ],
+  "key_features": [
+    "Market order entry (not limit)",
+    "1.0+ ATR minimum stop distance",
+    "Entry location quality check",
+    "Trend strength detection first",
+    "Position fading only in confirmed ranges"
+  ],
+  "files": [
+    "direction_agent.js",
+    "confidence_agent.js",
+    "levels_agent.js",
+    "orchestrator.js",
+    "ai_client.js"
+  ],
+  "simulator_changes": [
+    "Enters at next bar open (market price)",
+    "Adjusts SL/TP to preserve original R:R",
+    "Tracks slippage from AI entry"
+  ]
+}
