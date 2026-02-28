@@ -1,9 +1,9 @@
 {
   "name": "gpt5_market_order",
-  "version": "iter8_revert",
+  "version": "iter11_range_trading",
   "date_created": "2026-02-28",
   "base_model": "gpt-5.2",
-  "description": "GPT-5 Iter5 direction logic + market order aware levels. Best performing configuration.",
+  "description": "GPT-5 market order model with regime-specific direction logic. First profitable iteration: 66.7% WR, +18.82R.",
   "iteration_history": [
     {
       "iteration": 5,
@@ -34,8 +34,35 @@
       "name": "revert_to_iter5",
       "win_rate": null,
       "weighted_r": null,
-      "status": "active",
+      "status": "superseded",
       "key_change": "Reverted direction/confidence to Iter5, kept market order levels"
+    },
+    {
+      "iteration": 9,
+      "name": "multitf_direction",
+      "win_rate": 28.6,
+      "weighted_r": -1.00,
+      "status": "diagnostic",
+      "key_change": "Multi-TF direction rewrite (daily + 30m + 5m)"
+    },
+    {
+      "iteration": 10,
+      "name": "diagnostic_fixes",
+      "win_rate": 29.4,
+      "weighted_r": -1.89,
+      "status": "diagnostic",
+      "key_change": "Input quality fixes + agent interpretation fixes"
+    },
+    {
+      "iteration": 11,
+      "name": "range_trading",
+      "win_rate": 66.7,
+      "weighted_r": 9.41,
+      "raw_r": 18.82,
+      "trades": 27,
+      "skipped": 3,
+      "status": "active",
+      "key_change": "Fix RANGE trading: regime-specific direction logic + structureAligned fix"
     }
   ],
   "key_features": [

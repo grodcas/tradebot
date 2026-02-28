@@ -378,22 +378,30 @@ async function main() {
     console.log(`[${i + 1}/${NUM_SCENARIOS}] Anchor: ${anchor.time}`);
 
     try {
-      // Build context
-      const win5m = sliceEndingAt(bars5m, idx, WIN_5M_BARS);
-      if (!win5m) throw new Error("Not enough 5m history.");
+      // Build initial context from anchor
+      let currentIdx = idx;
 
-      const need5mFor30m = WIN_30M_BARS * 6;
-      const sliceFor30m = sliceEndingAt(bars5m, idx, need5mFor30m);
-      if (!sliceFor30m) throw new Error("Not enough history for 30m.");
-      const bars30m = aggregateBars(sliceFor30m, 6).slice(-WIN_30M_BARS);
+      // Helper to build context and indicators for a given index
+      function buildContextForIdx(cIdx) {
+        const win5m = sliceEndingAt(bars5m, cIdx, WIN_5M_BARS);
+        if (!win5m) throw new Error("Not enough 5m history.");
 
-      const upToAnchor = bars5m.slice(0, idx + 1);
-      const dailyAll = aggregateDaily(upToAnchor);
-      const barsDaily = dailyAll.slice(-WIN_DAILY_BARS);
-      if (barsDaily.length < MIN_DAILY_BARS) throw new Error(`Not enough daily history (need ${MIN_DAILY_BARS}, got ${barsDaily.length}).`);
+        const need5mFor30m = WIN_30M_BARS * 6;
+        const sliceFor30m = sliceEndingAt(bars5m, cIdx, need5mFor30m);
+        if (!sliceFor30m) throw new Error("Not enough history for 30m.");
+        const bars30m = aggregateBars(sliceFor30m, 6).slice(-WIN_30M_BARS);
 
-      const context = buildLLMContext({ bars5m: win5m, bars30m, barsDaily });
-      const indicators = computeIndicators(bars5m, bars30m, idx);
+        const upToIdx = bars5m.slice(0, cIdx + 1);
+        const dailyAll = aggregateDaily(upToIdx);
+        const barsDaily = dailyAll.slice(-WIN_DAILY_BARS);
+        if (barsDaily.length < MIN_DAILY_BARS) throw new Error(`Not enough daily history (need ${MIN_DAILY_BARS}, got ${barsDaily.length}).`);
+
+        const context = buildLLMContext({ bars5m: win5m, bars30m, barsDaily });
+        const indicators = computeIndicators(bars5m, bars30m, cIdx);
+        return { context, indicators };
+      }
+
+      let { context, indicators } = buildContextForIdx(currentIdx);
 
       // Entry timing loop
       let waitCount = 0;
@@ -431,6 +439,8 @@ async function main() {
           if (entryIdx >= bars5m.length - SIM_FORWARD_5M_BARS) {
             throw new Error("Ran out of bars while waiting.");
           }
+          // Recompute context and indicators for the new bar
+          ({ context, indicators } = buildContextForIdx(entryIdx));
           await new Promise(r => setTimeout(r, 300));
         } else if (rawDecision.action === "WAIT" && mustTrade) {
           const closePrice = bars5m[entryIdx].close;

@@ -1,22 +1,20 @@
 /**
- * Strategy Selector - Multi-Agent Architecture
+ * Strategy Selector - Multi-Agent Architecture (Iter9)
  *
  * Coordinates specialist agents:
- * 1. Direction Agent - Market structure expert
- * 2. Confidence Agent - Probability assessor
- * 3. Levels Agent - Entry/SL/TP expert
+ * 1. Direction Agent - Market structure expert (multi-timeframe)
+ * 2. Confidence Agent - Confirm/reject gate
+ *
+ * Levels are MECHANICAL (no AI):
+ * - SL = 1.5 × ATR_30m
+ * - TP = 1.5:1 R:R
+ * - Risk = fixed 0.50
  */
 
 const { orchestrateTrade } = require('./agents/orchestrator');
 
 const MAX_WAIT_BARS = 6;
-const MIN_RISK = 0.15;
-const MAX_RISK = 0.70;
-
-function clampRisk(x) {
-  if (!Number.isFinite(x) || x <= 0) return MIN_RISK;
-  return Math.max(MIN_RISK, Math.min(MAX_RISK, x));
-}
+const FIXED_RISK = 0.50;
 
 function validateDecision(dec, fallbackEntry) {
   if (!dec || typeof dec !== "object") throw new Error("Decision not an object.");
@@ -39,7 +37,6 @@ function validateDecision(dec, fallbackEntry) {
   const entry = Number(dec.entry ?? fallbackEntry);
   const tp = Number(dec.tp);
   const sl = Number(dec.sl);
-  const risk = clampRisk(Number(dec.risk));
 
   if (![entry, tp, sl].every(Number.isFinite)) throw new Error("entry/tp/sl must be numbers.");
   if (tp === sl) throw new Error("tp cannot equal sl.");
@@ -54,7 +51,7 @@ function validateDecision(dec, fallbackEntry) {
     ? `Dir: ${dec.reasoning.direction?.slice(0, 50)} | Conf: ${dec.reasoning.confidence?.slice(0, 50)}`
     : dec.reasoning || "";
 
-  return { side: dec.side, entry, tp, sl, risk, reasoning, riskReward: dec.riskReward };
+  return { side: dec.side, entry, tp, sl, risk: FIXED_RISK, reasoning, riskReward: dec.riskReward };
 }
 
 /**
@@ -64,11 +61,14 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
 
   // Extract what the agents need
   const prices5m = context.prices_5m;
+  const prices30m = context.prices_30m;
+  const pricesDaily = context.prices_daily;
   const currentPrice = currentBar.close;
 
   // Get indicators
   const ema50 = indicators.EMA50_30m || currentPrice;
   const emaSlope = indicators.EMA50_slope_30m || 0;
+  const ema200 = indicators.EMA200_30m || null;  // null if insufficient data — don't fake it
   const support = indicators.support || indicators.prevSessionLow;
   const resistance = indicators.resistance || indicators.prevSessionHigh;
 
@@ -80,13 +80,20 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
 
   const sessionHigh = indicators.prevSessionHigh;
   const sessionLow = indicators.prevSessionLow;
-  const atr = indicators.ATR_5m;
+  const atr5m = indicators.ATR_5m;
+  const atr30m = indicators.ATR_30m;
+
+  // Structure swing points for direction agent
+  const structureSwings = indicators.structureSwings || {};
 
   // Call the multi-agent orchestrator
   const result = await orchestrateTrade({
     prices5m,
+    prices30m,
+    pricesDaily,
     ema50,
     emaSlope,
+    ema200,
     support,
     resistance,
     swingHigh,
@@ -94,12 +101,14 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
     sessionHigh,
     sessionLow,
     currentPrice,
-    atr,
-    // Additional context indicators for better confidence assessment
+    atr5m,
+    atr30m,
+    // Multi-timeframe context for direction agent
+    currentSession: indicators.currentSession,
     marketRegime: indicators.marketRegime,
     structureState: indicators.structureState,
-    breakoutScore: indicators.breakoutScore,
-    sweepScore: indicators.sweepScore
+    structureLabel: indicators.structureLabel,
+    structureSwings,
   });
 
   // Format for compatibility with existing system
@@ -108,8 +117,8 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
       action: 'WAIT',
       side: 'LONG',
       entry: currentPrice,
-      sl: currentPrice - atr,
-      tp: currentPrice + atr,
+      sl: currentPrice - atr5m,
+      tp: currentPrice + atr5m,
       risk: 0,
       reasoning: result.reason
     };

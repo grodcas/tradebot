@@ -16,18 +16,17 @@ This model assumes **market order** entry at current price.
 
 ## Current Status
 
-**Active Iteration**: Iter8 (Reverted to Iter5 direction logic)
+**Active Iteration**: Iter11 (Fix RANGE trading — first profitable iteration)
 
-| Iteration | Win Rate | Status | Key Change |
-|-----------|----------|--------|------------|
-| [Iter5](iterations/iter5_market_baseline.md) | 42.3% | Baseline | Market order awareness |
-| [Iter6](iterations/iter6_position_fading.md) | 14.8% | FAILED | Position fading (fought trends) |
-| [Iter7](iterations/iter7_trend_first.md) | 28.6% | Partial fix | Trend detection first |
-| **[Iter8](iterations/iter8_revert_to_iter5.md)** | **TBD** | **ACTIVE** | **Revert to Iter5 direction** |
-
-### Why We Reverted
-
-After Iter6 and Iter7 failed to improve on the baseline, we determined the original Iter5 direction logic was correct. The issue was market order simulation, not direction logic. See [iter8_revert_to_iter5.md](iterations/iter8_revert_to_iter5.md) for full explanation.
+| Iteration | Win Rate | Raw R | Status | Key Change |
+|-----------|----------|-------|--------|------------|
+| [Iter5](iterations/iter5_market_baseline.md) | 42.3% | -2.40 | Baseline | Market order awareness |
+| [Iter6](iterations/iter6_position_fading.md) | 14.8% | -3.25 | FAILED | Position fading (fought trends) |
+| [Iter7](iterations/iter7_trend_first.md) | 28.6% | -0.91 | Partial fix | Trend detection first |
+| [Iter8](iterations/iter8_revert_to_iter5.md) | — | — | Revert | Revert to Iter5 direction |
+| [Iter9](iterations/iter9_multitf_direction.md) | 28.6% | -2.00 | Diagnostic | Multi-TF direction rewrite |
+| [Iter10](iterations/iter10_diagnostic_fixes.md) | 29.4% | -3.79 | Diagnostic | Input quality + agent fixes |
+| **[Iter11](iterations/iter11_range_trading.md)** | **66.7%** | **+18.82** | **PROFITABLE** | **Fix RANGE trading** |
 
 ## Iteration History
 

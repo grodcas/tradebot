@@ -6,8 +6,10 @@ AI-powered EUR/USD trading system using GPT models. Core innovation: **iterate o
 ## Tech Stack
 `Node.js` | `GPT-4/GPT-5` | `OANDA API` | `Claude (human-guided iteration)`
 
-## Current Best Model
-**GPT-5 Iter5** | 78% Win Rate | +42.62R | 59 trades | Feb 21, 2026
+## Current Active Model
+**GPT-5 Market Order** (Iter9 in progress) | Baseline 42.3% WR | Feb 28, 2026
+
+> **Note:** Legacy models (Iter5, Iter4, GPT-4 Baseline) showed 53-78% win rates, but those stats are **inflated by the limit-order fill bug** — the simulator assumed perfect limit fills that would rarely execute in live trading. Only market-order results are realistic.
 
 ---
 
@@ -235,10 +237,12 @@ TRADEBOT/
 
 | Model | Win Rate | Total R | Trades | Date | Docs |
 |-------|----------|---------|--------|------|------|
-| GPT-4 Baseline | 53.4% | +10.23R | 60 | Feb 21 | [README](../models/gpt4_baseline_20260221/README.md) |
-| GPT-5 Iter4 | 74.1% | +38.90R | 58 | Feb 21 | [README](../models/gpt5_iter4_20260221/README.md) |
-| GPT-5 Iter5 | 78.0% | +42.62R | 59 | Feb 21 | [README](../models/gpt5_iter5_20260221/README.md) |
-| **GPT-5 Market Order** | **TESTING** | - | - | Feb 28 | [README](../models/gpt5_market_order_20260228/README.md) |
+| LEGACY GPT-4 Baseline | ~~53.4%~~ | ~~+10.23R~~ | 60 | Feb 21 | [README](../models/LEGACY_gpt4_baseline_20260221/README.md) |
+| LEGACY GPT-5 Iter4 | ~~74.1%~~ | ~~+38.90R~~ | 58 | Feb 21 | [README](../models/LEGACY_gpt5_iter4_20260221/README.md) |
+| LEGACY GPT-5 Iter5 | ~~78.0%~~ | ~~+42.62R~~ | 59 | Feb 21 | [README](../models/LEGACY_gpt5_iter5_20260221/README.md) |
+| **GPT-5 Market Order** | **Iter9 ACTIVE** | - | - | Feb 28 | [README](../models/gpt5_market_order_20260228/README.md) |
+
+> Legacy model stats are struck through because they used the **limit-order fill bug** (simulator assumed perfect fills). See [SIMULATOR_BUG_ANALYSIS](SIMULATOR_BUG_ANALYSIS.md).
 
 ### Iteration Tracking
 

@@ -1,5 +1,38 @@
 # TRADEBOT Development Diary
 
+## Feb 28, 2026
+
+### What We Did
+
+1. **Diagnosed Iter10 Results** — Split analysis by regime revealed the core problem:
+   - TREND trades: 44% WR, +1.00R — **profitable**
+   - RANGE trades: 13% WR, -4.79R — **catastrophic**
+   - 13/30 trades skipped (all RANGE), 9 of those would have been TP (69% WR)
+
+2. **Root Cause Analysis**: Two bugs compounding:
+   - Direction agent: 5 prompt rules forced NEUTRAL in any RANGE scenario
+   - Confidence agent: `structureAligned` always `false` when `structureState === 0` (RANGE)
+
+3. **Built and Tested Iter11** — Fix RANGE Trading:
+   - Removed 5 NEUTRAL-forcing rules from direction agent prompt
+   - Added regime-specific confluence (TREND: timeframe agreement, RANGE: position-based)
+   - Added S/R position data to direction agent
+   - Fixed `structureAligned` for RANGE: uses position-based alignment
+   - Added RANGE-specific CONFIRM guidance to confidence agent
+
+4. **Iter11 Results — First Profitable Market Order Model!**
+   - **66.7% WR** (was 29.4%) — +37.3pp improvement
+   - **+18.82 Raw R** (was -3.79) — +22.61R swing
+   - **+9.41 Weighted R** (was -1.89) — +11.30R swing
+   - Skip rate: 10% (was 43%)
+   - RANGE WR: 71% (was 13%) — 17 trades, 12 wins
+   - TREND WR: 60% (was 44%) — 10 trades, 6 wins
+   - Both sessions profitable: LONDON 63% WR, NY 75% WR
+
+5. **Tagged v2.0** — First profitable market order model
+
+---
+
 ## Feb 21, 2026
 
 ### What We Did

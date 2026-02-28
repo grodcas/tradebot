@@ -264,7 +264,7 @@ function findSwingPoints(bars) {
  * @param {Object} swingPoints - { swingHighs, swingLows } from findSwingPoints
  * @returns {Object} Structure analysis
  */
-function calculateStructureState(swingPoints) {
+function calculateStructureState(swingPoints, atr30m) {
   const { swingHighs, swingLows } = swingPoints;
 
   // Need at least 2 swing highs and 2 swing lows
@@ -290,28 +290,45 @@ function calculateStructureState(swingPoints) {
   const SL1 = sortedLows[sortedLows.length - 1];  // Last (most recent)
   const SL0 = sortedLows[sortedLows.length - 2];  // Previous
 
-  // Determine structure
-  const higherHighs = SH1.price > SH0.price;
-  const higherLows = SL1.price > SL0.price;
-  const lowerHighs = SH1.price < SH0.price;
-  const lowerLows = SL1.price < SL0.price;
+  // ATR-based noise tolerance: differences < 0.2 × ATR_30m are treated as EQUAL
+  // Without this, a 0.8-pip difference on a 7.5-pip ATR market triggers structure labels
+  const tolerance = (atr30m || 0) * 0.2;
+
+  const highDiff = SH1.price - SH0.price;
+  const lowDiff = SL1.price - SL0.price;
+
+  const higherHighs = highDiff > tolerance;
+  const lowerHighs = highDiff < -tolerance;
+  const equalHighs = !higherHighs && !lowerHighs;
+
+  const higherLows = lowDiff > tolerance;
+  const lowerLows = lowDiff < -tolerance;
+  const equalLows = !higherLows && !lowerLows;
 
   let structureState = 0;
   let structureLabel = "RANGE";
   let reason = "";
 
-  if (higherHighs && higherLows) {
+  // UPTREND: need HH+HL (or one equal + one clearly higher)
+  if ((higherHighs || equalHighs) && (higherLows || equalLows) && (higherHighs || higherLows)) {
     structureState = 1;
     structureLabel = "UPTREND";
-    reason = `Higher Highs (${SH0.price.toFixed(5)} → ${SH1.price.toFixed(5)}) AND Higher Lows (${SL0.price.toFixed(5)} → ${SL1.price.toFixed(5)})`;
-  } else if (lowerHighs && lowerLows) {
+    const hhDesc = higherHighs ? "HH" : "EQ";
+    const hlDesc = higherLows ? "HL" : "EQ";
+    reason = `${hhDesc} (${SH0.price.toFixed(5)} → ${SH1.price.toFixed(5)}) + ${hlDesc} (${SL0.price.toFixed(5)} → ${SL1.price.toFixed(5)})`;
+  // DOWNTREND: need LH+LL (or one equal + one clearly lower)
+  } else if ((lowerHighs || equalHighs) && (lowerLows || equalLows) && (lowerHighs || lowerLows)) {
     structureState = -1;
     structureLabel = "DOWNTREND";
-    reason = `Lower Highs (${SH0.price.toFixed(5)} → ${SH1.price.toFixed(5)}) AND Lower Lows (${SL0.price.toFixed(5)} → ${SL1.price.toFixed(5)})`;
+    const lhDesc = lowerHighs ? "LH" : "EQ";
+    const llDesc = lowerLows ? "LL" : "EQ";
+    reason = `${lhDesc} (${SH0.price.toFixed(5)} → ${SH1.price.toFixed(5)}) + ${llDesc} (${SL0.price.toFixed(5)} → ${SL1.price.toFixed(5)})`;
   } else {
     structureState = 0;
     structureLabel = "RANGE";
-    reason = `Mixed structure: HH=${higherHighs}, HL=${higherLows}, LH=${lowerHighs}, LL=${lowerLows}`;
+    const hhLabel = higherHighs ? "HH" : lowerHighs ? "LH" : "EQ";
+    const hlLabel = higherLows ? "HL" : lowerLows ? "LL" : "EQ";
+    reason = `Mixed/equal structure: highs=${hhLabel}, lows=${hlLabel} (tolerance=${(tolerance*10000).toFixed(1)}pips)`;
   }
 
   return {
@@ -736,12 +753,15 @@ function calculateMarketRegime({
   const emaSpreadThreshold = 0.5 * ATR_30m;
   const hasEmaSpread = emaSpread > emaSpreadThreshold;
 
-  // Slope consistent: uptrend (structureState=1) needs positive slope, downtrend needs negative
+  // Slope consistent: uptrend needs slope > 0.05, downtrend needs slope < -0.05
+  // Threshold aligned with agent's FLAT classification (between -0.05 and +0.05)
+  // Without this, a near-zero slope like -0.02 would count as "consistent" with downtrend
+  // but the agent would describe it as "FLAT" — creating contradictory TREND + FLAT signals
   let slopeConsistent = false;
   if (slopeAnalysis.slope !== null) {
-    if (structureState === 1 && slopeAnalysis.slope > 0) {
+    if (structureState === 1 && slopeAnalysis.slope > 0.05) {
       slopeConsistent = true;
-    } else if (structureState === -1 && slopeAnalysis.slope < 0) {
+    } else if (structureState === -1 && slopeAnalysis.slope < -0.05) {
       slopeConsistent = true;
     }
   }
@@ -1229,16 +1249,7 @@ function computeIndicators(bars5m, bars30m, anchorIndex) {
   const bars5mUpToAnchor = bars5m.slice(0, anchorIndex + 1);
 
   // ----------------------------
-  // Swing Points & Structure State (48 x 30m bars)
-  // ----------------------------
-  // Need 48 * 6 = 288 5m bars for 48 30m bars
-  const bars5mForSwings = bars5mUpToAnchor.slice(-300); // Extra buffer
-  const bars30mForSwings = aggregateBars(bars5mForSwings, 6).slice(-48);
-  const swingPoints = findSwingPoints(bars30mForSwings);
-  const structureAnalysis = calculateStructureState(swingPoints);
-
-  // ----------------------------
-  // ATR Calculations
+  // ATR Calculations (computed first — needed for structure tolerance)
   // ----------------------------
 
   // ATR_5m: Use last 15 5m bars (14 periods + 1)
@@ -1250,6 +1261,15 @@ function computeIndicators(bars5m, bars30m, anchorIndex) {
   const bars5mForATR30m = bars5mUpToAnchor.slice(-100); // Extra buffer
   const bars30mForATR = aggregateBars(bars5mForATR30m, 6);
   const ATR_30m = calculateATR(bars30mForATR.slice(-15), 14);
+
+  // ----------------------------
+  // Swing Points & Structure State (48 x 30m bars)
+  // ----------------------------
+  // Need 48 * 6 = 288 5m bars for 48 30m bars
+  const bars5mForSwings = bars5mUpToAnchor.slice(-300); // Extra buffer
+  const bars30mForSwings = aggregateBars(bars5mForSwings, 6).slice(-48);
+  const swingPoints = findSwingPoints(bars30mForSwings);
+  const structureAnalysis = calculateStructureState(swingPoints, ATR_30m);
 
   // ----------------------------
   // EMA Calculations

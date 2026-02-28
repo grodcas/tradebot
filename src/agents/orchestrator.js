@@ -1,28 +1,34 @@
 /**
- * TRADE ORCHESTRATOR - Iter5
+ * TRADE ORCHESTRATOR - Iter9
  *
- * Coordinates the specialist agents:
- * 1. Direction Agent → Determines market bias + readability
- * 2. Confidence Agent → Assesses probability + coherence
- * 3. Levels Agent → Sets Entry, SL, TP + path clarity
+ * Coordinates:
+ * 1. Direction Agent → Determines market bias (multi-timeframe)
+ * 2. Confidence Agent → Confirms or rejects the direction call
  *
- * Iter5 changes:
- * - Uses sizing_recommendation from confidence
- * - Respects signal_clarity from direction
- * - Better skip logic for incoherent markets
+ * Levels are MECHANICAL (no AI):
+ * - SL = 1.5 × ATR_30m from current price
+ * - TP = 1.5:1 R:R (= 2.25 × ATR_30m from current price)
+ * - Risk = fixed 0.50
  */
 
 const { analyzeDirection } = require('./direction_agent');
 const { assessConfidence } = require('./confidence_agent');
-const { determineLevels } = require('./levels_agent');
+
+// Mechanical level constants
+const SL_ATR_MULTIPLIER = 1.5;   // SL distance = 1.5 × ATR_30m
+const RR_RATIO = 1.5;            // R:R = 1.5:1
+const FIXED_RISK = 0.50;         // Fixed position size
 
 /**
  * Main orchestration function
  */
 async function orchestrateTrade({
   prices5m,
+  prices30m,
+  pricesDaily,
   ema50,
   emaSlope,
+  ema200,
   support,
   resistance,
   swingHigh,
@@ -30,189 +36,133 @@ async function orchestrateTrade({
   sessionHigh,
   sessionLow,
   currentPrice,
-  atr,
-  // Additional context indicators
+  atr5m,
+  atr30m,
+  // Multi-timeframe context
+  currentSession = null,
   marketRegime = null,
   structureState = null,
-  breakoutScore = null,
-  sweepScore = null
+  structureLabel = null,
+  structureSwings = {},
 }) {
 
   const startTime = Date.now();
   const agentOutputs = {};
 
-  // ========== STEP 1: DIRECTION AGENT ==========
-  console.log('   [DIRECTION] Analyzing market structure...');
+  // ========== STEP 1: DIRECTION AGENT (multi-timeframe) ==========
+  console.log('   [DIRECTION] Analyzing market structure (multi-TF)...');
   const directionResult = await analyzeDirection({
     prices5m,
+    prices30m,
+    pricesDaily,
     ema50,
     emaSlope,
+    ema200,
     support,
     resistance,
     swingHigh,
     swingLow,
     sessionHigh,
     sessionLow,
-    currentPrice
+    currentPrice,
+    atr5m,
+    currentSession,
+    marketRegime,
+    structureLabel,
+    structureSwings,
   });
   agentOutputs.direction = directionResult;
 
   const proposedDirection = directionResult.primary_bias === 'BULLISH' ? 'LONG' :
                            directionResult.primary_bias === 'BEARISH' ? 'SHORT' : null;
 
-  console.log(`   [DIRECTION] ${directionResult.primary_bias} (${directionResult.signal_clarity || directionResult.confidence} clarity)`);
+  console.log(`   [DIRECTION] ${directionResult.primary_bias} (${directionResult.signal_clarity || 'N/A'} clarity)`);
   console.log(`   [DIRECTION] Readability: ${directionResult.market_readability || 'N/A'}`);
-  console.log(`   [DIRECTION] ${directionResult.trade_idea?.slice(0, 80)}...`);
+  console.log(`   [DIRECTION] ${directionResult.trade_idea?.slice(0, 100)}`);
 
-  // If direction is unclear, we might still trade but with lower confidence
+  // If no clear direction, SKIP this bar (don't force a trade)
   if (!proposedDirection) {
-    console.log('   [DIRECTION] No clear direction - will assess both sides');
+    console.log('   [DIRECTION] No clear direction → SKIP');
+    return {
+      action: 'SKIP',
+      reason: `Direction unclear: ${directionResult.primary_bias}`,
+      agentOutputs,
+      timeMs: Date.now() - startTime
+    };
   }
 
-  // ========== STEP 2: CONFIDENCE AGENT ==========
-  console.log('   [CONFIDENCE] Assessing setup quality...');
-
-  // If neutral, assess LONG (default slight bias)
-  const directionToAssess = proposedDirection || 'LONG';
+  // ========== STEP 2: CONFIDENCE AGENT (confirm/reject) ==========
+  console.log('   [CONFIDENCE] Confirming direction...');
 
   const confidenceResult = await assessConfidence({
-    proposedDirection: directionToAssess,
+    proposedDirection,
     directionAnalysis: directionResult,
     currentPrice,
     support,
     resistance,
     ema50,
     emaSlope,
-    atr,
+    atr: atr5m,
     swingHigh,
     swingLow,
     sessionHigh,
     sessionLow,
     prices5m,
-    // Pass additional context
     marketRegime,
     structureState,
-    breakoutScore,
-    sweepScore
+    structureLabel,
   });
   agentOutputs.confidence = confidenceResult;
 
-  console.log(`   [CONFIDENCE] Probability: ${(confidenceResult.probability * 100).toFixed(0)}%`);
-  console.log(`   [CONFIDENCE] Coherence: ${confidenceResult.coherence_check?.assessment || 'N/A'} | Sizing: ${confidenceResult.sizing_recommendation || 'N/A'}`);
-  console.log(`   [CONFIDENCE] ${confidenceResult.reasoning?.slice(0, 80)}...`);
+  console.log(`   [CONFIDENCE] Verdict: ${confidenceResult.verdict} | ${confidenceResult.reasoning?.slice(0, 80)}`);
 
-  // ========== STEP 3: LEVELS AGENT ==========
-  // Only proceed if confidence is above threshold
-  const MIN_CONFIDENCE = 0.25;  // Don't trade below 25% probability
-
-  if (confidenceResult.probability < MIN_CONFIDENCE) {
-    console.log(`   [LEVELS] Skipping - confidence too low (${(confidenceResult.probability * 100).toFixed(0)}% < ${MIN_CONFIDENCE * 100}%)`);
+  // Confidence agent acts as gate: CONFIRM or REJECT
+  if (confidenceResult.verdict === 'REJECT') {
+    console.log(`   [CONFIDENCE] Trade REJECTED: ${confidenceResult.reasoning}`);
     return {
       action: 'SKIP',
-      reason: `Confidence too low: ${(confidenceResult.probability * 100).toFixed(0)}%`,
+      reason: `Confidence rejected: ${confidenceResult.reasoning}`,
       agentOutputs,
       timeMs: Date.now() - startTime
     };
   }
 
-  console.log('   [LEVELS] Determining entry, SL, TP...');
-  const levelsResult = await determineLevels({
-    direction: directionToAssess,
-    currentPrice,
-    support,
-    resistance,
-    swingHigh,
-    swingLow,
-    sessionHigh,
-    sessionLow,
-    atr,
-    ema50,
-    prices5m
-  });
-  agentOutputs.levels = levelsResult;
+  // ========== STEP 3: MECHANICAL LEVELS ==========
+  const slDistance = atr30m * SL_ATR_MULTIPLIER;
+  const tpDistance = slDistance * RR_RATIO;
 
-  console.log(`   [LEVELS] Entry: ${levelsResult.entry?.price?.toFixed(5)} (${levelsResult.entry?.type})`);
-  console.log(`   [LEVELS] SL: ${levelsResult.stop_loss?.price?.toFixed(5)} (${levelsResult.stop_loss?.stop_quality || 'N/A'})`);
-  console.log(`   [LEVELS] TP: ${levelsResult.take_profit?.price?.toFixed(5)} | Path: ${levelsResult.take_profit?.path_clarity || 'N/A'} | RR: ${levelsResult.risk_reward?.toFixed(2)}`);
-
-  // Check if levels agent recommends skipping (market order not suitable from current price)
-  if (levelsResult.recommendation === 'SKIP') {
-    console.log(`   [LEVELS] Levels agent recommends SKIP: ${levelsResult.trade_quality}`);
-    return {
-      action: 'SKIP',
-      reason: `Levels agent recommends SKIP: ${levelsResult.trade_quality}`,
-      agentOutputs,
-      timeMs: Date.now() - startTime
-    };
-  }
-
-  // ========== FINAL DECISION ==========
-  // Convert confidence to position size with sizing recommendation
-  let positionSize = confidenceResult.probability;
-
-  // Apply sizing recommendation from confidence agent (Iter5)
-  const sizingRec = confidenceResult.sizing_recommendation;
-  if (sizingRec === 'SKIP') {
-    return {
-      action: 'SKIP',
-      reason: `Confidence agent recommends SKIP: ${confidenceResult.reasoning}`,
-      agentOutputs,
-      timeMs: Date.now() - startTime
-    };
-  } else if (sizingRec === 'MINIMAL') {
-    positionSize = Math.min(positionSize, 0.35);  // Cap at 35%
-  } else if (sizingRec === 'REDUCED') {
-    positionSize = Math.min(positionSize, 0.50);  // Cap at 50%
-  }
-  // FULL keeps original probability
-
-  // Validate levels
-  const entry = levelsResult.entry?.price;
-  const sl = levelsResult.stop_loss?.price;
-  const tp = levelsResult.take_profit?.price;
-
-  if (!entry || !sl || !tp) {
-    return {
-      action: 'SKIP',
-      reason: 'Invalid levels from Levels Agent',
-      agentOutputs,
-      timeMs: Date.now() - startTime
-    };
-  }
-
-  // Sanity check levels
-  if (directionToAssess === 'LONG') {
-    if (tp <= entry || sl >= entry) {
-      return {
-        action: 'SKIP',
-        reason: 'Invalid LONG levels: TP must be > entry, SL must be < entry',
-        agentOutputs,
-        timeMs: Date.now() - startTime
-      };
-    }
+  let entry, sl, tp;
+  if (proposedDirection === 'LONG') {
+    entry = currentPrice;
+    sl = currentPrice - slDistance;
+    tp = currentPrice + tpDistance;
   } else {
-    if (tp >= entry || sl <= entry) {
-      return {
-        action: 'SKIP',
-        reason: 'Invalid SHORT levels: TP must be < entry, SL must be > entry',
-        agentOutputs,
-        timeMs: Date.now() - startTime
-      };
-    }
+    entry = currentPrice;
+    sl = currentPrice + slDistance;
+    tp = currentPrice - tpDistance;
   }
+
+  // Round to 5 decimal places
+  entry = Math.round(entry * 100000) / 100000;
+  sl = Math.round(sl * 100000) / 100000;
+  tp = Math.round(tp * 100000) / 100000;
+
+  const rr = tpDistance / slDistance;
+
+  console.log(`   [LEVELS] MECHANICAL: Entry=${entry.toFixed(5)} SL=${sl.toFixed(5)} TP=${tp.toFixed(5)} | RR=${rr.toFixed(1)}:1 | Risk=${FIXED_RISK}`);
+  console.log(`   [LEVELS] SL=${(slDistance * 10000).toFixed(1)}pips TP=${(tpDistance * 10000).toFixed(1)}pips (ATR_30m=${(atr30m * 10000).toFixed(1)}pips)`);
 
   return {
     action: 'TRADE',
-    side: directionToAssess,
+    side: proposedDirection,
     entry,
     sl,
     tp,
-    risk: Math.min(0.95, Math.max(0.05, positionSize)),  // Full range 0.05-0.95 based on true understanding
-    riskReward: levelsResult.risk_reward,
+    risk: FIXED_RISK,
+    riskReward: rr,
     reasoning: {
       direction: directionResult.trade_idea,
       confidence: confidenceResult.reasoning,
-      levels: levelsResult.assessment
     },
     agentOutputs,
     timeMs: Date.now() - startTime
