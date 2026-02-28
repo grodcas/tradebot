@@ -7,7 +7,9 @@ const { callStrategyTradeDecision, validateDecision, MAX_WAIT_BARS } = require("
 // ----------------------------
 // CONFIG
 // ----------------------------
-const DATA_PATH = require('path').join(__dirname, "../data/eurusd_5m_old.json");
+// Use OANDA data by default, fall back to IBKR data
+const DATA_PATH = process.env.DATA_PATH ||
+  require('path').join(__dirname, "../data/eurusd_5m_oanda.json");
 const RESULTS_PATH = require('path').join(__dirname, "../results/trade_results.json");
 
 const SESSION_TZ = "Europe/Zurich";
@@ -34,20 +36,39 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // ----------------------------
 // HELPERS
 // ----------------------------
-function parseIBDate(str) {
+
+/**
+ * Parse date from either IBKR or OANDA format
+ * IBKR: "20260210 17:15:00 US/Eastern"
+ * OANDA: "2026-02-10T22:15:00.000Z" (ISO)
+ */
+function parseDate(str) {
   if (!str || typeof str !== "string") return null;
-  const m = str.match(/^(\d{8})\s+(\d{2}:\d{2}:\d{2})/);
-  if (!m) return null;
 
-  const datePart = m[1];
-  const timePart = m[2];
+  // Try IBKR format first: YYYYMMDD HH:MM:SS
+  const ibkrMatch = str.match(/^(\d{8})\s+(\d{2}:\d{2}:\d{2})/);
+  if (ibkrMatch) {
+    const datePart = ibkrMatch[1];
+    const timePart = ibkrMatch[2];
+    const year = Number(datePart.slice(0, 4));
+    const month = Number(datePart.slice(4, 6)) - 1;
+    const day = Number(datePart.slice(6, 8));
+    const [hh, mm, ss] = timePart.split(":").map(Number);
+    return new Date(Date.UTC(year, month, day, hh, mm, ss));
+  }
 
-  const year = Number(datePart.slice(0, 4));
-  const month = Number(datePart.slice(4, 6)) - 1;
-  const day = Number(datePart.slice(6, 8));
-  const [hh, mm, ss] = timePart.split(":").map(Number);
+  // Try ISO format (OANDA)
+  const isoDate = new Date(str);
+  if (!isNaN(isoDate.getTime())) {
+    return isoDate;
+  }
 
-  return new Date(Date.UTC(year, month, day, hh, mm, ss));
+  return null;
+}
+
+// Legacy alias for compatibility
+function parseIBDate(str) {
+  return parseDate(str);
 }
 
 function toTZ(date, timeZone) {
@@ -69,11 +90,20 @@ function ymdZurich(dateUTCish) {
   return `${y}-${m}-${d}`;
 }
 
-function loadBars(path) {
-  const raw = JSON.parse(fs.readFileSync(path, "utf8"));
-  return raw
+function loadBars(filePath) {
+  const raw = JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+  // Handle OANDA format (has metadata wrapper) or plain array (IBKR)
+  const candles = Array.isArray(raw) ? raw : (raw.candles || raw);
+
+  if (raw.metadata) {
+    console.log(`Data source: ${raw.metadata.source || 'unknown'}`);
+    console.log(`Date range: ${raw.metadata.from?.slice(0, 10)} to ${raw.metadata.to?.slice(0, 10)}`);
+  }
+
+  return candles
     .map((b) => {
-      const d = parseIBDate(b.time);
+      const d = parseDate(b.time);
       if (!d) return null;
 
       const open = Number(b.open);

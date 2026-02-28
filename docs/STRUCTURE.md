@@ -4,7 +4,7 @@
 AI-powered EUR/USD trading system using GPT models. Core innovation: **iterate on prompts** as a form of machine learning to improve trading performance.
 
 ## Tech Stack
-`Node.js` | `GPT-4/GPT-5` | `IBKR API` | `Claude (human-guided iteration)`
+`Node.js` | `GPT-4/GPT-5` | `OANDA API` | `Claude (human-guided iteration)`
 
 ## Current Best Model
 **GPT-5 Iter5** | 78% Win Rate | +42.62R | 59 trades | Feb 21, 2026
@@ -16,7 +16,7 @@ AI-powered EUR/USD trading system using GPT models. Core innovation: **iterate o
 ```mermaid
 flowchart TB
     subgraph DATA["Market Data"]
-        IBKR[IBKR Gateway]
+        OANDA[OANDA API]
         HIST[Historical JSON]
     end
 
@@ -48,7 +48,7 @@ flowchart TB
         HUMAN[You + Claude]
     end
 
-    IBKR --> IND
+    OANDA --> IND
     HIST --> IND
     IND --> ORCH
     ORCH --> DIR
@@ -150,7 +150,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    A[Connect IBKR Gateway] --> B[Fetch 800 bars history]
+    A[Connect OANDA API] --> B[Fetch 800 bars history]
     B --> C[Wait for next 5m bar]
 
     subgraph LOOP["Every 5 minutes"]
@@ -171,7 +171,7 @@ flowchart TB
 ```
 
 **I/O:**
-- Input: IBKR real-time 5m bars
+- Input: OANDA real-time 5m bars
 - Output: `results/live_trade_results.json`
 
 ---
@@ -187,16 +187,18 @@ TRADEBOT/
 │   │   ├── levels_agent.js
 │   │   ├── orchestrator.js
 │   │   └── ai_client.js
-│   ├── batch_trainer.js      # Backtest engine (IBKR data)
-│   ├── batch_trainer_oanda.js # Backtest engine (OANDA data)
+│   ├── batch_trainer.js      # Backtest engine (OANDA/IBKR data)
 │   ├── live_trader.js        # Live/paper trading
 │   ├── iteration_loop.js     # Auto-iteration (experimental, prefer manual)
 │   ├── strategy_selector.js  # Decision validation
 │   └── trade_indicators.js   # Technical analysis
 │
 ├── data/                     # Historical price data
-│   ├── eurusd_5m_recent.json # Nov 2025 - Feb 2026
-│   └── eurusd_5m_old.json    # Aug 2025 - Nov 2025
+│   ├── eurusd_5m_oanda.json        # Default OANDA data (symlink to recent)
+│   ├── eurusd_5m_oanda_recent.json # OANDA Nov 2025 - Feb 2026
+│   ├── eurusd_5m_oanda_old.json    # OANDA Aug 2025 - Nov 2025
+│   ├── eurusd_5m_recent.json       # Legacy IBKR (Nov 2025 - Feb 2026)
+│   └── eurusd_5m_old.json          # Legacy IBKR (Aug 2025 - Nov 2025)
 │
 ├── models/                   # Saved model versions
 │   └── {name}_{YYYYMMDD}/    # e.g., gpt5_iter5_20260221/
@@ -215,7 +217,7 @@ TRADEBOT/
 |---------|-------------|------|
 | AI Agents | GPT-powered trading decisions | [agents.md](features/agents.md) |
 | Batch Trainer | Backtest on historical data | [batch-trainer.md](features/batch-trainer.md) |
-| Live Trader | Paper/live trading with IBKR | [live-trader.md](features/live-trader.md) |
+| Live Trader | Paper/live trading with OANDA | [live-trader.md](features/live-trader.md) |
 | Model System | Versioned prompt checkpoints | [model-system.md](features/model-system.md) |
 
 ---
@@ -242,8 +244,14 @@ TRADEBOT/
 ## Quick Commands
 
 ```bash
+# Download OANDA historical data (run once)
+node tools/download_oanda_data.js --months 6
+
 # Run backtest
 node src/batch_trainer.js
+
+# Run backtest with specific data file
+DATA_PATH=data/eurusd_5m_old.json node src/batch_trainer.js
 
 # Analyze results
 node tools/analyze_trades.js
