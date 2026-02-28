@@ -342,3 +342,7 @@ The simulator and live trading measure SUCCESS differently:
 | No limit fill simulation | batch_trainer.js | 265-267 |
 | Spread calculated but unused | batch_trainer.js | 261-263 |
 | R:R validation missing | orchestrator.js | None (should add) |
+
+---
+
+[Back to STRUCTURE](STRUCTURE.md)

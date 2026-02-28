@@ -48,3 +48,7 @@ MODEL_VERSION=gpt5 node live_trader.js
 - +20.7% higher win rate
 - +28.67R more profit (3.8x)
 - Lower max losing streak (2 vs 3)
+
+---
+
+[Back to STRUCTURE](../../docs/STRUCTURE.md)

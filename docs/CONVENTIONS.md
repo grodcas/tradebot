@@ -129,3 +129,7 @@ models/{name}_{YYYYMMDD}/
 ### Commit Messages
 - Use imperative mood: "Add feature" not "Added feature"
 - Reference model iterations when applicable
+
+---
+
+[Back to STRUCTURE](STRUCTURE.md)

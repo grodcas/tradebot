@@ -108,3 +108,7 @@ MODEL_VERSION=gpt5 node batch_trainer.js
 - Long bias (67-69% of trades are longs)
 - Risk-win correlation not optimized (losses have similar sizing to wins)
 - Conservative sizing caps most trades at 0.5 risk
+
+---
+
+[Back to STRUCTURE](../../docs/STRUCTURE.md)

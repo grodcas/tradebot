@@ -215,3 +215,7 @@ This will:
 5. Save iteration history to `results/iteration_history.json`
 
 Stop when: WR >70% AND PF >3.0 AND Risk Diff >0.15
+
+---
+
+[Back to STRUCTURE](STRUCTURE.md)

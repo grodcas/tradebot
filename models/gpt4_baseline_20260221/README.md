@@ -45,3 +45,7 @@ node live_trader.js
 - Uses GPT-4o-mini model (hardcoded)
 - Original prompts from prototype_1 branch
 - Superseded by GPT-5 Iter4 model
+
+---
+
+[Back to STRUCTURE](../../docs/STRUCTURE.md)

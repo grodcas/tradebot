@@ -1,6 +1,8 @@
-# Model Training Workflow
+# Iteration Guidelines
 
-This document explains the complete process for improving trading models.
+How to improve trading models through iterative testing and prompt refinement.
+
+---
 
 ## Overview
 
@@ -32,57 +34,60 @@ YOU                          CLAUDE                         SYSTEM
 
 ---
 
-## Files & Their Purposes
-
-### Core Files (in `src/`)
-
-| File | What It Does | Run Manually? |
-|------|--------------|---------------|
-| `src/batch_trainer.js` | Runs 30 simulated trades on historical data | Yes |
-| `src/live_trader.js` | Paper trades with IBKR in real-time | Yes |
-| `src/iteration_loop.js` | Auto-improvement (Claude suggests changes) | Optional |
-| `src/strategy_selector.js` | Validates trade decisions, clamps risk | No (library) |
-| `src/trade_indicators.js` | Calculates EMA, ATR, S/R, swings | No (library) |
-
-### Agent Files (in `src/agents/`)
-
-These are the "model" - the prompts that determine trading decisions:
-
-| File | What It Decides |
-|------|-----------------|
-| `direction_agent.js` | LONG / SHORT / NEUTRAL direction |
-| `confidence_agent.js` | Probability (0-1) and sizing (FULL/REDUCED/MINIMAL/SKIP) |
-| `levels_agent.js` | Entry price, Stop Loss, Take Profit |
-| `orchestrator.js` | Coordinates the 3 agents, handles skips |
-| `ai_client.js` | API wrapper (GPT-4 or GPT-5) |
-
-### Tool Files (in `tools/`)
-
-| File | What It Does |
-|------|--------------|
-| `analyze_trades.js` | Analyzes trade_results.json, shows patterns |
-| `run_all_tests.js` | Runs tests on multiple models for comparison |
-| `compare_models.js` | Compares two specific models |
-
----
-
-## Folder Structure
+## The Iteration Workflow
 
 ```
-TRADEBOT/
-├── src/agents/          ← CURRENT MODEL (edit these to improve)
-├── data/                ← Historical price data
-│   ├── eurusd_5m_recent.json   (Nov 2025 - Feb 2026)
-│   └── eurusd_5m_old.json      (Aug 2025 - Nov 2025)
-├── models/              ← SAVED VERSIONS (checkpoints)
-│   ├── gpt5_iter5_20260221/
-│   │   ├── metadata.json       (test results)
-│   │   └── *.js                (agent files)
-│   └── ...
-├── results/             ← TEST OUTPUTS
-│   ├── trade_results.json      (latest batch test)
-│   └── iteration_history.json  (auto-loop history)
-└── docs/                ← DOCUMENTATION
+┌─────────────────────────────────────────────────────────────────┐
+│  1. START: Current model in src/agents/                         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  2. TEST: Run batch_trainer.js on both datasets                 │
+│     node src/batch_trainer.js                                   │
+│     → Results saved to results/trade_results.json               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  3. ANALYZE: Look at wins vs losses                             │
+│     node tools/analyze_trades.js                                │
+│     → What patterns cause losses?                               │
+│     → Is risk calibration working?                              │
+│     → Any direction bias?                                       │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  4. IMPROVE: Edit agent prompts in src/agents/                  │
+│     - direction_agent.js  → Market reading                      │
+│     - confidence_agent.js → Risk/probability                    │
+│     - levels_agent.js     → Entry/SL/TP placement               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  5. RE-TEST: Run batch_trainer again                            │
+│     → Compare metrics to previous run                           │
+│     → Did WR improve? Did risk calibration improve?             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+            ┌─────────────────┴─────────────────┐
+            ▼                                   ▼
+    ┌───────────────┐                   ┌───────────────┐
+    │  WORSE/SAME   │                   │   BETTER      │
+    │  → Revert     │                   │   → Save!     │
+    │  → Try again  │                   │               │
+    └───────────────┘                   └───────────────┘
+                                                │
+                                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  6. SAVE MODEL: Create versioned checkpoint                     │
+│     mkdir models/gpt5_iter6_$(date +%Y%m%d)                     │
+│     cp src/agents/*.js models/gpt5_iter6_YYYYMMDD/              │
+│     → Create metadata.json with test results                    │
+│     → Update DIARY.md with what changed                         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -103,8 +108,6 @@ node src/batch_trainer.js
 
 **Output:** `results/trade_results.json`
 
-**Time:** ~3-5 minutes (depends on API speed)
-
 ---
 
 ### Step 2: Analyze Results (WITH CLAUDE)
@@ -122,8 +125,6 @@ node tools/analyze_trades.js
 - Risk distribution (are high-risk trades winning more?)
 - Loss patterns (quick losses = bad direction, slow losses = bad levels)
 - Skip rate (too many skips = over-filtering)
-
-**This is manual** - you discuss with Claude what the issues are.
 
 ---
 
@@ -172,7 +173,7 @@ Compare new results to previous:
 
 ---
 
-### Step 6: Save as New Version (MANUAL)
+### Step 6: Save as New Version
 
 When you have a meaningful improvement:
 
@@ -196,9 +197,7 @@ Then edit `metadata.json` with:
 
 ---
 
-## The Iteration Conversation
-
-A typical improvement session looks like:
+## A Typical Iteration Conversation
 
 ```
 YOU: Run a batch test
@@ -250,7 +249,7 @@ ITERATION_BUDGET_EUR=10 node src/iteration_loop.js
 
 ---
 
-## Key Metrics
+## Key Metrics to Track
 
 | Metric | Target | Meaning |
 |--------|--------|---------|
@@ -262,7 +261,7 @@ ITERATION_BUDGET_EUR=10 node src/iteration_loop.js
 
 ---
 
-## Quick Reference
+## Quick Commands
 
 | Task | Command |
 |------|---------|
@@ -272,10 +271,26 @@ ITERATION_BUDGET_EUR=10 node src/iteration_loop.js
 | Auto-improve | `ITERATION_BUDGET_EUR=10 node src/iteration_loop.js` |
 | Live trade | `node src/live_trader.js` |
 
-| Location | Contents |
-|----------|----------|
-| `src/agents/` | Current working model |
-| `models/` | Saved versions |
-| `results/` | Test outputs |
-| `data/` | Historical prices |
-| `DIARY.md` | Development log |
+---
+
+## Common Pitfalls
+
+### Over-fitting
+- Testing on same data you analyzed
+- Fix: Always test on BOTH recent and old datasets
+
+### Prompt bloat
+- Adding too many rules that contradict each other
+- Fix: Remove old rules when adding new ones
+
+### Ignoring base metrics
+- Focusing only on win rate, ignoring R
+- Fix: Track Total R and Risk Differentiation together
+
+### Not saving checkpoints
+- Making changes without saving good versions
+- Fix: Save any model with >5% improvement
+
+---
+
+[Back to STRUCTURE](../STRUCTURE.md)
