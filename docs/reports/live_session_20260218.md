@@ -188,3 +188,7 @@ The live execution matched backtest patterns reasonably well. Continue running t
 ---
 
 *Analysis generated: Feb 18, 2026*
+
+---
+
+[Back to STRUCTURE](../STRUCTURE.md)

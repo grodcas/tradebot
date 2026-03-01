@@ -168,3 +168,7 @@ Every single trade was in "RANGE" market regime. In ranging markets:
 ---
 
 *Report generated: 2026-02-27*
+
+---
+
+[Back to STRUCTURE](../STRUCTURE.md)

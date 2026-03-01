@@ -1,10 +1,10 @@
 # TRADEBOT Live
 
-## Purpose
-AI-powered forex trading system using GPT-4o-mini for live paper trading with OANDA. Runs 24/7, trades during Zurich market hours (8:00-18:00).
+AI-powered forex trading system for live paper trading across 4 currency pairs via OANDA.
 
-## Tech Stack
-`Node.js` | `GPT-4o-mini` | `OANDA API` | `IBKR` (backup)
+`Node.js` | `GPT-4o-mini` | `GPT-5.2` | `OANDA API`
+
+**Current best model:** GPT-5.2 Iter5 -- 78% win rate across 59 trades.
 
 ---
 
@@ -12,62 +12,47 @@ AI-powered forex trading system using GPT-4o-mini for live paper trading with OA
 
 ```mermaid
 flowchart TB
-    subgraph MARKET["📊 Market Data"]
+    subgraph MARKET["Market Data"]
         OANDA[OANDA API]
-        IBKR[IBKR Backup]
     end
 
-    subgraph CORE["⚙️ Core Engine"]
-        LT[live_trader.js]
-        IND[trade_indicators.js]
-        EXEC[oanda_executor.js]
+    subgraph CORE["Core Engine"]
+        LT[src/live_trader.js]
+        IND[src/trade_indicators.js]
+        EXEC[src/oanda_executor.js]
     end
 
-    subgraph AGENTS["🤖 AI Agents"]
-        direction TB
-        ORCH[orchestrator.js]
-        DIR[direction_agent.js]
-        CONF[confidence_agent.js]
-        LEV[levels_agent.js]
+    subgraph MODELS["AI Models"]
+        M1[gpt4mini_eurusd]
+        M2[gpt4mini_usdjpy]
+        M3[gpt4mini_gbpusd_iter11]
+        M4[gpt5_iter5]
     end
 
-    subgraph PAIRS["💱 Currency Pairs"]
-        EUR[agents_eurusd]
-        GBP[agents_gbpusd]
-        JPY[agents_usdjpy]
-        GPT5[agents_gpt5]
-    end
-
-    subgraph OUTPUT["📈 Output"]
-        TRADES[global_trades.json]
-        LOG[live_trader.log]
-        RESULTS[trade_results.json]
+    subgraph OUTPUT["Output"]
+        TRADES[data/global_trades.json]
+        LOG[data/live_trader.log]
+        RESULTS[data/trade_results.json]
     end
 
     OANDA --> LT
-    IBKR -.-> LT
     LT --> IND
-    IND --> ORCH
-    ORCH --> DIR
-    ORCH --> CONF
-    ORCH --> LEV
-    DIR --> EXEC
-    CONF --> EXEC
-    LEV --> EXEC
+    IND --> M1 & M2 & M3 & M4
+    M1 & M2 & M3 & M4 --> EXEC
     EXEC --> OANDA
     EXEC --> TRADES
     LT --> LOG
     LT --> RESULTS
 
-    EUR --> ORCH
-    GBP --> ORCH
-    JPY --> ORCH
-    GPT5 --> ORCH
+    click LT "features/live-trader.md" "Live Trader docs"
+    click EXEC "features/oanda-executor.md" "OANDA Executor docs"
+    click M1 "features/model-system.md" "Model System docs"
+    click M4 "features/model-system.md" "Model System docs"
 ```
 
 ---
 
-## Decision Flow
+## Agent Decision Flow
 
 ```mermaid
 flowchart LR
@@ -83,27 +68,76 @@ flowchart LR
     G --> H[Monitor TP/SL]
 ```
 
+| Agent | Input | Output |
+|-------|-------|--------|
+| Direction Agent | Candles, indicators, S/R levels | LONG / SHORT / WAIT |
+| Confidence Agent | Direction, indicators, market context | Confidence score 0.0-1.0 |
+| Levels Agent | Direction, ATR, swing points | Entry, TP, SL prices |
+
+---
+
+## Live Trading Flow
+
+```mermaid
+stateDiagram-v2
+    [*] --> Waiting
+    Waiting --> Connected : 08:00 Zurich
+    Connected --> Trading : Market open
+    Trading --> Trading : Scan every 5 min
+    Trading --> Closing : 18:00 Zurich
+    Closing --> Waiting : Positions closed
+    Waiting --> Waiting : Dashboard only
+```
+
 ---
 
 ## Folder Structure
 
 ```
 TRADEBOT_live/
-├── live_trader.js          # Main 24/7 loop
-├── oanda_executor.js       # Trade execution
-├── trade_indicators.js     # Technical indicators
-├── pair_config.js          # Pair settings
-├── agents_eurusd/          # EUR/USD AI agents
-│   ├── orchestrator.js
-│   ├── direction_agent.js
-│   ├── confidence_agent.js
-│   └── levels_agent.js
-├── agents_gbpusd/          # GBP/USD AI agents
-├── agents_usdjpy/          # USD/JPY AI agents
-├── agents_gpt5/            # GPT-5 experimental
-├── global_trades.json      # All trades history
-├── trade_results.json      # Today's results
-└── live_trader.log         # Runtime log
+├── src/                              # Core runtime
+│   ├── live_trader.js                # Main loop, dashboard, session mgmt
+│   ├── oanda_executor.js             # OANDA API wrapper
+│   ├── trade_indicators.js           # ATR, EMA, S/R, swing points
+│   ├── pair_config.js                # Pair definitions
+│   ├── strategy_selector_eurusd.js   # -> models/gpt4mini_eurusd/
+│   ├── strategy_selector_usdjpy.js   # -> models/gpt4mini_usdjpy/
+│   ├── strategy_selector_gbpusd.js   # -> models/gpt4mini_gbpusd_iter11/
+│   └── strategy_selector_gpt5.js     # -> models/gpt5_iter5/
+│
+├── models/                           # Versioned AI agent checkpoints
+│   ├── gpt4mini_eurusd/
+│   ├── gpt4mini_usdjpy/
+│   ├── gpt4mini_gbpusd_iter11/
+│   └── gpt5_iter5/
+│
+├── tools/                            # Utilities & test scripts
+│   ├── test_1k_order.js
+│   ├── test_oanda_limit.js
+│   ├── test_position_sizes.js
+│   ├── check_oanda.js
+│   ├── cancel_orders.js
+│   ├── analyze_pnl.js
+│   └── oanda_test.js
+│
+├── data/                             # Trade data & logs
+│   ├── global_trades.json
+│   ├── trade_results.json
+│   └── live_trader.log
+│
+├── docs/
+│   ├── STRUCTURE.md                 # <-- YOU ARE HERE
+│   ├── DIARY.md
+│   ├── MISTAKES.md
+│   ├── CONVENTIONS.md
+│   ├── features/
+│   ├── guidelines/
+│   └── reports/
+│
+├── CONTEXT.md
+├── .env
+├── .gitignore
+└── package.json
 ```
 
 ---
@@ -113,54 +147,67 @@ TRADEBOT_live/
 | Feature | Description | Docs |
 |---------|-------------|------|
 | Live Trading Loop | 24/7 runner with market hour detection | [live-trader.md](features/live-trader.md) |
-| AI Agents | GPT-4o-mini decision system | [ai-agents.md](features/ai-agents.md) |
+| AI Agents | GPT-powered multi-agent decision system | [ai-agents.md](features/ai-agents.md) |
 | OANDA Executor | Trade execution & position management | [oanda-executor.md](features/oanda-executor.md) |
+| Model System | Versioned AI checkpoints with metadata | [model-system.md](features/model-system.md) |
 
 ---
 
-## Session Schedule
+## Models
 
-```mermaid
-gantt
-    title Daily Trading Schedule (Zurich Time)
-    dateFormat HH:mm
-    axisFormat %H:%M
+| Model | Pair | LLM | Notes |
+|-------|------|-----|-------|
+| gpt4mini_eurusd | EUR/USD | GPT-4o-mini | Baseline |
+| gpt4mini_usdjpy | USD/JPY | GPT-4o-mini | Structure-aware |
+| gpt4mini_gbpusd_iter11 | GBP/USD | GPT-4o-mini | Risk-adjusted, bad pattern detection |
+| gpt5_iter5 | EUR/USD | GPT-5.2 | Best performer (78% WR) |
 
-    section Status
-    Dashboard Only     :done, 00:00, 8h
-    Active Trading     :active, 08:00, 10h
-    Close Positions    :crit, 18:00, 1h
-    Dashboard Only     :done, 19:00, 5h
-```
+---
+
+## Guidelines
+
+| Guide | Description |
+|-------|-------------|
+| [DOC_GUIDELINES.md](guidelines/DOC_GUIDELINES.md) | How to maintain docs |
+| [CLOUDFLARE_TUNNEL_GUIDE.md](guidelines/CLOUDFLARE_TUNNEL_GUIDE.md) | Remote access setup |
+
+---
+
+## Reports
+
+| Report | Description |
+|--------|-------------|
+| [benchmark_old_trades.md](reports/benchmark_old_trades.md) | Historical trade analysis |
+| [live_session_20260218.md](reports/live_session_20260218.md) | First live session |
+| [trade_review_20260227.md](reports/trade_review_20260227.md) | Feb 27 trade review |
+
+---
+
+## Documentation
+
+| Doc | Description |
+|-----|-------------|
+| [DIARY.md](DIARY.md) | Chronological dev log |
+| [MISTAKES.md](MISTAKES.md) | Solved challenges |
+| [CONVENTIONS.md](CONVENTIONS.md) | Naming standards |
 
 ---
 
 ## Quick Commands
 
 ```bash
-# Start trading bot
-node live_trader.js
-
-# Check account status
-python check_account.py
-
-# Analyze PnL
-node analyze_pnl.js
+npm start                          # Start trading bot
+node src/live_trader.js            # Direct start
+node tools/check_oanda.js          # Check account status
+node tools/analyze_pnl.js          # Analyze trade history
+node tools/analyze_pnl.js log      # Analyze from log file
+node tools/cancel_orders.js        # Cancel pending orders
 ```
-
----
-
-## Links
-
-- [Diary](DIARY.md) - Session history & commits
-- [Mistakes](MISTAKES.md) - Solved challenges
-- [Thought Process](THOUGHT_PROCESS.md) - Current development
 
 ---
 
 ## Next Steps
 
-- [ ] Implement dynamic position sizing based on account equity
-- [ ] Add Telegram notifications for trades
-- [ ] Test GPT-5 agents performance
-- [ ] Add multi-pair simultaneous trading
+- [ ] Implement dynamic position sizing
+- [ ] Add Telegram notifications
+- [ ] Multi-timeframe analysis

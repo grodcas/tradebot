@@ -39,10 +39,10 @@ flowchart TB
 
 ## Agent Files
 
-Each pair has its own agents folder:
+Each pair has its own model directory in `models/`:
 
 ```
-agents_eurusd/
+models/gpt4mini_eurusd/
 ├── orchestrator.js     # Coordinates all agents
 ├── direction_agent.js  # LONG / SHORT / WAIT
 ├── confidence_agent.js # Risk score 0.0 - 1.0
@@ -114,12 +114,12 @@ agents_eurusd/
 
 ## Pair Variants
 
-| Folder | Pair | Notes |
-|--------|------|-------|
-| `agents_eurusd` | EUR/USD | Primary, most tested |
-| `agents_gbpusd` | GBP/USD | Higher volatility settings |
-| `agents_usdjpy` | USD/JPY | Different pip calculation |
-| `agents_gpt5` | Experimental | Testing GPT-5 prompts |
+| Model | Pair | LLM | Notes |
+|-------|------|-----|-------|
+| `models/gpt4mini_eurusd` | EUR/USD | GPT-4o-mini | Baseline |
+| `models/gpt4mini_usdjpy` | USD/JPY | GPT-4o-mini | Structure-aware |
+| `models/gpt4mini_gbpusd_iter11` | GBP/USD | GPT-4o-mini | Risk-adjusted, bad pattern detection |
+| `models/gpt5_iter5` | EUR/USD | GPT-5.2 | Best performer (78% WR) |
 
 ---
 

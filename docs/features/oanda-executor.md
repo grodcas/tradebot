@@ -31,7 +31,7 @@ sequenceDiagram
 ---
 
 ## Key File
-`oanda_executor.js` (~30KB)
+`src/oanda_executor.js` (~30KB)
 
 ---
 
@@ -113,10 +113,10 @@ OANDA_API_URL=https://api-fxpractice.oanda.com
 
 ## Test Scripts
 
-- `test_executor.js` - Basic order test
-- `test_oanda_limit.js` - Limit order test
-- `test_position_sizes.js` - Size calculation test
-- `test_real_trade.js` - Full flow test
+- `tools/test_1k_order.js` - Basic order test
+- `tools/test_oanda_limit.js` - Limit order test
+- `tools/test_position_sizes.js` - Size calculation test
+- `tools/oanda_test.js` - API connection test
 
 ---
 

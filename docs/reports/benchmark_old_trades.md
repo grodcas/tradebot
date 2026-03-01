@@ -151,3 +151,7 @@ Live slippage and execution will likely reduce performance. These targets accoun
 
 *Generated: Feb 18, 2026*
 *Data source: git commit 86105b8*
+
+---
+
+[Back to STRUCTURE](../STRUCTURE.md)

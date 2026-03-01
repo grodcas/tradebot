@@ -4,6 +4,20 @@ Session history and commit tracking.
 
 ---
 
+## 2026-02-28
+
+### Repository Restructure
+- Deleted dead code: IBKR files, batch_trainer, Python scripts, old duplicates
+- Created `src/`, `models/`, `tools/`, `data/` directory structure
+- Moved all files via `git mv` to preserve history
+- Updated all import paths (`require()`, `dotenv.config()`, file I/O)
+- Added `metadata.json` to each model directory
+- Removed `@stoqey/ib` dependency, added `npm start` script
+- Rewrote documentation as hub-and-spoke centered on STRUCTURE.md
+- Tags: `v2.0-pre-restructure` (rollback), `v2.1-restructured` (verified), `v3.0` (final)
+
+---
+
 ## 2026-02-26
 
 ### Session 1

@@ -20,7 +20,7 @@ stateDiagram-v2
 ---
 
 ## Key File
-`live_trader.js` (~62KB, main entry point)
+`src/live_trader.js` (~62KB, main entry point)
 
 ---
 
@@ -61,9 +61,9 @@ stateDiagram-v2
 
 ## Output Files
 
-- `live_trader.log` - All runtime activity
-- `trade_results.json` - Today's trades summary
-- `global_trades.json` - Full history
+- `data/live_trader.log` - All runtime activity
+- `data/trade_results.json` - Today's trades summary
+- `data/global_trades.json` - Full history
 
 ---
 
@@ -71,10 +71,13 @@ stateDiagram-v2
 
 ```bash
 # Direct
-node live_trader.js
+node src/live_trader.js
+
+# Via npm
+npm start
 
 # With PM2 (recommended for 24/7)
-pm2 start live_trader.js --name tradebot
+pm2 start src/live_trader.js --name tradebot
 pm2 logs tradebot
 ```
 
