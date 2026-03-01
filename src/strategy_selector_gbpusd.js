@@ -5,7 +5,7 @@
  * Uses risk-adjusted GPT-5.2 model from TRADEBOT_GBPUSD.
  */
 
-const { orchestrateTrade } = require('./agents_gbpusd/orchestrator');
+const { orchestrateTrade } = require('../models/gpt4mini_gbpusd_iter11/orchestrator');
 
 const MAX_WAIT_BARS = 6;
 const MIN_RISK = 0.15;

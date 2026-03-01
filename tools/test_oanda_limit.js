@@ -5,8 +5,9 @@
  * Usage: node test_oanda_limit.js
  */
 
-require('dotenv').config();
-const oanda = require('./oanda_executor');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+const oanda = require('../src/oanda_executor');
 
 async function testLimitOrder() {
   console.log('='.repeat(50));

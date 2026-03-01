@@ -2,10 +2,11 @@
  * P&L Analysis from live_trader.log
  */
 const fs = require('fs');
+const path = require('path');
 
 // Parse command line - if "log" argument, analyze log file
 if (process.argv[2] === 'log') {
-  const log = fs.readFileSync('live_trader.log', 'utf8');
+  const log = fs.readFileSync(path.join(__dirname, '..', 'data', 'live_trader.log'), 'utf8');
   const regex = /\[(\w+)\] \[REAL P&L\] Gross: \$(-?[\d.]+) \| Commission: \$[\d.]+ \| Net: \$(-?[\d.]+)/g;
 
   const totals = {
@@ -43,7 +44,7 @@ if (process.argv[2] === 'log') {
   process.exit(0);
 }
 
-const data = require('./global_trades.json');
+const data = require('../data/global_trades.json');
 const trades = data.trades;
 
 // OANDA actual spreads (in pips) - from live data

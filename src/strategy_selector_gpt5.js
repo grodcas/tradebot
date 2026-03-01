@@ -5,7 +5,7 @@
  * Trades EUR/USD pair with the trained GPT-5 prompts.
  */
 
-const { orchestrateTrade } = require('./agents_gpt5/orchestrator');
+const { orchestrateTrade } = require('../models/gpt5_iter5/orchestrator');
 
 const MAX_WAIT_BARS = 6;
 const MIN_RISK = 0.15;

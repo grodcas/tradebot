@@ -7,8 +7,9 @@
  * 3. Order execution at various sizes
  */
 
-require('dotenv').config();
-const oanda = require('./oanda_executor');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+const oanda = require('../src/oanda_executor');
 
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

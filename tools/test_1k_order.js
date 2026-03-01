@@ -3,8 +3,9 @@
  * Verifies the new position size works correctly
  */
 
-require('dotenv').config();
-const oanda = require('./oanda_executor');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+const oanda = require('../src/oanda_executor');
 
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

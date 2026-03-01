@@ -4,7 +4,7 @@
  * Coordinates specialist agents for USD/JPY pair.
  */
 
-const { orchestrateTrade } = require('./agents_usdjpy/orchestrator');
+const { orchestrateTrade } = require('../models/gpt4mini_usdjpy/orchestrator');
 
 const MAX_WAIT_BARS = 6;
 const MIN_RISK = 0.15;

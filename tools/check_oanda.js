@@ -3,7 +3,8 @@
  * Checks pending orders and open trades without interfering with the trader
  */
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const https = require('https');
 
 const accountId = process.env.OANDA_ACCOUNT_ID;

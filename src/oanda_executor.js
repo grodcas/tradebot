@@ -9,7 +9,8 @@
  *   // or keep: const orderExecutor = require('./order_executor');  // for IBKR
  */
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const OANDA_API_TOKEN = process.env.OANDA_API_TOKEN;
 const OANDA_ACCOUNT_ID = process.env.OANDA_ACCOUNT_ID;
