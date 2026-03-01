@@ -8,13 +8,13 @@ The main 24/7 trading loop.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Waiting: Start
-    Waiting --> Connected: 08:00 Zurich
-    Connected --> Trading: Data Loaded
-    Trading --> Trading: Check for setups
-    Trading --> Closing: 18:00 Zurich
-    Closing --> Waiting: Positions closed
-    Closing --> Closing: Wait for exit
+    [*] --> Waiting : Start
+    Waiting --> Connected : 0800 Zurich
+    Connected --> Trading : Data Loaded
+    Trading --> Trading : Check for setups
+    Trading --> Closing : 1800 Zurich
+    Closing --> Waiting : Positions closed
+    Closing --> Closing : Wait for exit
 ```
 
 ---

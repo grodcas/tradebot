@@ -87,10 +87,10 @@ flowchart LR
 ```mermaid
 stateDiagram-v2
     [*] --> Waiting
-    Waiting --> Connected : 08:00 Zurich
+    Waiting --> Connected : 0800 Zurich
     Connected --> Trading : Market open
     Trading --> Trading : Scan every 5 min
-    Trading --> Closing : 18:00 Zurich
+    Trading --> Closing : 1800 Zurich
     Closing --> Waiting : Positions closed
     Waiting --> Waiting : Dashboard only
 ```
