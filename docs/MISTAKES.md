@@ -48,3 +48,7 @@ Ledger of difficult challenges that were solved. Organized by feature/section.
 **Root cause**: Why it happened
 **Fix**: How we solved it
 ```
+
+---
+
+[Back to STRUCTURE](STRUCTURE.md)

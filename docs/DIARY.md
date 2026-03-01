@@ -55,3 +55,7 @@ Session history and commit tracking.
 - System ran stable for 10 hours
 - Dashboard accessible via ngrok
 - See `LIVE_SESSION_ANALYSIS_20260218.md` for details
+
+---
+
+[Back to STRUCTURE](STRUCTURE.md)
