@@ -1,180 +1,77 @@
 # TRADEBOT
 
 ## Purpose
-AI-powered EUR/USD trading system using GPT models. Core innovation: **iterate on prompts** as a form of machine learning to improve trading performance.
+AI-powered EUR/USD trading system using GPT-5. Core innovation: **iterate on prompts** as a form of machine learning to improve trading performance.
 
 ## Tech Stack
-`Node.js` | `GPT-4/GPT-5` | `OANDA API` | `Claude (human-guided iteration)`
+`Node.js` | `GPT-5` | `OANDA API` | `Claude (human-guided iteration)`
 
 ## Current Active Model
-**GPT-5 Market Order** (Iter18) | Direction-only + mechanical levels | 40% WR | Mar 1, 2026
-
-> **Note:** Legacy models (Iter5, Iter4, GPT-4 Baseline) showed 53-78% win rates, but those stats are **inflated by the limit-order fill bug** — the simulator assumed perfect limit fills that would rarely execute in live trading. Only market-order results are realistic.
+**Iter20** | Direction-only + mechanical levels | 51.7% WR | +0.291 R/trade | Mar 1, 2026
 
 ---
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    subgraph DATA["Market Data"]
-        OANDA[OANDA API]
-        HIST[Historical JSON]
-    end
-
-    subgraph ANALYSIS["Analysis"]
-        IND[trade_indicators.js]
-    end
-
-    subgraph AGENTS["AI Agents"]
-        direction TB
-        ORCH[orchestrator.js]
-        DIR[direction_agent.js]
-        CONF[confidence_agent.js]
-        LEV[levels_agent.js]
-    end
-
-    subgraph EXECUTION["Execution"]
-        STRAT[strategy_selector.js]
-        LIVE[live_trader.js]
-        BATCH[batch_trainer.js]
-    end
-
-    subgraph RESULTS["Output"]
-        RES[results/*.json]
-        STATS[Win Rate, R, Failures]
-    end
-
-    subgraph ITERATION["Human + Claude"]
-        GUIDE[ITERATION_GUIDELINES]
-        HUMAN[You + Claude]
-    end
-
-    OANDA --> IND
-    HIST --> IND
-    IND --> ORCH
-    ORCH --> DIR
-    DIR --> CONF
-    CONF --> LEV
-    LEV --> STRAT
-    STRAT --> LIVE
-    STRAT --> BATCH
-    BATCH --> RES
-    RES --> STATS
-    STATS -.->|analyze| HUMAN
-    HUMAN -.->|edit prompts| ORCH
-    GUIDE -.->|follow| HUMAN
-
-    click IND "features/batch-trainer.md" "Technical indicators"
-    click ORCH "features/agents.md" "Agent orchestration"
-    click DIR "features/agents.md" "Direction analysis"
-    click CONF "features/agents.md" "Confidence scoring"
-    click LEV "features/agents.md" "Level setting"
-    click BATCH "features/batch-trainer.md" "Backtesting"
-    click LIVE "features/live-trader.md" "Live trading"
-    click GUIDE "guidelines/ITERATION_GUIDELINES.md" "How to iterate"
+```
+Market Data (OANDA 5m bars)
+        |
+        v
+trade_indicators.js         <-- Computes: sessions, S/R, swing points,
+        |                        structure, EMA, ATR, regime, prevDay levels
+        v
+strategy_selector.js        <-- Extracts indicators, calls orchestrator
+        |
+        v
+orchestrator.js             <-- Calls direction agent, applies mechanical levels
+        |
+        v
+direction_agent.js          <-- GPT-5 prompt: multi-TF analysis, must decide
+        |                        BULLISH or BEARISH, counter-argument, conviction
+        v
+Mechanical Levels           <-- SL = 1.2 x ATR_30m, TP = 1.5:1 R:R, Risk = 0.50
+        |
+        v
+Trade Decision              <-- {side, entry, sl, tp, risk, reasoning}
 ```
 
-**Note:** The iteration loop is NOT automated. You run tests, analyze results with Claude, and manually edit prompts following [ITERATION_GUIDELINES](guidelines/ITERATION_GUIDELINES.md).
+**Key design choice (since Iter18):** Single AI agent (direction only). Confidence and levels agents were removed — they added noise without improving results. Levels are mechanical to isolate direction quality.
 
 ---
 
 ## Agent Decision Flow
 
-```mermaid
-flowchart LR
-    A["5m/30m/Daily bars"] --> B[Direction Agent]
-    B --> C[Confidence Agent]
-    C --> D[Levels Agent]
-    D --> E[Orchestrator]
-    E --> F["Trade Decision"]
-
-    click B "features/agents.md"
-    click C "features/agents.md"
-    click D "features/agents.md"
 ```
-
-**I/O Formats:**
-
-| Agent | Input | Output |
-|-------|-------|--------|
-| Direction | `{bars, indicators}` | `{direction: LONG/SHORT/NEUTRAL, reasoning}` |
-| Confidence | `{direction, indicators}` | `{probability: 0-1, sizing: FULL/REDUCED/MINIMAL}` |
-| Levels | `{direction, confidence, price}` | `{entry, sl, tp, riskR}` |
-| Orchestrator | all above | `{side, entry, sl, tp, riskFactor}` or `SKIP` |
+5m/30m/Daily bars + indicators
+        |
+        v
+Direction Agent (GPT-5)
+  Input: closes, swing points, EMA, S/R, prevDay high/low, regime, session
+  Output: {primary_bias: BULLISH|BEARISH, conviction: HIGH|LOW, trade_idea, counter_argument}
+        |
+        v
+Mechanical Levels (no AI)
+  SL = 1.2 x ATR_30m from entry
+  TP = 1.5 x SL distance (1.5:1 R:R)
+  Risk = 0.50 fixed
+```
 
 ---
 
 ## Simulation Flow (batch_trainer.js)
 
-```mermaid
-flowchart TB
-    A[Load historical bars] --> B[Pick N random timestamps]
-    B --> C[For each timestamp]
+1. Load historical 5m bars from OANDA JSON
+2. Pick 30 random timestamps during Zurich session hours
+3. For each: compute indicators, call AI, get trade decision
+4. Simulate forward: market order at next bar's open, check SL/TP hit
+5. Record result + call trade summary agent for diagnosis
+6. Save to `results/trade_results.json`
 
-    subgraph DECIDE["Get AI Decision"]
-        C --> D[Calculate indicators]
-        D --> E[Call 3 agents via GPT]
-        E --> F["Decision: {side, entry, sl, tp}"]
-    end
-
-    subgraph SIMULATE["Simulate Trade"]
-        F --> G["Start at entryIndex + 1"]
-        G --> H{Check bar high/low}
-        H -->|"bar touches SL"| I[SL Hit - Loss]
-        H -->|"bar touches TP"| J[TP Hit - Win]
-        H -->|"neither"| K[Next bar]
-        K --> L{300 bars passed?}
-        L -->|No| H
-        L -->|Yes| M[Timeout]
-    end
-
-    I --> N[Record result]
-    J --> N
-    M --> N
-    N --> O{More scenarios?}
-    O -->|Yes| C
-    O -->|No| P[Save results JSON]
-```
-
-**Known Issues (see [SIMULATOR_BUG_ANALYSIS](SIMULATOR_BUG_ANALYSIS.md)):**
-- Entry is IMMEDIATE at next bar (no limit fill check)
-- Spread calculated but NOT applied to exits
-- Same-bar TP+SL conflict always counts as SL
-
-**I/O:**
-- Input: `data/eurusd_5m_*.json` (OHLC bars)
-- Output: `results/trade_results.json` (decisions + outcomes)
-
----
-
-## Live Trading Flow (live_trader.js)
-
-```mermaid
-flowchart TB
-    A[Connect OANDA API] --> B[Fetch 800 bars history]
-    B --> C[Wait for next 5m bar]
-
-    subgraph LOOP["Every 5 minutes"]
-        C --> D{Have position?}
-        D -->|No| E[Calculate indicators]
-        E --> F[Call AI agents]
-        F --> G{Execute?}
-        G -->|Yes| H[Place bracket order]
-        G -->|Skip| C
-        D -->|Yes| I[Monitor SL/TP]
-        I --> J{Exit triggered?}
-        J -->|Yes| K[Log result]
-        J -->|No| C
-    end
-
-    H --> C
-    K --> C
-```
-
-**I/O:**
-- Input: OANDA real-time 5m bars
-- Output: `results/live_trade_results.json`
+**Simulation rules:**
+- Entry: Market order at next bar's open (+ half spread)
+- SL/TP adjusted from actual fill price (preserves R:R)
+- Same-bar TP+SL conflict counts as SL (conservative)
+- Timeout: 300 bars (~25 hours)
 
 ---
 
@@ -184,112 +81,75 @@ flowchart TB
 TRADEBOT/
 ├── src/                      # Core source code
 │   ├── agents/               # AI agent prompts (THE MODEL)
-│   │   ├── direction_agent.js
-│   │   ├── confidence_agent.js
-│   │   ├── levels_agent.js
-│   │   ├── orchestrator.js
-│   │   └── ai_client.js
-│   ├── batch_trainer.js      # Backtest engine (OANDA/IBKR data)
-│   ├── live_trader.js        # Live/paper trading
-│   ├── iteration_loop.js     # Auto-iteration (experimental, prefer manual)
-│   ├── strategy_selector.js  # Decision validation
-│   └── trade_indicators.js   # Technical analysis
+│   │   ├── direction_agent.js   # The main AI prompt (Iter20)
+│   │   ├── orchestrator.js      # Pipeline: direction → mechanical levels
+│   │   └── ai_client.js         # GPT-5 API wrapper
+│   ├── batch_trainer.js      # Backtest engine (30 random scenarios)
+│   ├── live_trader.js        # Live/paper trading via OANDA
+│   ├── strategy_selector.js  # Indicator extraction + decision validation
+│   └── trade_indicators.js   # Technical analysis (~900 lines)
 │
 ├── data/                     # Historical price data
-│   ├── eurusd_5m_oanda.json        # Default OANDA data (symlink to recent)
-│   ├── eurusd_5m_oanda_recent.json # OANDA Nov 2025 - Feb 2026
-│   ├── eurusd_5m_oanda_old.json    # OANDA Aug 2025 - Nov 2025
-│   ├── eurusd_5m_recent.json       # Legacy IBKR (Nov 2025 - Feb 2026)
-│   └── eurusd_5m_old.json          # Legacy IBKR (Aug 2025 - Nov 2025)
+│   ├── eurusd_5m_oanda.json        # Default (symlink to recent)
+│   ├── eurusd_5m_oanda_recent.json # Nov 2025 - Feb 2026
+│   └── eurusd_5m_oanda_old.json    # Aug 2025 - Nov 2025
 │
-├── models/                   # Saved model versions
-│   └── {name}_{YYYYMMDD}/    # e.g., gpt5_iter5_20260221/
+├── models/                   # Saved model checkpoints
+│   └── gpt5_market_order_20260228/ # Current model with iteration history
 │
-├── results/                  # Test results
-├── tools/                    # Utility scripts
-├── archive/                  # Old iterations, backups
-└── docs/                     # Documentation
+├── results/                  # Test results (trade_results.json)
+├── scripts/                  # Analysis scripts (analyze_iter20_combined.js)
+├── docs/                     # Documentation
+└── archive/                  # Old iterations, legacy models
 ```
 
 ---
 
-## Features
+## Iteration History
 
-| Feature | Description | Docs |
-|---------|-------------|------|
-| AI Agents | GPT-powered trading decisions | [agents.md](features/agents.md) |
-| Batch Trainer | Backtest on historical data | [batch-trainer.md](features/batch-trainer.md) |
-| Live Trader | Paper/live trading with OANDA | [live-trader.md](features/live-trader.md) |
-| Model System | Versioned prompt checkpoints | [model-system.md](features/model-system.md) |
+| Iter | WR | Raw R | Key Change | Status |
+|------|----|-------|------------|--------|
+| 11 | 66.7% | +18.82 | First profitable market order (lucky run) | v2.0 tag |
+| 12 | 34.5% | -3.26 | Aggressive risk scaling | Regression |
+| 13 | 44.6% | +8.72 | Position overrides momentum | Partial recovery |
+| 18 | 40.0% | -0.01 | Direction-only, dropped conf+levels agents | Simplification baseline |
+| 19 | 42.3% | +1.48 | Principle-based prompt rewrite | Identified false break problem |
+| **20** | **51.7%** | **+17.45** | **False break awareness, must-decide, prevDay levels** | **Current (60 trades)** |
 
----
-
-## Guidelines
-
-| Guideline | Purpose |
-|-----------|---------|
-| [DOC_GUIDELINES.md](guidelines/DOC_GUIDELINES.md) | How to organize documentation |
-| [ITERATION_GUIDELINES.md](guidelines/ITERATION_GUIDELINES.md) | How to improve models (human + Claude) |
+> Legacy models (Iter1-8) used limit-order fills with inflated results. See [SIMULATOR_BUG_ANALYSIS](SIMULATOR_BUG_ANALYSIS.md).
 
 ---
 
-## Models
+## Iter20 Performance Breakdown
 
-| Model | Win Rate | Total R | Trades | Date | Docs |
-|-------|----------|---------|--------|------|------|
-| LEGACY GPT-4 Baseline | ~~53.4%~~ | ~~+10.23R~~ | 60 | Feb 21 | [README](../models/LEGACY_gpt4_baseline_20260221/README.md) |
-| LEGACY GPT-5 Iter4 | ~~74.1%~~ | ~~+38.90R~~ | 58 | Feb 21 | [README](../models/LEGACY_gpt5_iter4_20260221/README.md) |
-| LEGACY GPT-5 Iter5 | ~~78.0%~~ | ~~+42.62R~~ | 59 | Feb 21 | [README](../models/LEGACY_gpt5_iter5_20260221/README.md) |
-| **GPT-5 Market Order** | **Iter9 ACTIVE** | - | - | Feb 28 | [README](../models/gpt5_market_order_20260228/README.md) |
+**Winning setups (protect):**
+- RANGE+RANGE: 62% WR, +11.47R (21 trades)
+- TREND+DOWNTREND SHORT: 60% WR, +4.98R (10 trades)
+- RANGE+DOWNTREND SHORT: 100% WR, +5.98R (4 trades)
 
-> Legacy model stats are struck through because they used the **limit-order fill bug** (simulator assumed perfect fills). See [SIMULATOR_BUG_ANALYSIS](SIMULATOR_BUG_ANALYSIS.md).
+**Bleeding setups (fix next):**
+- TREND+UPTREND LONG: 33% WR, -1.50R (9 trades)
+- RANGE+DOWNTREND LONG: 20% WR, -2.49R (5 trades)
+- RANGE+UPTREND LONG: 25% WR, -1.50R (4 trades)
 
-### Iteration Tracking
-
-Each model folder contains an `iterations/` subfolder with detailed logs:
-
-```
-models/gpt5_market_order_20260228/
-├── README.md              # Model overview
-├── metadata.json          # Version info, iteration history
-├── *.js                   # Agent files
-└── iterations/            # Iteration history
-    ├── iter5_market_baseline.md   # 42% WR - baseline
-    ├── iter6_position_fading.md   # 15% WR - FAILED (fought trends)
-    └── iter7_trend_first.md       # PENDING
-```
-
-**Each iteration log includes:**
-- Changes made (what was tried)
-- Test results (WR, R, trades)
-- Why it worked or failed
-- Lessons learned
-- Link to next iteration
-
-This prevents repeating the same mistakes across iterations.
+See [DIARY.md](DIARY.md) for detailed analysis and next steps.
 
 ---
 
 ## Quick Commands
 
 ```bash
-# Download OANDA historical data (run once)
-node tools/download_oanda_data.js --months 6
-
 # Run backtest
 node src/batch_trainer.js
 
-# Run backtest with specific data file
-DATA_PATH=data/eurusd_5m_old.json node src/batch_trainer.js
+# Run with old data
+DATA_PATH=data/eurusd_5m_oanda_old.json node src/batch_trainer.js
 
 # Analyze results
-node tools/analyze_trades.js
+node scripts/analyze_iter20_combined.js
 
 # Live paper trading
 node src/live_trader.js
-
-# Load saved model
-cp models/gpt5_iter5_20260221/*.js src/agents/
 ```
 
 ---
@@ -298,40 +158,10 @@ cp models/gpt5_iter5_20260221/*.js src/agents/
 
 | Document | Purpose |
 |----------|---------|
-| [DIARY.md](DIARY.md) | Development history (chronological) |
+| [DIARY.md](DIARY.md) | Development history, iteration results, analysis |
 | [MISTAKES.md](MISTAKES.md) | Solved challenges & lessons learned |
+| [SIMULATOR_BUG_ANALYSIS.md](SIMULATOR_BUG_ANALYSIS.md) | Why legacy results are inflated |
 | [CONVENTIONS.md](CONVENTIONS.md) | Naming standards |
-
----
-
-## Iteration Prompts (Exact)
-
-| Iteration | WR | R | Key Change | Prompts |
-|-----------|-----|------|------------|---------|
-| Iter11 | 66.7% | +18.82R | First profitable market order | [ITER11_PROMPTS.md](ITER11_PROMPTS.md) |
-| Iter12 | 34.5% | -3.26R | Regression | [ITER12_PROMPTS.md](ITER12_PROMPTS.md) |
-| Iter13 | 44.6% | +8.72R | Position overrides momentum | [ITER13_PROMPTS.md](ITER13_PROMPTS.md) |
-| Iter18 | 40.0% | -0.01R | Direction-only, no confidence agent | [ITER18_PROMPTS.md](ITER18_PROMPTS.md) |
-
----
-
-## Reports & Analysis
-
-| Report | Description |
-|--------|-------------|
-| [SIMULATOR_BUG_ANALYSIS.md](SIMULATOR_BUG_ANALYSIS.md) | Critical bugs in backtester |
-| [LIVE_SESSION_ANALYSIS_20260218.md](LIVE_SESSION_ANALYSIS_20260218.md) | Feb 18 live trading session |
-| [BENCHMARK_OLD_TRADES.md](BENCHMARK_OLD_TRADES.md) | Old data performance |
-| [GPT-5 Iter5 OANDA Test (Feb 28)](reports/gpt5_iter5_oanda_20260228_report.md) | 30 scenarios on OANDA recent data |
-
----
-
-## Next Steps
-
-- [ ] Fix simulator bugs (see [SIMULATOR_BUG_ANALYSIS](SIMULATOR_BUG_ANALYSIS.md))
-- [ ] Fix risk-win correlation in confidence agent
-- [ ] Reduce long bias (currently 67-69% longs)
-- [ ] Add high-confidence trades (most capped at 0.4-0.55)
 
 ---
 
@@ -339,12 +169,5 @@ cp models/gpt5_iter5_20260221/*.js src/agents/
 
 **Start Here:**
 1. Read this file (STRUCTURE.md)
-2. Check [DIARY.md](DIARY.md) for recent work
-3. Follow [ITERATION_GUIDELINES.md](guidelines/ITERATION_GUIDELINES.md) to improve
-
-**Understand the System:**
-- [features/agents.md](features/agents.md) - How decisions are made
-- [features/batch-trainer.md](features/batch-trainer.md) - How simulation works
-
-**Add Documentation:**
-- [DOC_GUIDELINES.md](guidelines/DOC_GUIDELINES.md) - Rules for docs
+2. Check [DIARY.md](DIARY.md) for latest iteration results
+3. Look at `src/agents/direction_agent.js` — that IS the model

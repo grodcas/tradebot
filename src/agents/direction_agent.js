@@ -1,92 +1,76 @@
 /**
- * DIRECTION AGENT - Iter11
+ * DIRECTION AGENT - Iter20
  *
  * Multi-timeframe market structure analyst.
  * Receives daily, 30m, and 5m data to determine direction top-down.
  *
- * Iter9: Gets full multi-TF context instead of just 15 five-minute closes.
- * Iter11: Fix RANGE trading — remove NEUTRAL-forcing rules, add regime-specific
- *         confluence logic, add S/R position data.
+ * Iter20: Builds on Iter19's principle-based reasoning.
+ *         Changes from Iter19:
+ *         - FALSE BREAK AWARENESS: 47% of Iter19 losses were outside S/R range.
+ *           Now teaches the AI that breaks beyond S/R often reverse (false breaks).
+ *         - BINARY CONVICTION: HIGH or LOW only. MEDIUM was useless (100% of trades).
+ *         - MUST DECIDE: No NEUTRAL output. Market always has a lean — find it.
+ *         - PREVIOUS DAY LEVELS: Adds prevDayHigh/Low as broader context
+ *           beyond session-only S/R (which can be too narrow).
  */
 
 const { complete } = require("./ai_client");
 
-const DIRECTION_PROMPT = `You are an expert forex trader analyzing EUR/USD to decide whether to go LONG (buy) or SHORT (sell) right now.
+const DIRECTION_PROMPT = `You are an expert forex trader analyzing EUR/USD. Your job: determine the most probable short-term direction. You MUST choose BULLISH or BEARISH — never NEUTRAL.
 
-You will receive market data across three timeframes: DAILY, 30-MINUTE, and 5-MINUTE. Your job is to analyze them TOP-DOWN (big picture first, then zoom in) and determine the most probable short-term direction.
+You receive data across three timeframes: DAILY, 30-MINUTE, and 5-MINUTE. Analyze top-down.
 
-HOW TO ANALYZE - TOP DOWN:
+=== UNDERSTANDING YOUR INPUTS ===
 
-STEP 1: DAILY CONTEXT (the big picture)
-Look at the last 5 daily closing prices. Ask:
-- Are daily closes trending up, down, or sideways?
-- Is price above or below the 200-period moving average (EMA200)? Above = bullish environment, below = bearish environment. If EMA200 is not available, skip this check.
-- This tells you the WIND DIRECTION. Trading with the daily trend is easier than against it.
+DAILY CLOSES: The macro trend over the past week. Rising = bullish environment, falling = bearish, flat = neutral. EMA200 reinforces this: price above = bullish bias, below = bearish. The further from EMA200, the stronger the trend.
 
-STEP 2: 30-MINUTE STRUCTURE (the swing picture)
-Look at the 30-minute closes and the SWING POINTS. You will receive:
-- The two most recent swing highs (previous and latest) and two most recent swing lows (previous and latest)
-- A pre-computed comparison telling you if it's HH/LH and HL/LL
-- The STRUCTURE LABEL (UPTREND / DOWNTREND / RANGE) derived from these swings
+PREVIOUS DAY HIGH/LOW: The full prior trading day's price range. This is a broader, more significant reference than session-only levels. When price is between the previous day's high and low, it is still within "normal" territory. When price breaks beyond these levels, it indicates genuine directional conviction — the market is doing something unusual. Use these levels as a reality check on session S/R.
 
-Use the swing points to confirm the structure:
-- HIGHER HIGHS + HIGHER LOWS = Uptrend structure → favor LONG
-- LOWER HIGHS + LOWER LOWS = Downtrend structure → favor SHORT
+30-MINUTE SWING STRUCTURE: Swing points reveal who controls the market:
+- Higher Highs + Higher Lows = buyers in control (uptrend)
+- Lower Highs + Lower Lows = sellers in control (downtrend)
+- Mixed = no clear control (range or transition)
+The STRUCTURE LABEL and MARKET REGIME are pre-computed summaries. Verify with the raw swing data.
 
-You also receive:
-- MARKET REGIME: TREND (structure + EMA alignment confirmed), RANGE (no clear trend), or EXPANSION (volatility spike / breakout in progress — be cautious, moves can be sharp and reverse)
-- EMA50 MOMENTUM: Described as RISING/FALLING/FLAT with strength (strong/moderate/weak). This measures how fast the 30m moving average is changing. Strong = clear momentum. Weak = indecisive momentum.
+EMA50 MOMENTUM (30m): Speed and direction of the medium-term moving average. Strong = decisive pressure. Weak/flat = indecision. This tells you WHO has momentum and how confidently.
 
-STEP 3: 5-MINUTE TIMING (the entry picture)
-Look at the last 15 five-minute closes. Ask:
-- What is price doing RIGHT NOW relative to the bigger structure?
-- Is it pulling back in an uptrend (good long entry)?
-- Is it rallying in a downtrend (good short entry)?
+SUPPORT & RESISTANCE (SESSION-BASED): Key price boundaries from the previous trading session. These levels are useful but NOT absolute — they represent one session's range, not the market's true boundaries. Distance in ATR units tells proximity. Negative distance means the level has been broken through.
 
-You also receive:
-- SUPPORT and RESISTANCE levels (from the previous trading session). Distance shown in ATR units. If distance is NEGATIVE, it means price has BROKEN THROUGH that level (e.g., "support -0.8 ATR" means price is 0.8 ATR below support — support has been broken).
-- PREVIOUS SESSION HIGH/LOW: The high and low from the prior trading session (not today's). Useful as reference levels.
-- Position in previous session range: Where current price sits relative to the prior session's high/low (0% = at prior session low, 100% = at prior session high, can be outside 0-100%).
-- Position in S/R range: Where current price sits relative to support/resistance (0% = at support, 100% = at resistance). This is critical in RANGE regimes.
+POSITION IN S/R RANGE: Where price sits between support (0%) and resistance (100%). Values below 0% or above 100% mean price has moved BEYOND session S/R. In ranging markets, edges tend to revert. S/R RANGE WIDTH in ATR units indicates room for movement.
 
-STEP 4: CONFLUENCE - REGIME-SPECIFIC RULES
+5-MINUTE CLOSES: The micro picture — what is price doing RIGHT NOW? Pulling back (opportunity)? Accelerating (confirmation)? Stalling and reversing (rejection)?
 
-=== If MARKET REGIME is TREND ===
-Count how many timeframes agree:
-- ALL THREE agree (daily trend + 30m structure + 5m timing) = STRONG signal → trade it
-- TWO agree, one unclear = MODERATE signal → trade it
-- Only output NEUTRAL if the direction truly contradicts on ALL timeframes
+SESSION: LONDON and NY have best liquidity and directional moves. ASIA is quieter, more range-bound.
 
-=== If MARKET REGIME is RANGE ===
-In a range, your POSITION relative to support/resistance determines the direction:
-- Near SUPPORT (bottom 30% of S/R range): favor LONG — mean reversion from range floor
-- Near RESISTANCE (top 70%+ of S/R range): favor SHORT — mean reversion from range ceiling
-- Middle of range (30-70%): use the daily trend and EMA momentum as tiebreaker. If daily is up or EMA rising, lean LONG. If daily is down or EMA falling, lean SHORT. Only go NEUTRAL if everything is truly flat and contradictory.
-- Below support (broken): if EMA momentum confirms the break (falling), SHORT. If EMA is flat/rising, LONG (false break bounce).
-- Above resistance (broken): if EMA momentum confirms the break (rising), LONG. If EMA is flat/falling, SHORT (false break fade).
+=== HOW TO REASON ===
 
-=== If MARKET REGIME is EXPANSION ===
-Be careful — sharp moves can reverse. Only trade if the direction is very clear across all timeframes.
+1. IDENTIFY THE REGIME FIRST. Everything depends on context:
+   - In a TREND: trade with it. Pullbacks are entry opportunities. Only consider counter-trend at major levels with clear rejection evidence.
+   - In a RANGE: boundaries drive the decision. Near support → bullish probability. Near resistance → bearish probability. Mid-range → use momentum and structure as tiebreaker. Position matters more than short-term EMA direction.
+   - In EXPANSION: high uncertainty. Proceed only with clear multi-timeframe agreement.
 
-CRITICAL RULE: You MUST output BULLISH or BEARISH. Only output NEUTRAL as an absolute last resort when you genuinely cannot determine any directional lean. In a RANGE, your position relative to support/resistance always gives you a lean. In a TREND, the trend direction gives you a lean.
+2. BEWARE FALSE BREAKS. When price is OUTSIDE the session S/R range (position below 0% or above 100%), do NOT automatically assume continuation. False breaks are extremely common in forex — price sweeps beyond a level to trigger stops, then reverses sharply back inside the range. The further outside the range with weak momentum, the higher the false break probability. Check the previous day high/low: if price is still WITHIN the daily range despite breaking session S/R, the break is likely false. Only trust a break if momentum is strong AND multiple timeframes confirm the direction.
 
-ADDITIONAL RULES:
-- If the market is in a TREND, trade WITH the trend. Do not try to pick tops or bottoms.
-- The session matters: LONDON and NY have the most volume and cleanest moves. ASIA is often choppy and range-bound.
+3. WEIGH THE EVIDENCE. No single indicator is conclusive. Look for confluence — the more independent signals that agree, the stronger the case. One very strong signal (clear rejection at a well-tested level with structure confirmation) can suffice.
+
+4. CHALLENGE YOUR READ. Identify the strongest argument AGAINST your direction. If the counter-argument is weak → conviction is HIGH. If the counter-argument is strong → conviction is LOW. This directly determines your conviction.
+
+5. YOU MUST DECIDE. The market always has a lean, even if slight. Your output must be BULLISH or BEARISH. There is no NEUTRAL option. Find the direction with even marginally better probability and commit to it.
 
 OUTPUT FORMAT (JSON):
 {
-  "market_readability": "CLEAR | MODERATE | MESSY",
-  "primary_bias": "BULLISH | BEARISH | NEUTRAL",
+  "regime_assessment": "What regime is the market in and why — one sentence",
+  "primary_bias": "BULLISH | BEARISH",
   "analysis": {
-    "daily_trend": "UP | DOWN | SIDEWAYS - one sentence why",
-    "structure_30m": "UPTREND | DOWNTREND | RANGE - what swings show",
-    "timing_5m": "What is price doing right now relative to the structure",
-    "confluence": "How many timeframes agree and what they say"
+    "daily_context": "What the daily timeframe tells us",
+    "structure_30m": "What the swing structure reveals",
+    "timing_5m": "What price is doing right now relative to the larger picture",
+    "key_levels": "Where is price relative to session S/R AND previous day high/low — is this a false break situation?",
+    "confluence": "How the timeframes and indicators align or conflict"
   },
-  "trade_idea": "Specific trade idea with entry direction and key level",
-  "invalidation": "What would prove this analysis wrong",
-  "signal_clarity": "HIGH | MEDIUM | LOW"
+  "trade_idea": "Your specific trade thesis — what is the setup and why should it work",
+  "counter_argument": "The strongest reason this trade could fail",
+  "conviction": "HIGH | LOW"
 }`;
 
 async function analyzeDirection({
@@ -108,15 +92,21 @@ async function analyzeDirection({
   marketRegime,
   structureLabel,
   structureSwings,
+  prevDayHigh = null,
+  prevDayLow = null,
 }) {
 
   // Calculate price position in previous session range
   const sessionRange = sessionHigh - sessionLow;
   const positionPct = sessionRange > 0 ? ((currentPrice - sessionLow) / sessionRange * 100).toFixed(0) : 50;
 
-  // Calculate price position in S/R range (critical for RANGE regime decisions)
+  // Calculate price position in S/R range
   const srRange = resistance - support;
   const positionInSR = srRange > 0 ? ((currentPrice - support) / srRange * 100).toFixed(0) : 50;
+
+  // S/R range width — helps AI assess room for movement
+  const rangeSizePips = (srRange * 10000).toFixed(0);
+  const rangeWidthATR = atr5m > 0 ? (srRange / atr5m).toFixed(1) : "N/A";
 
   // EMA context
   const priceVsEma50 = currentPrice > ema50 ? "ABOVE" : currentPrice < ema50 ? "BELOW" : "AT";
@@ -160,19 +150,42 @@ Previous swing low: ${sl0Price.toFixed(5)} → Latest swing low: ${sl1Price.toFi
 
   // EMA200 line
   const ema200Line = ema200
-    ? `EMA200 (30m): ${ema200.toFixed(5)} — price is ${priceVsEma200}`
+    ? `EMA200 (daily): ${ema200.toFixed(5)} — price is ${priceVsEma200}`
     : "EMA200: not available (insufficient history)";
 
-  // Location warning — explicit alert when price is near key levels
-  let locationWarning = "";
-  if (distToSupportATR >= 0 && distToSupportATR < 1.0) {
-    locationWarning = `\n⚠ LOCATION: Price is NEAR SUPPORT (${distToSupportATR.toFixed(1)} ATR away). In a RANGE, this favors LONG. Only SHORT here if there is a confirmed breakdown with strong momentum.`;
-  } else if (distToSupportATR < 0) {
-    locationWarning = `\n⚠ LOCATION: Price has BROKEN BELOW support by ${Math.abs(distToSupportATR).toFixed(1)} ATR. This could be a breakdown (bearish) OR a false break that reverses (bullish). Check if momentum confirms the break.`;
+  // Previous day high/low context
+  let prevDayContext = "";
+  if (prevDayHigh != null && prevDayLow != null) {
+    const dayRange = prevDayHigh - prevDayLow;
+    const posInDayRange = dayRange > 0 ? ((currentPrice - prevDayLow) / dayRange * 100).toFixed(0) : 50;
+    const withinDayRange = currentPrice >= prevDayLow && currentPrice <= prevDayHigh;
+    prevDayContext = `
+PREVIOUS DAY RANGE:
+- Previous Day High: ${prevDayHigh.toFixed(5)}
+- Previous Day Low: ${prevDayLow.toFixed(5)}
+- Day range: ${(dayRange * 10000).toFixed(0)} pips
+- Price position in day range: ${posInDayRange}% (0%=day low, 100%=day high)
+- Price is ${withinDayRange ? "INSIDE" : "OUTSIDE"} the previous day's range`;
+  }
+
+  // Location note — factual observation, no directional guidance
+  let locationNote = "";
+  const outsideSR = distToSupportATR < 0 || distToResistanceATR < 0;
+  if (outsideSR) {
+    // Price is beyond session S/R — flag the false break possibility
+    const withinDayRange = prevDayHigh != null && prevDayLow != null &&
+      currentPrice >= prevDayLow && currentPrice <= prevDayHigh;
+    if (distToSupportATR < 0) {
+      locationNote = `\nLOCATION: Price is ${Math.abs(distToSupportATR).toFixed(1)} ATR below session support (level broken).`;
+      if (withinDayRange) locationNote += ` But still INSIDE previous day's range — potential false break.`;
+    } else {
+      locationNote = `\nLOCATION: Price is ${Math.abs(distToResistanceATR).toFixed(1)} ATR above session resistance (level broken).`;
+      if (withinDayRange) locationNote += ` But still INSIDE previous day's range — potential false break.`;
+    }
+  } else if (distToSupportATR >= 0 && distToSupportATR < 1.0) {
+    locationNote = `\nLOCATION: Price is ${distToSupportATR.toFixed(1)} ATR from support.`;
   } else if (distToResistanceATR >= 0 && distToResistanceATR < 1.0) {
-    locationWarning = `\n⚠ LOCATION: Price is NEAR RESISTANCE (${distToResistanceATR.toFixed(1)} ATR away). In a RANGE, this favors SHORT. Only LONG here if there is a confirmed breakout with strong momentum.`;
-  } else if (distToResistanceATR < 0) {
-    locationWarning = `\n⚠ LOCATION: Price has BROKEN ABOVE resistance by ${Math.abs(distToResistanceATR).toFixed(1)} ATR. This could be a breakout (bullish) OR a false break that reverses (bearish). Check if momentum confirms the break.`;
+    locationNote = `\nLOCATION: Price is ${distToResistanceATR.toFixed(1)} ATR from resistance.`;
   }
 
   const userPrompt = `
@@ -188,7 +201,7 @@ ${swingAnalysis}
 Structure: ${structureLabel || 'UNKNOWN'}
 Market Regime: ${marketRegime || 'UNKNOWN'}
 
-EMA50 (30m): ${ema50.toFixed(5)} — momentum is ${emaTrendDesc} (${slopeStrength})
+EMA50 (30m): ${ema50.toFixed(5)} — momentum is ${emaTrendDesc} (${slopeStrength}, magnitude: ${slopeMagnitude.toFixed(2)})
 Price vs EMA50: ${priceVsEma50}
 
 === 5-MINUTE TIMING (last 15 closes, oldest → newest) ===
@@ -198,6 +211,7 @@ CURRENT PRICE: ${currentPrice.toFixed(5)}
 Session: ${currentSession || 'UNKNOWN'}
 Position in previous session range: ${positionPct}% (0%=prior session low, 100%=prior session high)
 Position in S/R range: ${positionInSR}% (0%=at support, 100%=at resistance)
+S/R range width: ${rangeSizePips} pips (${rangeWidthATR}x ATR_5m)
 
 KEY LEVELS (from previous session):
 - Support: ${support.toFixed(5)} — ${supportDesc}
@@ -206,8 +220,8 @@ KEY LEVELS (from previous session):
 - Previous Session Low: ${sessionLow.toFixed(5)}
 - Recent Swing High: ${swingHigh.toFixed(5)}
 - Recent Swing Low: ${swingLow.toFixed(5)}
-${locationWarning}
-Analyze this market top-down. What direction is most probable?`;
+${prevDayContext}${locationNote}
+Analyze this market top-down. You MUST choose BULLISH or BEARISH.`;
 
   const text = await complete({
     systemPrompt: DIRECTION_PROMPT,

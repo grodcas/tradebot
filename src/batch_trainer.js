@@ -205,9 +205,23 @@ function getRandomAnchorIndices(bars5m, count) {
 // ----------------------------
 async function callTradeSummary({ context, decision, simResult, R, indicators, priceBarsAfterEntry }) {
   const system = `
-You are a professional trading analyst reviewing completed trades.
-Your job is to analyze what happened and explain WHY the trade won or lost.
-Be specific and reference actual price levels. Output valid JSON only.
+You are an expert trade analyst and trading coach reviewing a completed EUR/USD trade.
+Your job is to diagnose WHY the outcome occurred — not just describe it. Think like a detective.
+
+For LOSSES — identify what was misread:
+- Was the regime wrong (range treated as trend, or vice versa)?
+- Was the direction read wrong (what did the swing structure actually show)?
+- Was the timing off (right direction, wrong entry point — too early or too late)?
+- Was there a counter-signal that should have caused hesitation?
+- Was price at a location that historically reverses (buying at resistance, selling at support)?
+
+For WINS — what was correctly identified?
+- What market dynamic was read correctly (trend continuation, mean reversion, breakout)?
+- Was this a clean, well-reasoned setup or a lucky outcome despite weak logic?
+
+Be specific. Reference actual price levels, ATR distances, and regime context.
+Never say "price moved against us" — explain the market dynamic that CAUSED the move.
+Output valid JSON only. Keep total response under 1500 characters.
 `;
 
   const priceAfterEntry = priceBarsAfterEntry.map(b => ({
@@ -252,14 +266,15 @@ OUTCOME:
 - Bars to Exit: ${simResult.barsToExit}
 - PnL (R-multiple): ${R.toFixed(3)}
 
-Analyze this trade thoroughly. Output JSON:
+Diagnose this trade. Output JSON:
 {
-  "entry_quality": "Was the entry well-timed given the conditions? Reference specific indicators.",
-  "what_happened": "Describe the price action after entry. What did price actually do?",
-  "why_outcome": "Root cause: Was it good/bad execution, unfavorable market conditions, or random noise?",
-  "lessons": "Specific actionable improvements for the strategy rules or execution.",
-  "rating": "GOOD | BAD | NEUTRAL",
-   DO NOT OUTPUT MORE THAN 1.5K chars
+  "market_dynamic": "What was the dominant force driving price after entry? Be specific (e.g., 'trend continuation with accelerating momentum' or 'mean reversion from range floor after false break')",
+  "direction_read": "Was the directional analysis correct? What specific part of the reasoning was right or wrong?",
+  "regime_read": "Was the regime classification accurate? If not, what was the actual market behavior and what clues indicated it?",
+  "root_cause": "The fundamental reason for the outcome. For losses: what was misread or missed. For wins: what was correctly identified. Be specific — reference price levels and structure.",
+  "missed_signal": "What observable signal at entry time would have improved this decision? If the trade was good, what confirmed it was correct?",
+  "lesson": "One specific, actionable takeaway for improving direction calls in similar conditions",
+  "rating": "GOOD | OKAY | BAD"
 }
 `;
 
@@ -398,6 +413,13 @@ async function main() {
 
         const context = buildLLMContext({ bars5m: win5m, bars30m, barsDaily });
         const indicators = computeIndicators(bars5m, bars30m, cIdx);
+
+        // Previous day high/low — use the second-to-last completed day
+        // (last day in dailyAll is the current/incomplete day)
+        const prevDay = dailyAll.length >= 2 ? dailyAll[dailyAll.length - 2] : null;
+        indicators.prevDayHigh = prevDay ? prevDay.high : null;
+        indicators.prevDayLow = prevDay ? prevDay.low : null;
+
         return { context, indicators };
       }
 
@@ -515,7 +537,8 @@ async function main() {
 
       if (summary && !summary.error) {
         const ratingIcon = summary.rating === "GOOD" ? "+" : summary.rating === "BAD" ? "-" : "o";
-        console.log(`   Analysis: ${ratingIcon} ${summary.rating} | ${summary.why_outcome?.slice(0, 120)}...`);
+        console.log(`   Analysis: ${ratingIcon} ${summary.rating} | ${summary.root_cause?.slice(0, 120)}`);
+        if (summary.lesson) console.log(`   Lesson: ${summary.lesson.slice(0, 120)}`);
       }
 
       results.push({
@@ -541,6 +564,8 @@ async function main() {
           resistance: indicators.resistance,
           prevSessionHigh: indicators.prevSessionHigh,
           prevSessionLow: indicators.prevSessionLow,
+          prevDayHigh: indicators.prevDayHigh,
+          prevDayLow: indicators.prevDayLow,
         },
         decision: {
           side: decision.side,

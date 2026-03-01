@@ -77,6 +77,10 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
   const atr5m = indicators.ATR_5m;
   const atr30m = indicators.ATR_30m;
 
+  // Previous day high/low (broader context than session S/R)
+  const prevDayHigh = indicators.prevDayHigh || null;
+  const prevDayLow = indicators.prevDayLow || null;
+
   // Structure swing points for direction agent
   const structureSwings = indicators.structureSwings || {};
 
@@ -103,6 +107,8 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
     structureState: indicators.structureState,
     structureLabel: indicators.structureLabel,
     structureSwings,
+    prevDayHigh,
+    prevDayLow,
   });
 
   // Format for compatibility with existing system

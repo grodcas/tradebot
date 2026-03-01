@@ -1,7 +1,8 @@
 /**
- * TRADE ORCHESTRATOR - Direction Only
+ * TRADE ORCHESTRATOR - Iter20 (Direction Only)
  *
- * 1. Direction Agent → Determines market bias (multi-timeframe)
+ * 1. Direction Agent → Principle-based market analysis (multi-timeframe)
+ *    - Iter20: false break awareness, binary conviction, must-decide, prevDay levels
  * 2. Mechanical levels (no AI)
  *
  * Levels:
@@ -42,6 +43,8 @@ async function orchestrateTrade({
   structureState = null,
   structureLabel = null,
   structureSwings = {},
+  prevDayHigh = null,
+  prevDayLow = null,
 }) {
 
   const startTime = Date.now();
@@ -68,15 +71,18 @@ async function orchestrateTrade({
     marketRegime,
     structureLabel,
     structureSwings,
+    prevDayHigh,
+    prevDayLow,
   });
   agentOutputs.direction = directionResult;
 
   const proposedDirection = directionResult.primary_bias === 'BULLISH' ? 'LONG' :
                            directionResult.primary_bias === 'BEARISH' ? 'SHORT' : null;
 
-  console.log(`   [DIRECTION] ${directionResult.primary_bias} (${directionResult.signal_clarity || 'N/A'} clarity)`);
-  console.log(`   [DIRECTION] Readability: ${directionResult.market_readability || 'N/A'}`);
+  console.log(`   [DIRECTION] ${directionResult.primary_bias} (${directionResult.conviction || 'N/A'} conviction)`);
+  console.log(`   [DIRECTION] Regime: ${directionResult.regime_assessment || 'N/A'}`);
   console.log(`   [DIRECTION] ${directionResult.trade_idea?.slice(0, 100)}`);
+  if (directionResult.counter_argument) console.log(`   [DIRECTION] Counter: ${directionResult.counter_argument.slice(0, 120)}`);
 
   // If no clear direction, SKIP this bar (don't force a trade)
   if (!proposedDirection) {
