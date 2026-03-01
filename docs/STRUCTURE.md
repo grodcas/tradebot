@@ -133,11 +133,12 @@ TRADEBOT_live/
 │
 ├── docs/
 │   ├── STRUCTURE.md                 # <-- YOU ARE HERE
-│   ├── DIARY.md
-│   ├── MISTAKES.md
-│   ├── CONVENTIONS.md
 │   ├── features/
 │   ├── guidelines/
+│   ├── project/
+│   │   ├── DIARY.md
+│   │   ├── MISTAKES.md
+│   │   └── CONVENTIONS.md
 │   └── reports/
 │
 ├── CONTEXT.md
@@ -193,9 +194,9 @@ TRADEBOT_live/
 
 | Doc | Description |
 |-----|-------------|
-| [DIARY.md](DIARY.md) | Chronological dev log |
-| [MISTAKES.md](MISTAKES.md) | Solved challenges |
-| [CONVENTIONS.md](CONVENTIONS.md) | Naming standards |
+| [DIARY.md](project/DIARY.md) | Chronological dev log |
+| [MISTAKES.md](project/MISTAKES.md) | Solved challenges |
+| [CONVENTIONS.md](project/CONVENTIONS.md) | Naming standards |
 
 ---
 

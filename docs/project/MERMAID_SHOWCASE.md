@@ -230,4 +230,4 @@ Mermaid can't do this. Options:
 
 ---
 
-[← Back to Structure](STRUCTURE.md)
+[← Back to Structure](../STRUCTURE.md)

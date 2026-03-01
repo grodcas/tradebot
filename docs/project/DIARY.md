@@ -58,4 +58,4 @@ Session history and commit tracking.
 
 ---
 
-[Back to STRUCTURE](STRUCTURE.md)
+[Back to STRUCTURE](../STRUCTURE.md)

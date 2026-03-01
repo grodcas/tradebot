@@ -51,4 +51,4 @@ Ledger of difficult challenges that were solved. Organized by feature/section.
 
 ---
 
-[Back to STRUCTURE](STRUCTURE.md)
+[Back to STRUCTURE](../STRUCTURE.md)

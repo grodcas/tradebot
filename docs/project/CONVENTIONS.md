@@ -64,4 +64,4 @@ Internal codes used throughout the codebase:
 
 ---
 
-[Back to STRUCTURE](STRUCTURE.md)
+[Back to STRUCTURE](../STRUCTURE.md)

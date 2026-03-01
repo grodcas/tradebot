@@ -169,12 +169,10 @@ TRADEBOT_live/
 │   └── live_trader.log               # Runtime log (gitignored)
 │
 ├── docs/                             # Documentation
-│   ├── STRUCTURE.md                  # Master hub
-│   ├── DIARY.md
-│   ├── MISTAKES.md
-│   ├── CONVENTIONS.md
+│   ├── STRUCTURE.md                  # Master hub (only file at root)
 │   ├── features/
 │   ├── guidelines/
+│   ├── project/                      # DIARY, MISTAKES, CONVENTIONS
 │   └── reports/
 │
 ├── CONTEXT.md                        # <- This file
