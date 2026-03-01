@@ -30,9 +30,9 @@ flowchart TB
     IND --> ORCH
     PRICE --> ORCH
     ORCH --> DIR
-    DIR -->|LONG/SHORT/WAIT| CONF
-    CONF -->|0.0 - 1.0| LEV
-    LEV -->|Entry, TP, SL| SIGNAL
+    DIR -->|"LONG / SHORT / WAIT"| CONF
+    CONF -->|"0.0 - 1.0"| LEV
+    LEV -->|"Entry, TP, SL"| SIGNAL
 ```
 
 ---

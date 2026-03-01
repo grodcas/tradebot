@@ -17,9 +17,9 @@ flowchart TB
     end
 
     subgraph CORE["Core Engine"]
-        LT[src/live_trader.js]
-        IND[src/trade_indicators.js]
-        EXEC[src/oanda_executor.js]
+        LT["src/live_trader.js"]
+        IND["src/trade_indicators.js"]
+        EXEC["src/oanda_executor.js"]
     end
 
     subgraph MODELS["AI Models"]
@@ -30,24 +30,30 @@ flowchart TB
     end
 
     subgraph OUTPUT["Output"]
-        TRADES[data/global_trades.json]
-        LOG[data/live_trader.log]
-        RESULTS[data/trade_results.json]
+        TRADES["data/global_trades.json"]
+        LOG["data/live_trader.log"]
+        RESULTS["data/trade_results.json"]
     end
 
     OANDA --> LT
     LT --> IND
-    IND --> M1 & M2 & M3 & M4
-    M1 & M2 & M3 & M4 --> EXEC
+    IND --> M1
+    IND --> M2
+    IND --> M3
+    IND --> M4
+    M1 --> EXEC
+    M2 --> EXEC
+    M3 --> EXEC
+    M4 --> EXEC
     EXEC --> OANDA
     EXEC --> TRADES
     LT --> LOG
     LT --> RESULTS
 
-    click LT "features/live-trader.md" "Live Trader docs"
-    click EXEC "features/oanda-executor.md" "OANDA Executor docs"
-    click M1 "features/model-system.md" "Model System docs"
-    click M4 "features/model-system.md" "Model System docs"
+    click LT href "features/live-trader.md" "Live Trader docs"
+    click EXEC href "features/oanda-executor.md" "OANDA Executor docs"
+    click M1 href "features/model-system.md" "Model System docs"
+    click M4 href "features/model-system.md" "Model System docs"
 ```
 
 ---
@@ -61,11 +67,11 @@ flowchart LR
     C -->|LONG| D[Confidence Agent]
     C -->|SHORT| D
     C -->|WAIT| Z[No Trade]
-    D --> E{Confidence > 0.6?}
+    D --> E{"Confidence above 0.6?"}
     E -->|Yes| F[Levels Agent]
     E -->|No| Z
     F --> G[Execute Trade]
-    G --> H[Monitor TP/SL]
+    G --> H["Monitor TP / SL"]
 ```
 
 | Agent | Input | Output |

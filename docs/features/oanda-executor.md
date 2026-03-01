@@ -22,7 +22,7 @@ sequenceDiagram
     loop Monitor
         LT->>API: GET /positions
         API-->>LT: Position status
-        alt TP/SL Hit
+        alt TP or SL Hit
             LT->>LT: Log result
         end
     end
@@ -65,10 +65,10 @@ Returns balance, equity, margin used.
 
 ```mermaid
 flowchart LR
-    A[Account Equity] --> B[Risk % = 1%]
-    B --> C[Risk Amount $]
-    C --> D[SL Distance pips]
-    D --> E[Position Size units]
+    A["Account Equity"] --> B["Risk = 1 pct"]
+    B --> C["Risk Amount"]
+    C --> D["SL Distance pips"]
+    D --> E["Position Size units"]
 ```
 
 **Formula**:

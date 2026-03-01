@@ -14,7 +14,7 @@ stateDiagram-v2
     Trading --> Trading: Check for setups
     Trading --> Closing: 18:00 Zurich
     Closing --> Waiting: Positions closed
-    Closing --> Closing: Wait for TP/SL
+    Closing --> Closing: Wait for exit
 ```
 
 ---
