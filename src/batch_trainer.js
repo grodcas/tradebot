@@ -435,7 +435,7 @@ async function main() {
           });
           console.log(`   WAIT ${waitCount + 1}/${MAX_WAIT_BARS}: ${rawDecision.reasoning?.slice(0, 80)}...`);
           waitCount++;
-          entryIdx++;
+          entryIdx += 2;  // 2 × 5m = 10 minute spacing
           if (entryIdx >= bars5m.length - SIM_FORWARD_5M_BARS) {
             throw new Error("Ran out of bars while waiting.");
           }
@@ -501,7 +501,7 @@ async function main() {
         priceBarsAfterEntry,
       });
 
-      const waitInfo = decision.waitCount > 0 ? ` (waited ${decision.waitCount * 5}min)` : "";
+      const waitInfo = decision.waitCount > 0 ? ` (waited ${decision.waitCount * 10}min)` : "";
       const tpR = decision.side === "LONG"
         ? (adjustedTp - actualEntry) / Math.abs(actualEntry - adjustedSl)
         : (actualEntry - adjustedTp) / Math.abs(adjustedSl - actualEntry);

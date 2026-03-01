@@ -1,21 +1,19 @@
 /**
- * TRADE ORCHESTRATOR - Iter9
+ * TRADE ORCHESTRATOR - Direction Only
  *
- * Coordinates:
  * 1. Direction Agent → Determines market bias (multi-timeframe)
- * 2. Confidence Agent → Confirms or rejects the direction call
+ * 2. Mechanical levels (no AI)
  *
- * Levels are MECHANICAL (no AI):
- * - SL = 1.5 × ATR_30m from current price
- * - TP = 1.5:1 R:R (= 2.25 × ATR_30m from current price)
+ * Levels:
+ * - SL = 1.2 × ATR_30m
+ * - TP = 1.5:1 R:R
  * - Risk = fixed 0.50
  */
 
 const { analyzeDirection } = require('./direction_agent');
-const { assessConfidence } = require('./confidence_agent');
 
 // Mechanical level constants
-const SL_ATR_MULTIPLIER = 1.5;   // SL distance = 1.5 × ATR_30m
+const SL_ATR_MULTIPLIER = 1.2;   // SL distance = 1.2 × ATR_30m
 const RR_RATIO = 1.5;            // R:R = 1.5:1
 const FIXED_RISK = 0.50;         // Fixed position size
 
@@ -91,43 +89,7 @@ async function orchestrateTrade({
     };
   }
 
-  // ========== STEP 2: CONFIDENCE AGENT (confirm/reject) ==========
-  console.log('   [CONFIDENCE] Confirming direction...');
-
-  const confidenceResult = await assessConfidence({
-    proposedDirection,
-    directionAnalysis: directionResult,
-    currentPrice,
-    support,
-    resistance,
-    ema50,
-    emaSlope,
-    atr: atr5m,
-    swingHigh,
-    swingLow,
-    sessionHigh,
-    sessionLow,
-    prices5m,
-    marketRegime,
-    structureState,
-    structureLabel,
-  });
-  agentOutputs.confidence = confidenceResult;
-
-  console.log(`   [CONFIDENCE] Verdict: ${confidenceResult.verdict} | ${confidenceResult.reasoning?.slice(0, 80)}`);
-
-  // Confidence agent acts as gate: CONFIRM or REJECT
-  if (confidenceResult.verdict === 'REJECT') {
-    console.log(`   [CONFIDENCE] Trade REJECTED: ${confidenceResult.reasoning}`);
-    return {
-      action: 'SKIP',
-      reason: `Confidence rejected: ${confidenceResult.reasoning}`,
-      agentOutputs,
-      timeMs: Date.now() - startTime
-    };
-  }
-
-  // ========== STEP 3: MECHANICAL LEVELS ==========
+  // ========== STEP 2: MECHANICAL LEVELS ==========
   const slDistance = atr30m * SL_ATR_MULTIPLIER;
   const tpDistance = slDistance * RR_RATIO;
 
@@ -160,10 +122,7 @@ async function orchestrateTrade({
     tp,
     risk: FIXED_RISK,
     riskReward: rr,
-    reasoning: {
-      direction: directionResult.trade_idea,
-      confidence: confidenceResult.reasoning,
-    },
+    reasoning: directionResult.trade_idea,
     agentOutputs,
     timeMs: Date.now() - startTime
   };

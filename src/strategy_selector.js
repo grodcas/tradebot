@@ -1,19 +1,13 @@
 /**
- * Strategy Selector - Multi-Agent Architecture (Iter9)
+ * Strategy Selector - Direction Only
  *
- * Coordinates specialist agents:
  * 1. Direction Agent - Market structure expert (multi-timeframe)
- * 2. Confidence Agent - Confirm/reject gate
- *
- * Levels are MECHANICAL (no AI):
- * - SL = 1.5 × ATR_30m
- * - TP = 1.5:1 R:R
- * - Risk = fixed 0.50
+ * 2. Mechanical levels (SL = 1.2 × ATR_30m, TP = 1.5:1 R:R, Risk = 0.50)
  */
 
 const { orchestrateTrade } = require('./agents/orchestrator');
 
-const MAX_WAIT_BARS = 6;
+const MAX_WAIT_BARS = 2;  // bar 0, +10m, +20m = 3 bars total
 const FIXED_RISK = 0.50;
 
 function validateDecision(dec, fallbackEntry) {
