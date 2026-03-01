@@ -1,0 +1,9 @@
+{
+  "name": "gpt4mini_usdjpy",
+  "pair": "USD/JPY",
+  "llm": "gpt-4o-mini",
+  "source": "TRADEBOT_USDJPY",
+  "features": ["direction_agent", "confidence_agent", "levels_agent"],
+  "agents": 3,
+  "notes": "GPT-4o-mini structure-aware model for USD/JPY"
+}

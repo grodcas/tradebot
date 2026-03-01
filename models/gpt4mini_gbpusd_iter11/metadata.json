@@ -1,0 +1,10 @@
+{
+  "name": "gpt4mini_gbpusd_iter11",
+  "pair": "GBP/USD",
+  "llm": "gpt-4o-mini",
+  "iteration": 11,
+  "source": "TRADEBOT_GBPUSD",
+  "features": ["direction_agent", "confidence_agent", "levels_agent", "bad_pattern_detection"],
+  "agents": 3,
+  "notes": "Risk-adjusted GPT-4o-mini with bad pattern detection for GBP/USD"
+}

@@ -1,2 +1,8 @@
 node_modules/
 .env
+data/live_trader.log
+data/eurusd_5m.json
+.obsidian/
+__pycache__/
+nul
+.claude/

@@ -1,0 +1,10 @@
+{
+  "name": "gpt5_iter5",
+  "pair": "EUR/USD",
+  "llm": "gpt-5.2",
+  "iteration": 5,
+  "source": "TRADEBOT",
+  "features": ["direction_agent", "confidence_agent", "levels_agent", "ai_client", "sizing_recommendation", "signal_clarity"],
+  "agents": 3,
+  "notes": "Best performer (78% WR). GPT-5.2 with sizing recommendations and signal clarity scoring"
+}

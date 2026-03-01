@@ -1,0 +1,9 @@
+{
+  "name": "gpt4mini_eurusd",
+  "pair": "EUR/USD",
+  "llm": "gpt-4o-mini",
+  "source": "TRADEBOT (baseline)",
+  "features": ["direction_agent", "confidence_agent", "levels_agent"],
+  "agents": 3,
+  "notes": "GPT-4o-mini baseline model for EUR/USD"
+}
