@@ -7,7 +7,7 @@ AI-powered EUR/USD trading system using GPT models. Core innovation: **iterate o
 `Node.js` | `GPT-4/GPT-5` | `OANDA API` | `Claude (human-guided iteration)`
 
 ## Current Active Model
-**GPT-5 Market Order** (Iter9 in progress) | Baseline 42.3% WR | Feb 28, 2026
+**GPT-5 Market Order** (Iter18) | Direction-only + mechanical levels | 40% WR | Mar 1, 2026
 
 > **Note:** Legacy models (Iter5, Iter4, GPT-4 Baseline) showed 53-78% win rates, but those stats are **inflated by the limit-order fill bug** — the simulator assumed perfect limit fills that would rarely execute in live trading. Only market-order results are realistic.
 
@@ -301,6 +301,17 @@ cp models/gpt5_iter5_20260221/*.js src/agents/
 | [DIARY.md](DIARY.md) | Development history (chronological) |
 | [MISTAKES.md](MISTAKES.md) | Solved challenges & lessons learned |
 | [CONVENTIONS.md](CONVENTIONS.md) | Naming standards |
+
+---
+
+## Iteration Prompts (Exact)
+
+| Iteration | WR | R | Key Change | Prompts |
+|-----------|-----|------|------------|---------|
+| Iter11 | 66.7% | +18.82R | First profitable market order | [ITER11_PROMPTS.md](ITER11_PROMPTS.md) |
+| Iter12 | 34.5% | -3.26R | Regression | [ITER12_PROMPTS.md](ITER12_PROMPTS.md) |
+| Iter13 | 44.6% | +8.72R | Position overrides momentum | [ITER13_PROMPTS.md](ITER13_PROMPTS.md) |
+| Iter18 | 40.0% | -0.01R | Direction-only, no confidence agent | [ITER18_PROMPTS.md](ITER18_PROMPTS.md) |
 
 ---
 
