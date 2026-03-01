@@ -22,7 +22,7 @@ const oanda = require('./oanda_executor');
 // REAL EXECUTION CONFIG
 // ----------------------------
 const REAL_EXECUTION = true;  // Set to false to simulate only
-const USE_LIMIT_ORDERS = true;  // true = limit orders (wait for price), false = market orders (immediate)
+const USE_LIMIT_ORDERS = false;  // true = limit orders (wait for price), false = market orders (immediate)
 const FIXED_POSITION_SIZE = 1000;  // 1K = $0.10/pip on EUR/USD (~$2 per 20 pip TP)
 const COMMISSION_PER_TRADE = 0;  // OANDA = spread only, no commission
 const MAX_PENDING_BARS = 12;  // Cancel pending limit order after this many bars (12 bars = 1 hour)
@@ -591,25 +591,57 @@ async function executeTrade(pairCode, decision, entryBar, indicators) {
           return;
         }
       } else {
-        // MARKET ORDER - immediate fill (old behavior)
+        // MARKET ORDER - immediate fill, recalculate TP/SL based on actual entry
         logTrade(pairCode, `[REAL] Placing MARKET ${decision.side} for ${FIXED_POSITION_SIZE} units...`);
 
-        const result = await oanda.enterTrade(
+        // Calculate original R:R from AI decision
+        const originalRisk = Math.abs(decision.entry - decision.sl);
+        const originalReward = Math.abs(decision.tp - decision.entry);
+        const originalRR = originalReward / originalRisk;
+
+        // First, get market fill to know actual entry price
+        const result = await oanda.enterTradeMarketOnly(
           pairCode,
           decision.side,
-          FIXED_POSITION_SIZE,
-          decision.tp,
-          decision.sl
+          FIXED_POSITION_SIZE
         );
 
         if (result.success) {
           realEntry = result.entryPrice;
+
+          // Recalculate TP/SL based on actual entry, maintaining same R:R
+          let adjustedSL, adjustedTP;
+          if (decision.side === 'LONG') {
+            adjustedSL = realEntry - originalRisk;  // Same risk distance
+            adjustedTP = realEntry + originalReward;  // Same reward distance (maintains R:R)
+          } else {
+            adjustedSL = realEntry + originalRisk;  // Same risk distance
+            adjustedTP = realEntry - originalReward;  // Same reward distance (maintains R:R)
+          }
+
+          // Round to 5 decimal places for forex
+          adjustedSL = Math.round(adjustedSL * 100000) / 100000;
+          adjustedTP = Math.round(adjustedTP * 100000) / 100000;
+
+          logTrade(pairCode, `[REAL] MARKET filled at ${realEntry} | Adjusted TP: ${adjustedTP} SL: ${adjustedSL} (R:R ${originalRR.toFixed(2)})`);
+
+          // Now set the TP/SL orders
+          const bracketResult = await oanda.setTakeProfitStopLoss(pairCode, result.tradeId, adjustedTP, adjustedSL);
+          if (!bracketResult.success) {
+            logTrade(pairCode, `[REAL] WARNING: Failed to set TP/SL: ${bracketResult.error}`);
+          }
+
+          // Update decision with adjusted values for tracking
+          decision.entry = realEntry;
+          decision.tp = adjustedTP;
+          decision.sl = adjustedSL;
+
           realOrderIds = {
             entryOrderId: result.entryOrderId,
-            takeProfitOrderId: result.takeProfitOrderId,
-            stopLossOrderId: result.stopLossOrderId,
+            takeProfitOrderId: bracketResult.takeProfitOrderId,
+            stopLossOrderId: bracketResult.stopLossOrderId,
+            tradeId: result.tradeId,
           };
-          logTrade(pairCode, `[REAL] MARKET order filled at ${realEntry}`);
         } else {
           logTrade(pairCode, `[REAL] MARKET order FAILED: ${result.error}`);
           return;

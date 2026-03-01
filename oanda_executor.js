@@ -528,6 +528,206 @@ async function getOpenTrades() {
   }
 }
 
+/**
+ * Get details of a specific trade (open or closed)
+ */
+async function getTradeDetails(tradeId) {
+  try {
+    const response = await oandaRequest(`/v3/accounts/${OANDA_ACCOUNT_ID}/trades/${tradeId}`);
+    const trade = response.trade;
+
+    return {
+      success: true,
+      id: trade.id,
+      instrument: trade.instrument,
+      price: parseFloat(trade.price),
+      openTime: trade.openTime,
+      state: trade.state,  // OPEN, CLOSED, CLOSE_WHEN_TRADEABLE
+      currentUnits: parseInt(trade.currentUnits || 0),
+      initialUnits: parseInt(trade.initialUnits),
+      realizedPL: parseFloat(trade.realizedPL || 0),
+      unrealizedPL: parseFloat(trade.unrealizedPL || 0),
+      averageClosePrice: trade.averageClosePrice ? parseFloat(trade.averageClosePrice) : null,
+      closingTransactionIDs: trade.closingTransactionIDs || [],
+      closeTime: trade.closeTime || null
+    };
+
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get recent account transactions
+ * @param {number} count - Number of transactions to fetch (default 50)
+ * @param {string} sinceId - Only get transactions after this ID
+ */
+async function getTransactions(count = 50, sinceId = null) {
+  try {
+    let url = `/v3/accounts/${OANDA_ACCOUNT_ID}/transactions?count=${count}`;
+    if (sinceId) {
+      url += `&sinceID=${sinceId}`;
+    }
+
+    const response = await oandaRequest(url);
+
+    return {
+      success: true,
+      transactions: response.pages || [],
+      lastTransactionID: response.lastTransactionID
+    };
+
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get a specific transaction by ID
+ */
+async function getTransaction(transactionId) {
+  try {
+    const response = await oandaRequest(`/v3/accounts/${OANDA_ACCOUNT_ID}/transactions/${transactionId}`);
+
+    return {
+      success: true,
+      transaction: response.transaction
+    };
+
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get transaction range (for finding how a trade was closed)
+ */
+async function getTransactionRange(fromId, toId) {
+  try {
+    const response = await oandaRequest(
+      `/v3/accounts/${OANDA_ACCOUNT_ID}/transactions/idrange?from=${fromId}&to=${toId}`
+    );
+
+    return {
+      success: true,
+      transactions: response.transactions || []
+    };
+
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get info about how a trade was closed
+ * Returns the closing transaction details (TP, SL, manual close, etc.)
+ * @param {string} tradeId - The trade ID to check
+ */
+async function getTradeCloseInfo(tradeId) {
+  try {
+    // First get the trade details to find closing transaction IDs
+    const tradeInfo = await getTradeDetails(tradeId);
+
+    if (!tradeInfo.success) {
+      return { success: false, error: tradeInfo.error };
+    }
+
+    if (tradeInfo.state !== 'CLOSED') {
+      return {
+        success: true,
+        closed: false,
+        state: tradeInfo.state
+      };
+    }
+
+    // Get the closing transaction(s)
+    const closingIds = tradeInfo.closingTransactionIDs;
+    if (!closingIds || closingIds.length === 0) {
+      return {
+        success: true,
+        closed: true,
+        closeReason: 'UNKNOWN',
+        realizedPL: tradeInfo.realizedPL,
+        closePrice: tradeInfo.averageClosePrice
+      };
+    }
+
+    // Get the closing transaction to determine why it closed
+    const closingTxId = closingIds[closingIds.length - 1];  // Last closing transaction
+    const txInfo = await getTransaction(closingTxId);
+
+    if (!txInfo.success) {
+      return {
+        success: true,
+        closed: true,
+        closeReason: 'UNKNOWN',
+        realizedPL: tradeInfo.realizedPL,
+        closePrice: tradeInfo.averageClosePrice
+      };
+    }
+
+    const tx = txInfo.transaction;
+    let closeReason = 'UNKNOWN';
+
+    // Determine close reason from transaction type
+    if (tx.type === 'ORDER_FILL') {
+      if (tx.reason === 'TAKE_PROFIT_ORDER') {
+        closeReason = 'TP';
+      } else if (tx.reason === 'STOP_LOSS_ORDER') {
+        closeReason = 'SL';
+      } else if (tx.reason === 'TRAILING_STOP_LOSS_ORDER') {
+        closeReason = 'TRAILING_SL';
+      } else if (tx.reason === 'MARKET_ORDER' || tx.reason === 'MARKET_ORDER_TRADE_CLOSE') {
+        closeReason = 'MANUAL';
+      } else if (tx.reason === 'LIMIT_ORDER') {
+        closeReason = 'LIMIT';
+      } else {
+        closeReason = tx.reason || 'UNKNOWN';
+      }
+    }
+
+    return {
+      success: true,
+      closed: true,
+      closeReason: closeReason,
+      closePrice: parseFloat(tx.price || tradeInfo.averageClosePrice || 0),
+      realizedPL: parseFloat(tx.pl || tradeInfo.realizedPL || 0),
+      closeTime: tx.time || tradeInfo.closeTime,
+      transactionId: tx.id,
+      fullTransaction: tx
+    };
+
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get open trades for a specific instrument
+ * @param {string} instrument - e.g., "EUR_USD" or "EURUSD"
+ */
+async function getOpenTradesForInstrument(instrument) {
+  try {
+    const oandaInstrument = toOandaInstrument(instrument);
+    const allTrades = await getOpenTrades();
+
+    if (!allTrades.success) {
+      return allTrades;
+    }
+
+    const trades = allTrades.trades.filter(t => t.instrument === oandaInstrument);
+
+    return {
+      success: true,
+      trades: trades,
+      totalUnits: trades.reduce((sum, t) => sum + t.units, 0)
+    };
+
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 // ============================================
 // MARKET DATA API
 // ============================================
@@ -812,6 +1012,125 @@ async function getTradePosition(pairCode) {
   return getPosition(base, quote);
 }
 
+/**
+ * Enter a trade with MARKET order only (no TP/SL)
+ * Used when we want to set TP/SL separately after getting actual fill price
+ *
+ * @param {string} pairCode - e.g., "EURUSD", "USDJPY"
+ * @param {string} side - "LONG" or "SHORT"
+ * @param {number} quantity - Order size (in base currency units)
+ */
+async function enterTradeMarketOnly(pairCode, side, quantity) {
+  const { base, quote } = parsePairCode(pairCode);
+  const instrument = `${base}_${quote}`;
+  const units = side === 'LONG' ? Math.abs(quantity) : -Math.abs(quantity);
+
+  console.log(`[OANDA] Placing MARKET ${side} ${quantity} ${base}/${quote} (no TP/SL)`);
+
+  const orderData = {
+    order: {
+      type: 'MARKET',
+      instrument: instrument,
+      units: units.toString(),
+      timeInForce: 'FOK',  // Fill or Kill
+      positionFill: 'DEFAULT'
+    }
+  };
+
+  try {
+    const response = await oandaRequest(
+      `/v3/accounts/${OANDA_ACCOUNT_ID}/orders`,
+      'POST',
+      orderData
+    );
+
+    if (response.orderFillTransaction) {
+      const fill = response.orderFillTransaction;
+      console.log(`[OANDA] MARKET order filled at ${fill.price}`);
+      return {
+        success: true,
+        entryOrderId: fill.id,
+        entryPrice: parseFloat(fill.price),
+        tradeId: fill.tradeOpened?.tradeID,
+        units: parseInt(fill.units)
+      };
+    }
+
+    if (response.orderRejectTransaction) {
+      const reject = response.orderRejectTransaction;
+      console.error(`[OANDA] MARKET order rejected: ${reject.rejectReason}`);
+      return { success: false, error: reject.rejectReason };
+    }
+
+    return { success: false, error: 'Unknown order response' };
+
+  } catch (error) {
+    console.error(`[OANDA] MARKET order error: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Set Take Profit and Stop Loss on an existing trade
+ *
+ * @param {string} pairCode - e.g., "EURUSD", "USDJPY"
+ * @param {string} tradeId - The OANDA trade ID
+ * @param {number} takeProfit - Take profit price
+ * @param {number} stopLoss - Stop loss price
+ */
+async function setTakeProfitStopLoss(pairCode, tradeId, takeProfit, stopLoss) {
+  const { base, quote } = parsePairCode(pairCode);
+  const instrument = `${base}_${quote}`;
+
+  // Determine decimal places based on instrument
+  const isJpy = instrument.includes('JPY');
+  const priceDecimals = isJpy ? 3 : 5;
+
+  console.log(`[OANDA] Setting TP=${takeProfit.toFixed(priceDecimals)} SL=${stopLoss.toFixed(priceDecimals)} on trade ${tradeId}`);
+
+  const orderData = {
+    takeProfit: {
+      price: takeProfit.toFixed(priceDecimals)
+    },
+    stopLoss: {
+      price: stopLoss.toFixed(priceDecimals)
+    }
+  };
+
+  try {
+    const response = await oandaRequest(
+      `/v3/accounts/${OANDA_ACCOUNT_ID}/trades/${tradeId}/orders`,
+      'PUT',
+      orderData
+    );
+
+    if (response.takeProfitOrderTransaction && response.stopLossOrderTransaction) {
+      console.log(`[OANDA] TP/SL set successfully`);
+      return {
+        success: true,
+        takeProfitOrderId: response.takeProfitOrderTransaction.id,
+        stopLossOrderId: response.stopLossOrderTransaction.id
+      };
+    }
+
+    // Check for partial success
+    if (response.takeProfitOrderTransaction || response.stopLossOrderTransaction) {
+      console.log(`[OANDA] Partial TP/SL set`);
+      return {
+        success: true,
+        takeProfitOrderId: response.takeProfitOrderTransaction?.id,
+        stopLossOrderId: response.stopLossOrderTransaction?.id
+      };
+    }
+
+    return { success: false, error: 'Failed to set TP/SL orders' };
+
+  } catch (error) {
+    console.error(`[OANDA] Set TP/SL error: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
 // ============================================
 // EXPORTS
 // ============================================
@@ -831,6 +1150,14 @@ module.exports = {
   getPrice,
   getOpenTrades,
 
+  // Trade Info API (for checking trade status and close info)
+  getTradeDetails,
+  getTransaction,
+  getTransactions,
+  getTransactionRange,
+  getTradeCloseInfo,
+  getOpenTradesForInstrument,
+
   // Market Data API
   getHistoricalCandles,
   getStreamingConfig,
@@ -839,6 +1166,8 @@ module.exports = {
   // High-level API (compatible with live_trader.js)
   enterTrade,
   enterTradeLimit,
+  enterTradeMarketOnly,
+  setTakeProfitStopLoss,
   exitTrade,
   getTradePosition,
   parsePairCode,
