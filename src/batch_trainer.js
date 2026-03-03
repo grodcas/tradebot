@@ -24,7 +24,7 @@ const MIN_DAILY_BARS = 5;
 const SIM_FORWARD_5M_BARS = 300;
 const DEFAULT_SPREAD = 0.00008;
 
-const NUM_SCENARIOS = 30;
+const NUM_SCENARIOS = parseInt(process.env.NUM_SCENARIOS || '30', 10);
 
 // CPU-light mode: delay between trades (milliseconds)
 // Higher = less CPU, slower execution
@@ -474,6 +474,7 @@ async function main() {
             risk: 0,
             reasoning: rawDecision.reasoning || "Refused to trade - conditions not met",
             skippedByAI: true,
+            agentOutputs: rawDecision.agentOutputs,
           };
           decision.waitCount = waitCount;
           decision.waitHistory = waitHistory;
@@ -532,13 +533,11 @@ async function main() {
       const slippage = actualEntry - decision.entry;
       const slippageInfo = Math.abs(slippage) > 0.00001 ? ` | Slip: ${slippage > 0 ? '+' : ''}${(slippage * 10000).toFixed(1)}pips` : "";
 
-      console.log(`   ${decision.side} @ ${actualEntry.toFixed(5)}${slippageInfo} | TP: ${tpR.toFixed(2)}R | Result: ${rawR.toFixed(2)}R x ${decision.risk.toFixed(1)} = ${weightedR.toFixed(2)} | ${simResult.outcome}${waitInfo}`);
-      console.log(`   Reasoning: ${decision.reasoning?.slice(0, 150)}...`);
+      console.log(`   >> ${simResult.outcome} | ${decision.side} ${rawR.toFixed(2)}R${waitInfo}`);
 
       if (summary && !summary.error) {
         const ratingIcon = summary.rating === "GOOD" ? "+" : summary.rating === "BAD" ? "-" : "o";
-        console.log(`   Analysis: ${ratingIcon} ${summary.rating} | ${summary.root_cause?.slice(0, 120)}`);
-        if (summary.lesson) console.log(`   Lesson: ${summary.lesson.slice(0, 120)}`);
+        console.log(`   ${ratingIcon} ${summary.rating}: ${summary.root_cause?.slice(0, 80)}`);
       }
 
       results.push({
@@ -546,6 +545,7 @@ async function main() {
         anchorTime: anchor.time,
         entryTime: bars5m[entryIdx].time,
         indicators: {
+          currentPrice: bars5m[entryIdx].close,
           currentSession: indicators.currentSession,
           previousSession: indicators.previousSession,
           marketRegime: indicators.marketRegime,
@@ -558,10 +558,13 @@ async function main() {
           pullbackRatio: indicators.pullbackRatio,
           acceptanceTime: indicators.acceptanceTime,
           EMA50_slope_30m: indicators.EMA50_slope_30m,
+          EMA50_30m: indicators.EMA50_30m,
+          EMA200_30m: indicators.EMA200_30m,
           ATR_5m: indicators.ATR_5m,
           ATR_30m: indicators.ATR_30m,
           support: indicators.support,
           resistance: indicators.resistance,
+          structureSwings: indicators.structureSwings || null,
           prevSessionHigh: indicators.prevSessionHigh,
           prevSessionLow: indicators.prevSessionLow,
           prevDayHigh: indicators.prevDayHigh,
@@ -574,6 +577,7 @@ async function main() {
           aiSl: decision.sl,        // AI's suggested SL
           risk: decision.risk,
           reasoning: decision.reasoning,
+          agentOutputs: decision.agentOutputs || null,
         },
         execution: {
           actualEntry: actualEntry,   // Market fill price

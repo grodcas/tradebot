@@ -1162,6 +1162,54 @@ function calculateATR(bars, period = 14) {
 }
 
 // ----------------------------
+// RSI (Relative Strength Index)
+// ----------------------------
+
+/**
+ * Calculate RSI using Wilder's smoothing (same method as ATR above).
+ * @param {Array} bars - Array of bar objects with .close
+ * @param {number} period - RSI period (default 14)
+ * @returns {number|null} RSI value (0-100) or null if insufficient data
+ */
+function calculateRSI(bars, period = 14) {
+  if (!bars || bars.length < period + 1) {
+    return null;
+  }
+
+  // Calculate price changes
+  const changes = [];
+  for (let i = 1; i < bars.length; i++) {
+    changes.push(bars[i].close - bars[i - 1].close);
+  }
+
+  if (changes.length < period) {
+    return null;
+  }
+
+  // Initial average gain/loss is SMA of first 'period' changes
+  let avgGain = 0;
+  let avgLoss = 0;
+  for (let i = 0; i < period; i++) {
+    if (changes[i] > 0) avgGain += changes[i];
+    else avgLoss += Math.abs(changes[i]);
+  }
+  avgGain /= period;
+  avgLoss /= period;
+
+  // Apply Wilder's smoothing for remaining periods
+  for (let i = period; i < changes.length; i++) {
+    const gain = changes[i] > 0 ? changes[i] : 0;
+    const loss = changes[i] < 0 ? Math.abs(changes[i]) : 0;
+    avgGain = ((avgGain * (period - 1)) + gain) / period;
+    avgLoss = ((avgLoss * (period - 1)) + loss) / period;
+  }
+
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+}
+
+// ----------------------------
 // EMA (Exponential Moving Average)
 // ----------------------------
 
@@ -1261,6 +1309,12 @@ function computeIndicators(bars5m, bars30m, anchorIndex) {
   const bars5mForATR30m = bars5mUpToAnchor.slice(-100); // Extra buffer
   const bars30mForATR = aggregateBars(bars5mForATR30m, 6);
   const ATR_30m = calculateATR(bars30mForATR.slice(-15), 14);
+
+  // ----------------------------
+  // RSI Calculation (14-period on 5m bars)
+  // ----------------------------
+  const rsiBars5m = bars5mUpToAnchor.slice(-20); // 14 periods + buffer
+  const RSI_5m = calculateRSI(rsiBars5m, 14);
 
   // ----------------------------
   // Swing Points & Structure State (48 x 30m bars)
@@ -1462,6 +1516,9 @@ function computeIndicators(bars5m, bars30m, anchorIndex) {
     // ATR
     ATR_5m: ATR_5m,
     ATR_30m: ATR_30m,
+
+    // RSI
+    RSI_5m: RSI_5m,
 
     // EMAs
     EMA20_5m: EMA20_5m,
@@ -1826,6 +1883,7 @@ module.exports = {
   calculatePullbackRatio,
   median,
   calculateATR,
+  calculateRSI,
   calculateEMA,
   aggregateBars,
   computeIndicators,

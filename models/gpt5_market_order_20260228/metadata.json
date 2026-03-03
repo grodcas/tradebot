@@ -1,9 +1,10 @@
 {
   "name": "gpt5_market_order",
-  "version": "iter11_range_trading",
+  "version": "iter26_swing_filters",
   "date_created": "2026-02-28",
+  "date_updated": "2026-03-01",
   "base_model": "gpt-5.2",
-  "description": "GPT-5 market order model with regime-specific direction logic. First profitable iteration: 66.7% WR, +18.82R.",
+  "description": "GPT-5 market order model. Iter26: Iter24 direction prompt + mechanical swing structure filters. Filter A blocks SHORT below support, Filter B blocks SHORT into higher highs. 47.4% WR, +14.04R over 100 scenarios (76 executed, 24 skipped).",
   "iteration_history": [
     {
       "iteration": 5,
@@ -61,21 +62,175 @@
       "raw_r": 18.82,
       "trades": 27,
       "skipped": 3,
-      "status": "active",
+      "status": "superseded",
       "key_change": "Fix RANGE trading: regime-specific direction logic + structureAligned fix"
+    },
+    {
+      "iteration": 12,
+      "name": "aggressive_risk",
+      "win_rate": 34.5,
+      "raw_r": -3.26,
+      "status": "failed",
+      "key_change": "Aggressive risk scaling — overcomplicated"
+    },
+    {
+      "iteration": 13,
+      "name": "position_overrides",
+      "win_rate": 44.6,
+      "raw_r": 8.72,
+      "status": "superseded",
+      "key_change": "Position overrides momentum — partial recovery"
+    },
+    {
+      "iteration": 18,
+      "name": "direction_only_baseline",
+      "win_rate": 40.0,
+      "raw_r": -0.01,
+      "trades": 30,
+      "status": "superseded",
+      "key_change": "Direction-only (dropped confidence+levels agents), mechanical levels"
+    },
+    {
+      "iteration": 19,
+      "name": "principle_based",
+      "win_rate": 42.3,
+      "raw_r": 1.48,
+      "trades": 26,
+      "skipped": 4,
+      "status": "superseded",
+      "key_change": "Principle-based prompt rewrite, counter-argument step"
+    },
+    {
+      "iteration": 20,
+      "name": "false_break_awareness",
+      "win_rate": 51.7,
+      "raw_r": 17.45,
+      "trades": 60,
+      "skipped": 0,
+      "status": "best_wr",
+      "key_change": "False break awareness, must-decide (no NEUTRAL), prevDay levels"
+    },
+    {
+      "iteration": 21,
+      "name": "fix_bleeders",
+      "win_rate": 44.1,
+      "raw_r": null,
+      "trades": 60,
+      "skipped": 0,
+      "status": "superseded",
+      "key_change": "Attempted to fix LONG-side bleeders, broke winners"
+    },
+    {
+      "iteration": 22,
+      "name": "classification_first",
+      "win_rate": 38.3,
+      "raw_r": -2.50,
+      "trades": 60,
+      "skipped": 0,
+      "status": "failed",
+      "key_change": "Classification-first (Situation A/B/C) — rigid rules hurt performance"
+    },
+    {
+      "iteration": 23,
+      "name": "rule_based_classification",
+      "win_rate": 33.3,
+      "raw_r": -9.95,
+      "trades": 60,
+      "skipped": 0,
+      "status": "failed",
+      "key_change": "Rule-based classification fix — trending trades completely broken"
+    },
+    {
+      "iteration": 24,
+      "name": "statistical_edge",
+      "win_rate": 44.2,
+      "raw_r": 5.49,
+      "trades": 52,
+      "skipped": 8,
+      "status": "superseded",
+      "key_change": "Iter20 base + statistical edge patterns (A/B/C/D), NEUTRAL skip allowed"
+    },
+    {
+      "iteration": 25,
+      "name": "short_below_support_filter",
+      "win_rate": 37.5,
+      "raw_r": -2.00,
+      "trades": 47,
+      "skipped": 13,
+      "status": "superseded",
+      "key_change": "Added Filter A: no SHORT below support (pos < 0%). Inconsistent results — exposed missing indicator problem."
+    },
+    {
+      "iteration": 26,
+      "name": "swing_structure_filters",
+      "win_rate": 47.4,
+      "raw_r": 14.04,
+      "trades": 76,
+      "skipped": 24,
+      "scenarios": 100,
+      "status": "active",
+      "key_change": "Added Filter B: no SHORT into higher highs (HH diff > 1pip). Added swing data to results storage. 100-trade batch: +14.04R, LONG 59% WR is profit engine, TREND+DOWN SHORT (27% WR, -5.01R) is biggest bleeder."
+    },
+    {
+      "iteration": 27,
+      "name": "probabilistic_prompt_rewrite",
+      "win_rate": 27.3,
+      "raw_r": -7.01,
+      "trades": 22,
+      "skipped": 8,
+      "scenarios": 30,
+      "status": "failed",
+      "key_change": "Complete prompt rewrite: exhaustion awareness, session dynamics, EMA alignment, removed A/B/C/D patterns, removed all mechanical filters. FAILED: 27% WR — prompt teaching doesn't change model behavior, conviction inverted (HIGH=27%, LOW=40%), skipped 75% WR trades, TREND+DOWNTREND SHORT still 0/5."
+    },
+    {
+      "iteration": 28,
+      "name": "enriched_iter26",
+      "win_rate": 42.9,
+      "raw_r": 1.0,
+      "trades": 14,
+      "skipped": 6,
+      "scenarios": 20,
+      "status": "failed",
+      "key_change": "Iter26 base + Pattern E (exhaustion trap), EMA alignment, swing magnitude, session caution. Model labeled Edge E on 3/4 TREND+DT trades but still output BEARISH. LONG degraded 58%→0%. Prompt enrichment confirmed to be a dead end."
+    },
+    {
+      "iteration": 29,
+      "name": "two_agent_architecture",
+      "win_rate": 40.0,
+      "raw_r": 0.00,
+      "trades": 60,
+      "skipped": 10,
+      "scenarios": 70,
+      "status": "superseded",
+      "key_change": "Two-agent: Market Reader + Trade Executor. 70t definitive batch: 40% WR, +0.00R, 86% exec rate. Reader alignment bug + executor pattern binding issues identified. See ITER30_PLAN.md."
+    },
+    {
+      "iteration": 30,
+      "name": "reader_fixes_filter_c",
+      "win_rate": 57.7,
+      "raw_r": 11.50,
+      "trades": 26,
+      "skipped": 4,
+      "scenarios": 30,
+      "status": "active",
+      "key_change": "Run 2: 57.7% WR, +11.50R (26 exec, 4 skip, 30t) — best since Iter26. Reader alignment fix, regime respect, executor pattern binding, position awareness, swing guard, Filter C. RSI tested in Runs 3-4: no predictive value on 5m/14-period (83% neutral, 0/18 losses warned), reverted."
     }
   ],
   "key_features": [
     "Market order entry (not limit)",
-    "1.0+ ATR minimum stop distance",
-    "Entry location quality check",
-    "Trend strength detection first",
-    "Position fading only in confirmed ranges"
+    "Two-agent: Market Reader (pure analysis) + Trade Executor (decision)",
+    "Pre-computed EMA_VS_STRUCTURE and swingCombo fields for both agents",
+    "Edge patterns A/B/C/D with binding rule (pattern dictates direction)",
+    "Position awareness + swing structure guard in executor",
+    "Mechanical Filter A: no SHORT below support (pos < 0%)",
+    "Mechanical Filter B: no SHORT into higher highs (HH diff > 1 pip)",
+    "Mechanical Filter C: no SHORT in TREND+DOWNTREND (mechanical mismatch)",
+    "Previous day high/low for false break detection",
+    "Mechanical levels: SL=1.2xATR_30m, TP=1.5:1 R:R, Risk=0.50"
   ],
   "files": [
-    "direction_agent.js",
-    "confidence_agent.js",
-    "levels_agent.js",
+    "market_reader.js",
+    "trade_executor.js",
     "orchestrator.js",
     "ai_client.js"
   ],

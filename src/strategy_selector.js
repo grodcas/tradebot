@@ -45,7 +45,7 @@ function validateDecision(dec, fallbackEntry) {
     ? `Dir: ${dec.reasoning.direction?.slice(0, 50)} | Conf: ${dec.reasoning.confidence?.slice(0, 50)}`
     : dec.reasoning || "";
 
-  return { side: dec.side, entry, tp, sl, risk: FIXED_RISK, reasoning, riskReward: dec.riskReward };
+  return { side: dec.side, entry, tp, sl, risk: FIXED_RISK, reasoning, riskReward: dec.riskReward, agentOutputs: dec.agentOutputs };
 }
 
 /**
@@ -109,6 +109,9 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
     structureSwings,
     prevDayHigh,
     prevDayLow,
+    // Wait mechanism
+    mustTrade,
+    waitCount,
   });
 
   // Format for compatibility with existing system
@@ -120,7 +123,8 @@ async function callStrategyTradeDecision({ context, indicators, currentBar, wait
       sl: currentPrice - atr5m,
       tp: currentPrice + atr5m,
       risk: 0,
-      reasoning: result.reason
+      reasoning: result.reason,
+      agentOutputs: result.agentOutputs
     };
   }
 
